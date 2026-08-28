@@ -1,0 +1,79 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.75);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.25);
+  --radius-xl: calc(var(--radius) * 1.5);
+}
+
+:root {
+  --background: #f6f9fc;
+  --foreground: #102033;
+  --card: #ffffff;
+  --card-foreground: #102033;
+  --popover: #ffffff;
+  --popover-foreground: #102033;
+  --primary: #2f74ff;
+  --primary-foreground: #ffffff;
+  --secondary: #f9fbfd;
+  --secondary-foreground: #102033;
+  --muted: #f1f5f9;
+  --muted-foreground: #6f8092;
+  --accent: #eaf3ff;
+  --accent-foreground: #1856c9;
+  --destructive: #f04444;
+  --border: #dce5ee;
+  --input: #dce5ee;
+  --ring: #53b8ff;
+  --cyan: #53b8ff;
+  --success: #1db978;
+  --warning: #f5a623;
+  --high-risk: #e97818;
+  --critical: #f04444;
+  --offline: #8796a5;
+  --ai: #6d5ce7;
+  --ai-surface: #f1f0ff;
+  --map-water: #dcefff;
+  --map-land: #f8fbfd;
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
