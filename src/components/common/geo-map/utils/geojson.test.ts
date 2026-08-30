@@ -24,6 +24,7 @@ const markers = [
     detail: "Simulated current",
     tone: "current" as const,
     position: { longitude: 105, latitude: 6 },
+    metadata: { mode: "Road", status: "In transit" },
   },
 ];
 
@@ -41,7 +42,12 @@ describe("geo map conversion", () => {
     });
     expect(markersToFeatureCollection(markers).features[0]).toMatchObject({
       geometry: { type: "Point", coordinates: [105, 6] },
-      properties: { id: "vehicle", tone: "current" },
+      properties: {
+        id: "vehicle",
+        tone: "current",
+        mode: "Road",
+        status: "In transit",
+      },
     });
   });
 

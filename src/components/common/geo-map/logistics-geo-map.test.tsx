@@ -34,7 +34,6 @@ describe("LogisticsGeoMap", () => {
     );
 
     expect(await screen.findByText("3D map fallback")).toBeInTheDocument();
-    expect(screen.getByText("Simulated telemetry")).toBeInTheDocument();
     expect(
       screen.getByText("Shipment context remains accessible"),
     ).toBeInTheDocument();

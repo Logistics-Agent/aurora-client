@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CircleAlert } from "lucide-react";
 import {
   AiInsight,
-  LogisticsMap,
+  LogisticsGeoMap,
   MetricCard,
   RealtimeStatus,
   RiskBadge,
@@ -16,7 +16,7 @@ import { commandExceptions, commandKpis, commandMapMock } from "./mock";
 
 export function CommandCenterPage() {
   const [acknowledged, setAcknowledged] = useState<string[]>([]);
-  const [selectedMarkerId, setSelectedMarkerId] = useState("command-shp-128");
+  const [selectedMarkerId, setSelectedMarkerId] = useState("");
 
   return (
     <>
@@ -38,7 +38,7 @@ export function CommandCenterPage() {
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.5fr_0.8fr]">
         <WorkspaceCard title="Network overview">
-          <LogisticsMap
+          <LogisticsGeoMap
             routes={commandMapMock.routes}
             markers={commandMapMock.markers}
             selectedMarkerId={selectedMarkerId}
@@ -47,7 +47,7 @@ export function CommandCenterPage() {
             <div className="absolute right-4 top-4 z-30 rounded-full bg-white/90 p-1 shadow-sm">
               <RealtimeStatus state="live" />
             </div>
-          </LogisticsMap>
+          </LogisticsGeoMap>
         </WorkspaceCard>
         <WorkspaceCard title="Exceptions first">
           <div className="space-y-3">
@@ -55,7 +55,6 @@ export function CommandCenterPage() {
               <div
                 className={`rounded-lg border p-3 ${acknowledged.includes(item.id) ? "border-success/30 bg-emerald-50/40" : "border-border"}`}
                 key={item.id}
-                onMouseEnter={() => setSelectedMarkerId(item.markerId)}
               >
                 <div className="flex items-start gap-3">
                   <CircleAlert className="mt-0.5 size-4 text-critical" />

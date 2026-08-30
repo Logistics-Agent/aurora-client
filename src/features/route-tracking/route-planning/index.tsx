@@ -124,7 +124,7 @@ export function RoutePlanningPage() {
             </div>
           ) : (
             <LogisticsGeoMap
-              className="min-h-[32rem]"
+              className="h-[32rem]"
               routes={routePlanningMapMock.routes}
               markers={routePlanningMapMock.markers}
               selectedRouteId={selectedRouteId}

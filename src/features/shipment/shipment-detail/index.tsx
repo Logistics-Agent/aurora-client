@@ -12,6 +12,7 @@ import {
 } from "@/components/common";
 import { PageHeader } from "@/components/layout";
 import { shipmentDetailMapMock, shipmentGpsMock } from "../mock";
+import { ShipmentNotificationSubscription } from "./components/shipment-notification-subscription";
 
 const DETAIL_TABS = [
   "overview",
@@ -24,9 +25,7 @@ type DetailTab = (typeof DETAIL_TABS)[number];
 
 export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
   const [tab, setTab] = useState<DetailTab>("overview");
-  const [selectedMarkerId, setSelectedMarkerId] = useState(
-    "shipment-current-gps",
-  );
+  const [selectedMarkerId, setSelectedMarkerId] = useState("");
 
   return (
     <>
@@ -38,6 +37,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
           <>
             <StatusBadge label="In Transit" intent="info" />
             <RiskBadge level="medium" />
+            <ShipmentNotificationSubscription shipmentId={shipmentId} />
           </>
         }
       />
@@ -71,6 +71,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
         {tab === "route" && (
           <div className="mt-5 grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
             <LogisticsGeoMap
+              className="h-80"
               routes={shipmentDetailMapMock.routes}
               markers={shipmentDetailMapMock.markers}
               selectedMarkerId={selectedMarkerId}

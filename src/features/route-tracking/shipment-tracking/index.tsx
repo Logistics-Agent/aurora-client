@@ -136,7 +136,7 @@ export function ShipmentTrackingPage({
           <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
             <WorkspaceCard>
               <LogisticsGeoMap
-                className="min-h-[32rem]"
+                className="h-[32rem]"
                 routes={routes}
                 markers={mapMarkers}
                 selectedMarkerId={selectedMarkerId}

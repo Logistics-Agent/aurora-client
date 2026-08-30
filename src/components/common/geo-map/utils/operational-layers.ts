@@ -14,6 +14,29 @@ const ROUTE_SOURCE_ID = "aurora-operational-routes";
 const MARKER_SOURCE_ID = "aurora-operational-markers";
 const BUILDING_LAYER_ID = "aurora-3d-buildings";
 
+export function setBuildingLayersVisibility(
+  map: MapLibreMap,
+  visible: boolean,
+) {
+  const buildingLayerIds = new Set(
+    (map.getStyle().layers ?? [])
+      .filter((layer) => {
+        const sourceLayer =
+          "source-layer" in layer ? layer["source-layer"] : undefined;
+        return (
+          layer.id === BUILDING_LAYER_ID ||
+          sourceLayer === "building" ||
+          sourceLayer === "building:part"
+        );
+      })
+      .map((layer) => layer.id),
+  );
+
+  buildingLayerIds.forEach((layerId) => {
+    map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+  });
+}
+
 const routePaint: Record<
   LogisticsGeoRouteKind,
   { color: string; width: number; dash?: number[] }
@@ -71,6 +94,16 @@ export function syncOperationalLayers(
       source: MARKER_SOURCE_ID,
       paint: {
         "circle-radius": ["case", ["==", ["get", "tone"], "current"], 9, 7],
+        "circle-opacity": [
+          "case",
+          [
+            "all",
+            ["!=", ["get", "mode"], ""],
+            ["!=", ["get", "status"], ""],
+          ],
+          0,
+          1,
+        ],
         "circle-color": [
           "match",
           ["get", "tone"],

@@ -1,6 +1,6 @@
 import type {
-  LogisticsMapMarker,
-  LogisticsMapRoute,
+  LogisticsGeoMarker,
+  LogisticsGeoRoute,
 } from "@/components/common";
 
 export type CommandKpi = {
@@ -63,21 +63,28 @@ export const commandExceptions: CommandExceptionMock[] = [
 
 // UI-only fixture until backend integration phase.
 export const commandMapMock: {
-  routes: LogisticsMapRoute[];
-  markers: LogisticsMapMarker[];
+  routes: LogisticsGeoRoute[];
+  markers: LogisticsGeoMarker[];
 } = {
   routes: [
     {
       id: "network-main",
       label: "HCM to Singapore network lane",
-      path: "M80 350 C220 250 320 275 445 196 S620 115 720 78",
       kind: "current",
+      coordinates: [
+        { longitude: 106.7, latitude: 10.77 },
+        { longitude: 105.2, latitude: 7.0 },
+        { longitude: 103.82, latitude: 1.29 },
+      ],
     },
     {
       id: "network-risk",
       label: "At-risk northern lane",
-      path: "M115 120 C260 160 390 100 660 170",
       kind: "risk",
+      coordinates: [
+        { longitude: 105.85, latitude: 21.03 },
+        { longitude: 106.7, latitude: 10.77 },
+      ],
     },
   ],
   markers: [
@@ -86,27 +93,24 @@ export const commandMapMock: {
       label: "SHP-2026-00128",
       detail: "Port congestion · medium risk",
       shipmentId: "SHP-2026-00128",
-      x: 55,
-      y: 45,
       tone: "current",
+      position: { longitude: 105.2, latitude: 7.0 },
     },
     {
       id: "command-shp-127",
       label: "SHP-2026-00127",
       detail: "Route deviation · high risk",
       shipmentId: "SHP-2026-00127",
-      x: 72,
-      y: 34,
       tone: "alert",
+      position: { longitude: 106.7, latitude: 10.77 },
     },
     {
       id: "command-shp-125",
       label: "SHP-2026-00125",
       detail: "Document release blocked",
       shipmentId: "SHP-2026-00125",
-      x: 28,
-      y: 58,
       tone: "alert",
+      position: { longitude: 103.82, latitude: 1.29 },
     },
   ],
 };
