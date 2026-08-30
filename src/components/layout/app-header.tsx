@@ -1,11 +1,16 @@
 "use client";
 
-import { Bell, Command, HelpCircle, Search, Sparkles } from "lucide-react";
+import { Command, HelpCircle, LogOut, Search, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { RealtimeStatus } from "@/components/common";
+import { Button } from "@/components/ui/button";
+import { useAuthLogout } from "@/hooks/mutations/auth/use-auth-logout";
+import { NotificationBell } from "./notification-bell";
 
 export function AppHeader() {
+  const logoutMutation = useAuthLogout();
+
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 sm:px-6">
       <div className="relative min-w-0 max-w-xl flex-1">
@@ -24,15 +29,23 @@ export function AppHeader() {
           <Sparkles className="size-3.5" />
           AI · 3 processing
         </span>
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="relative text-muted-foreground hover:text-foreground"
-        >
-          <Bell className="size-5" />
-          <span className="absolute -right-1 -top-1 size-2 rounded-full bg-critical" />
-        </button>
+        <NotificationBell />
         <HelpCircle className="hidden size-5 text-muted-foreground sm:block" />
+        {logoutMutation.isError && (
+          <span className="sr-only" role="alert">
+            Unable to sign out while browser notification cleanup is pending.
+          </span>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Sign out"
+          disabled={logoutMutation.isPending}
+          onClick={() => logoutMutation.mutate()}
+        >
+          <LogOut className="size-4" />
+        </Button>
         <Avatar className="size-9">
           <AvatarFallback className="bg-primary text-xs font-semibold text-white">
             AN
