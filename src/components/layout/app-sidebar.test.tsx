@@ -36,8 +36,10 @@ describe("AppSidebar", () => {
     expect(
       within(sidebar).getByRole("link", { name: "Overview" }).firstElementChild,
     ).toHaveClass("size-8", "shrink-0");
-    expect(
-      within(sidebar).getByRole("button", { name: "Notifications" }),
-    ).toBeInTheDocument();
+    const notificationLink = within(sidebar).getByRole("link", {
+      name: "Notifications",
+    });
+    expect(notificationLink).toHaveAttribute("href", "/notifications");
+    expect(notificationLink).toHaveClass("w-full", "h-10");
   });
 });

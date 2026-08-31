@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HelpCircle, LogOut } from "lucide-react";
+import { Bell, HelpCircle, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { RealtimeStatus } from "@/components/common";
 import { useAuthLogout } from "@/hooks/mutations/auth/use-auth-logout";
 import type { NavigationItem } from "@/configs/navigation.config";
-import { NotificationBell } from "./notification-bell";
+
+const sidebarItemClassName =
+  "flex h-10 items-center justify-center gap-0 rounded-lg text-sm font-medium group-hover/sidebar:!justify-start";
 
 type WorkspaceSidebarProps = {
   navigation: readonly NavigationItem[];
@@ -68,7 +70,7 @@ export function WorkspaceSidebar({
               href={href}
               title={label}
               aria-current={active ? "page" : undefined}
-              className={`flex h-10 items-center justify-center gap-0 rounded-lg px-2 text-sm font-medium transition-[background-color,color] group-hover/sidebar:justify-start ${active ? "bg-blue-50 text-primary" : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"}`}
+              className={`${sidebarItemClassName} transition-[background-color,color] ${active ? "bg-blue-50 text-primary" : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"}`}
             >
               <span className="flex size-8 shrink-0 items-center justify-center">
                 <Icon className="size-4" />
@@ -89,19 +91,23 @@ export function WorkspaceSidebar({
         )}
         <div className="space-y-1">
           {showNotifications && (
-            <div className="flex h-10 items-center justify-center gap-0 px-2 group-hover/sidebar:justify-start">
+            <Link
+              href="/notifications"
+              title="Notifications"
+              className={`${sidebarItemClassName} w-full text-muted-foreground hover:bg-slate-50 hover:text-foreground`}
+            >
               <span className="flex size-8 shrink-0 items-center justify-center">
-                <NotificationBell />
+                <Bell className="size-4" />
               </span>
-              <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-sm text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100">
+              <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100">
                 Notifications
               </span>
-            </div>
+            </Link>
           )}
           <Button
             type="button"
             variant="ghost"
-            className="w-full justify-center gap-0 px-2 text-muted-foreground group-hover/sidebar:justify-start"
+            className={`${sidebarItemClassName} w-full text-muted-foreground hover:bg-slate-50 hover:text-foreground`}
             aria-label="Help"
           >
             <span className="flex size-8 shrink-0 items-center justify-center">
@@ -114,7 +120,7 @@ export function WorkspaceSidebar({
           <Button
             type="button"
             variant="ghost"
-            className="w-full justify-center gap-0 px-2 text-muted-foreground group-hover/sidebar:justify-start"
+            className={`${sidebarItemClassName} w-full text-muted-foreground hover:bg-slate-50 hover:text-foreground`}
             aria-label="Sign out"
             disabled={logoutMutation.isPending}
             onClick={() => logoutMutation.mutate()}

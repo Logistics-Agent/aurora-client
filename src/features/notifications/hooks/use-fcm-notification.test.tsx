@@ -142,6 +142,37 @@ describe("useFcmNotification", () => {
     );
   });
 
+  it("reports the Firebase reason when token creation fails", async () => {
+    mockGetToken.mockRejectedValue(new Error("messaging/invalid-vapid-key"));
+    const { result } = renderHook(() => useFcmNotification(), { wrapper });
+
+    await act(async () => {
+      await result.current.enable();
+    });
+
+    expect(result.current.state).toBe("error");
+    expect(result.current.fcmToken).toBeNull();
+    expect(result.current.errorMessage).toBe(
+      "Firebase could not create a browser token: messaging/invalid-vapid-key",
+    );
+  });
+
+  it("exposes the Firebase token when backend registration fails", async () => {
+    const registrationError = new Error("Unauthorized");
+    mockRegisterDevice.mockRejectedValue(registrationError);
+    const { result } = renderHook(() => useFcmNotification(), { wrapper });
+
+    await act(async () => {
+      await result.current.enable();
+    });
+
+    expect(result.current.state).toBe("error");
+    expect(result.current.fcmToken).toBe("browser-token");
+    expect(result.current.errorMessage).toBe(
+      "Notification API could not be reached. Check the BFF URL and local HTTPS certificate.",
+    );
+  });
+
   it("shares one in-flight registration across repeated enable calls", async () => {
     let resolveToken: ((token: string) => void) | undefined;
     mockGetToken.mockReturnValue(

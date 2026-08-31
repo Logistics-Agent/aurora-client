@@ -1,7 +1,7 @@
 "use client";
 
 import { onMessage } from "firebase/messaging";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { notificationsKeys } from "@/api/query-keys/notifications.keys";
@@ -10,6 +10,7 @@ import { useFcmNotification } from "../../hooks/use-fcm-notification";
 import {
   getFirebaseMessaging,
 } from "../../lib/firebase-client";
+import { readNotificationDeviceId } from "../../lib/device-storage";
 import { readFcmPayload } from "../../utils/fcm-payload";
 import { showNotificationToast } from "../lib/notification-toast";
 
@@ -17,6 +18,11 @@ export function NotificationFcmBootstrap(): React.JSX.Element | null {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { refreshToken } = useFcmNotification();
+  const refreshTokenRef = useRef(refreshToken);
+
+  useEffect(() => {
+    refreshTokenRef.current = refreshToken;
+  }, [refreshToken]);
 
   useEffect(() => {
     let active = true;
@@ -28,7 +34,9 @@ export function NotificationFcmBootstrap(): React.JSX.Element | null {
 
       if (window.Notification?.permission !== "granted") return;
 
-      if (refreshTokenFirst) await refreshToken();
+      if (refreshTokenFirst && readNotificationDeviceId()) {
+        await refreshTokenRef.current();
+      }
 
       const messaging = await getFirebaseMessaging();
       if (!active || !messaging || messagingInitialized) return;
@@ -63,7 +71,7 @@ export function NotificationFcmBootstrap(): React.JSX.Element | null {
       );
       unsubscribe();
     };
-  }, [queryClient, refreshToken, router]);
+  }, [queryClient, router]);
 
   return null;
 }

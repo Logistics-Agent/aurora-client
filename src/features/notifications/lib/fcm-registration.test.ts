@@ -79,4 +79,68 @@ describe("registerFcmDevice", () => {
     ).resolves.toEqual({ status: "empty-token" });
     expect(registerDevice).not.toHaveBeenCalled();
   });
+
+  it("returns the Firebase error when token creation fails", async () => {
+    const firebaseError = new Error("messaging/invalid-vapid-key");
+    mockIsFcmSupported.mockResolvedValue(true);
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+    mockRegisterFirebaseServiceWorker.mockResolvedValue({ scope: "/" });
+    mockGetToken.mockRejectedValue(firebaseError);
+    const registerDevice = vi.fn();
+
+    await expect(
+      registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }),
+    ).resolves.toEqual({ status: "firebase-error", error: firebaseError });
+    expect(registerDevice).not.toHaveBeenCalled();
+  });
+
+  it("keeps the generated token when backend device registration fails", async () => {
+    const registrationError = new Error("Unauthorized");
+    mockIsFcmSupported.mockResolvedValue(true);
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+    mockRegisterFirebaseServiceWorker.mockResolvedValue({ scope: "/" });
+    mockGetToken.mockResolvedValue("browser-token");
+    const registerDevice = vi.fn().mockRejectedValue(registrationError);
+
+    await expect(
+      registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }),
+    ).resolves.toEqual({
+      status: "registration-failed",
+      token: "browser-token",
+      error: registrationError,
+    });
+  });
+
+  it("returns a timeout result when Firebase never settles the token request", async () => {
+    mockIsFcmSupported.mockResolvedValue(true);
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+    mockRegisterFirebaseServiceWorker.mockResolvedValue({ scope: "/" });
+    mockGetToken.mockReturnValue(new Promise(() => undefined));
+    const registerDevice = vi.fn();
+    const settled = vi.fn();
+
+    vi.useFakeTimers();
+    try {
+      void registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }).then(settled);
+
+      await vi.advanceTimersByTimeAsync(15_000);
+
+      expect(settled).toHaveBeenCalledWith({ status: "timeout" });
+      expect(registerDevice).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

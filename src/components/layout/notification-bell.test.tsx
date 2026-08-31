@@ -58,4 +58,17 @@ describe("NotificationBell", () => {
     expect(screen.getByText("No notifications yet!")).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
   });
+
+  it("makes the expanded notification label part of the trigger", async () => {
+    const user = userEvent.setup();
+
+    render(<NotificationBell showLabel />);
+
+    const label = screen.getByText("Notifications");
+    expect(label.closest("button")).toBeInTheDocument();
+
+    await user.click(label);
+
+    expect(screen.getByRole("dialog", { name: "Notifications" })).toBeInTheDocument();
+  });
 });

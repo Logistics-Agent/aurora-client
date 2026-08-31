@@ -8,6 +8,10 @@ import { FCM_REGISTRATION_CHANGED_EVENT } from "../../constants";
 const mockGetFirebaseMessaging = vi.fn();
 const mockOnMessage = vi.fn();
 const mockRefreshToken = vi.fn();
+const mockRefreshTokenSource = vi.hoisted(() => ({
+  current: vi.fn(),
+}));
+const mockRouter = vi.hoisted(() => ({ push: vi.fn() }));
 const mockInvalidateQueries = vi.fn();
 const mockToast = vi.hoisted(() => vi.fn());
 let messageHandler:
@@ -19,7 +23,9 @@ vi.mock("@/features/notifications/lib/firebase-client", () => ({
 }));
 
 vi.mock("@/features/notifications/hooks/use-fcm-notification", () => ({
-  useFcmNotification: () => ({ refreshToken: mockRefreshToken }),
+  useFcmNotification: () => ({
+    refreshToken: mockRefreshTokenSource.current,
+  }),
 }));
 
 vi.mock("firebase/messaging", () => ({
@@ -33,7 +39,7 @@ vi.mock("firebase/messaging", () => ({
 vi.mock("sonner", () => ({ toast: mockToast }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => mockRouter,
 }));
 
 function renderBootstrap() {
@@ -56,6 +62,7 @@ describe("NotificationFcmBootstrap", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRefreshTokenSource.current = mockRefreshToken;
     messageHandler = undefined;
     Object.defineProperty(window, "Notification", {
       configurable: true,
@@ -123,5 +130,54 @@ describe("NotificationFcmBootstrap", () => {
 
     expect(mockToast).toHaveBeenCalledTimes(1);
     expect(queryClient.invalidateQueries).toHaveBeenCalled();
+  });
+
+  it("does not register a new device automatically when no device is stored", async () => {
+    Object.defineProperty(window, "Notification", {
+      configurable: true,
+      value: { permission: "granted" },
+    });
+    window.localStorage.clear();
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+
+    renderBootstrap();
+
+    await waitFor(() => expect(mockOnMessage).toHaveBeenCalledTimes(1));
+    expect(mockRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it("does not restart token registration when the hook callback identity changes", async () => {
+    Object.defineProperty(window, "Notification", {
+      configurable: true,
+      value: { permission: "granted" },
+    });
+
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+    window.localStorage.setItem("aurora.notification.deviceId", "device-1");
+    const firstRefreshToken = vi.fn().mockResolvedValue(undefined);
+    mockRefreshTokenSource.current = firstRefreshToken;
+
+    const queryClient = new QueryClient();
+    vi.spyOn(queryClient, "invalidateQueries").mockImplementation(
+      mockInvalidateQueries,
+    );
+    const view = render(
+      <QueryClientProvider client={queryClient}>
+        <NotificationFcmBootstrap />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(firstRefreshToken).toHaveBeenCalledTimes(1));
+
+    const secondRefreshToken = vi.fn().mockResolvedValue(undefined);
+    mockRefreshTokenSource.current = secondRefreshToken;
+    view.rerender(
+      <QueryClientProvider client={queryClient}>
+        <NotificationFcmBootstrap />
+      </QueryClientProvider>,
+    );
+
+    await Promise.resolve();
+    expect(secondRefreshToken).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,7 @@ import type { FcmRegistrationState } from "../types/fcm.types";
 export type UseFcmNotificationResult = {
   state: FcmRegistrationState;
   errorMessage: string | null;
+  fcmToken: string | null;
   deviceId: string | null;
   enable: () => Promise<void>;
   refreshToken: () => Promise<void>;
@@ -27,11 +28,27 @@ let inFlightRegistration: Promise<void> | null = null;
 
 function safeErrorMessage(error: unknown): string {
   const apiError = toApiError(error);
+  if (apiError.status === 0) {
+    return "Notification API could not be reached. Check the BFF URL and local HTTPS certificate.";
+  }
+  if (apiError.status === 401) {
+    return "Sign in before enabling browser notifications.";
+  }
+  if (apiError.status === 403) {
+    return "Your account does not have permission to register browser notifications.";
+  }
   if (apiError.status === 409) {
     return "This browser device is already registered to another account.";
   }
 
   return "Unable to register browser notifications. Please try again.";
+}
+
+function firebaseErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return message
+    ? `Firebase could not create a browser token: ${message}`
+    : "Firebase could not create a browser token. Check the Firebase Web Push configuration.";
 }
 
 export function useFcmNotification(): UseFcmNotificationResult {
@@ -40,6 +57,7 @@ export function useFcmNotification(): UseFcmNotificationResult {
     env.firebase.enabled ? "idle" : "disabled",
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
   const [registeredDevice, setRegisteredDevice] = useState<string | null>(null);
   const storedDeviceId = readNotificationDeviceId();
   const deviceId = registeredDevice ?? storedDeviceId;
@@ -63,6 +81,7 @@ export function useFcmNotification(): UseFcmNotificationResult {
 
     setState("registering");
     setErrorMessage(null);
+    setFcmToken(null);
 
     try {
       const registration = await registerFcmDevice({
@@ -82,10 +101,32 @@ export function useFcmNotification(): UseFcmNotificationResult {
         return;
       }
 
+      if (registration.status === "firebase-error") {
+        setState("error");
+        setErrorMessage(firebaseErrorMessage(registration.error));
+        return;
+      }
+
+      if (registration.status === "timeout") {
+        setState("error");
+        setErrorMessage(
+          "Firebase token request timed out. Check the browser console and Firebase Web Push configuration.",
+        );
+        return;
+      }
+
+      if (registration.status === "registration-failed") {
+        setState("error");
+        setFcmToken(registration.token);
+        setErrorMessage(safeErrorMessage(registration.error));
+        return;
+      }
+
       const device = registration.device;
 
       writeNotificationDeviceId(device.id);
       setRegisteredDevice(device.id);
+      setFcmToken(null);
       setState("enabled");
       window.dispatchEvent(new Event(FCM_REGISTRATION_CHANGED_EVENT));
     } catch (error) {
@@ -144,6 +185,7 @@ export function useFcmNotification(): UseFcmNotificationResult {
       setRegisteredDevice(null);
       setState("idle");
       setErrorMessage(null);
+      setFcmToken(null);
       return true;
     } catch (error) {
       if (toApiError(error).status === 404) {
@@ -162,6 +204,7 @@ export function useFcmNotification(): UseFcmNotificationResult {
   return {
     state,
     errorMessage,
+    fcmToken,
     deviceId,
     enable,
     refreshToken,

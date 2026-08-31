@@ -6,12 +6,14 @@ import { FcmPermissionControl } from "./fcm-permission-control";
 const mockEnable = vi.fn();
 const mockDisable = vi.fn();
 let mockState: "idle" | "enabled" | "denied" | "error" = "idle";
+let mockFcmToken: string | null = null;
 
 vi.mock("../hooks/use-fcm-notification", () => ({
   useFcmNotification: () => ({
     state: mockState,
     errorMessage:
       mockState === "error" ? "Unable to enable browser notifications." : null,
+    fcmToken: mockFcmToken,
     enable: mockEnable,
     disable: mockDisable,
     deviceId: null,
@@ -44,6 +46,7 @@ describe("FcmPermissionControl", () => {
     );
     expect(mockDisable).toHaveBeenCalledTimes(1);
     mockState = "idle";
+    mockFcmToken = null;
   });
 
   it("shows a safe error without exposing provider details", () => {
@@ -55,5 +58,17 @@ describe("FcmPermissionControl", () => {
     );
     expect(screen.queryByText(/token|private|firebase/i)).not.toBeInTheDocument();
     mockState = "idle";
+  });
+
+  it("shows a development token when backend registration fails after token creation", () => {
+    mockState = "error";
+    mockFcmToken = "browser-token-for-local-grpc";
+    render(<FcmPermissionControl />);
+
+    expect(screen.getByTestId("fcm-token")).toHaveTextContent(
+      "browser-token-for-local-grpc",
+    );
+    mockState = "idle";
+    mockFcmToken = null;
   });
 });
