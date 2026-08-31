@@ -26,7 +26,7 @@ và các KPI như Active shipments, Exceptions, On-time rate và AI processing.
 
 ### Code và dữ liệu
 
-- Route adapter: `src/app/(dashboard)/overview/page.tsx`
+- Route adapter: `src/app/(staff)/overview/page.tsx`
 - Page composition: `src/features/command-center/index.tsx`
 - Fixture: `src/features/command-center/mock/index.ts`
 - Map: `LogisticsGeoMap`
@@ -64,7 +64,7 @@ chọn shipment hoặc chọn marker trên map.
 
 ### Code và dữ liệu
 
-- Route adapter: `src/app/(dashboard)/live-map/page.tsx`
+- Route adapter: `src/app/(staff)/live-map/page.tsx`
 - Page composition: `src/features/route-tracking/live-map/index.tsx`
 - Fixture: `src/features/route-tracking/live-map/mock/index.ts`
 - Realtime presentation: `src/features/route-tracking/live-map/utils/realtime-fixture.ts`
@@ -108,7 +108,7 @@ xe hoặc cập nhật shipment thật.
 
 ### Code và dữ liệu
 
-- Route adapter: `src/app/(dashboard)/route-planning/page.tsx`
+- Route adapter: `src/app/(staff)/route-planning/page.tsx`
 - Page composition: `src/features/route-tracking/route-planning/index.tsx`
 - Fixture: `src/features/route-tracking/route-planning/mock/index.ts`
 - Client state: `src/features/route-tracking/route-planning/stores/use-route-planning-store.ts`

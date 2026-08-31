@@ -65,7 +65,7 @@ user.role === "MANAGER"
 | --- | --- | --- | --- |
 | `(auth)` | Root layout | Người chưa đăng nhập hoặc đang xử lý session | Không có dashboard shell |
 | `(customer)` | `CustomerShell` | Customer portal | Shell tĩnh, chưa có customer auth model/guard đầy đủ |
-| `(dashboard)` | `AppShell` + `NotificationPopup` | Staff/manager/admin operations | Sidebar trái thu gọn, hover/focus để mở rộng; chưa có route guard theo capability |
+| `(staff)` | `AppShell` + `NotificationPopup` | Staff/manager/admin operations | Sidebar trái thu gọn, hover/focus để mở rộng; chưa có route guard theo capability |
 
 ## 1. Auth pages — `(auth)`
 
@@ -101,7 +101,7 @@ Customer tracking hiện còn dùng `LogisticsMap` SVG/CSS thay vì
 `LogisticsGeoMap`. Chi tiết map nằm trong
 [MAP_PAGES.md](./MAP_PAGES.md).
 
-## 3. Dashboard pages — `(dashboard)`
+## 3. Staff operations pages — `(staff)`
 
 Tất cả route dưới đây đi qua `AppShell`. Các permission trong cột “mục tiêu”
 là permission cần dùng ở page/action level; hiện phần lớn chưa được FE enforce.

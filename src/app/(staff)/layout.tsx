@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/layout";
 import { NotificationPopup } from "@/features/notifications/popup";
 
-export default function DashboardLayout({
+export default function StaffLayout({
   children,
 }: {
   children: React.ReactNode;

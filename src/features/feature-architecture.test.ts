@@ -75,7 +75,7 @@ const rootCompositionIndexes = [
 ] as const;
 
 const dynamicRouteAdapters = [
-  "src/app/(dashboard)/shipments/[shipmentId]/tracking/page.tsx",
+  "src/app/(staff)/shipments/[shipmentId]/tracking/page.tsx",
   "src/app/(customer)/portal/shipments/[shipmentId]/page.tsx",
   "src/app/(customer)/portal/shipments/[shipmentId]/tracking/page.tsx",
 ] as const;
