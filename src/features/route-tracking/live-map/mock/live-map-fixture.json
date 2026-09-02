@@ -1,0 +1,322 @@
+{
+  "shipments": [
+    {
+      "id": "SHP-128",
+      "shipmentId": "SHP-2026-00128",
+      "status": "In transit",
+      "detail": "Acme · 15 kn · ETA 18:40",
+      "eta": "18:40",
+      "heading": 232,
+      "lastUpdated": "24 sec ago",
+      "speed": "15 kn",
+      "markerId": "shp-128",
+      "risk": "low",
+      "mode": "Ocean",
+      "customer": "Acme",
+      "region": "SEA",
+      "position": {
+        "longitude": 104.65,
+        "latitude": 3.1
+      }
+    },
+    {
+      "id": "SHP-129",
+      "shipmentId": "SHP-2026-00129",
+      "status": "Delayed",
+      "detail": "VietLink · 48 km/h · ETA 09:30",
+      "eta": "09:30",
+      "heading": 188,
+      "lastUpdated": "1 min ago",
+      "speed": "48 km/h",
+      "markerId": "shp-129",
+      "risk": "high",
+      "mode": "Road",
+      "customer": "VietLink",
+      "region": "SEA",
+      "position": {
+        "longitude": 101.6869,
+        "latitude": 3.139
+      }
+    },
+    {
+      "id": "SHP-130",
+      "shipmentId": "SHP-2026-00130",
+      "status": "At hub",
+      "detail": "SkyBridge · 0 km/h · ETA 14:15",
+      "eta": "14:15",
+      "heading": 0,
+      "lastUpdated": "32 sec ago",
+      "speed": "0 km/h",
+      "markerId": "shp-130",
+      "risk": "medium",
+      "mode": "Air",
+      "customer": "SkyBridge",
+      "region": "SEA",
+      "position": {
+        "longitude": 103.9915,
+        "latitude": 1.3644
+      }
+    },
+    {
+      "id": "SHP-131",
+      "shipmentId": "SHP-2026-00131",
+      "status": "In transit",
+      "detail": "Siam Maritime · 14 kn · ETA 22:10",
+      "eta": "22:10",
+      "heading": 174,
+      "lastUpdated": "18 sec ago",
+      "speed": "14 kn",
+      "markerId": "shp-131",
+      "risk": "low",
+      "mode": "Ocean",
+      "customer": "Siam Maritime",
+      "region": "SEA",
+      "position": {
+        "longitude": 101.85,
+        "latitude": 7.25
+      }
+    },
+    {
+      "id": "SHP-132",
+      "shipmentId": "SHP-2026-00132",
+      "status": "GPS stale",
+      "detail": "Nusantara Cargo · 12 kn · ETA 05:45",
+      "eta": "05:45",
+      "heading": 320,
+      "lastUpdated": "19 min ago",
+      "speed": "12 kn",
+      "markerId": "shp-132",
+      "risk": "critical",
+      "mode": "Ocean",
+      "customer": "Nusantara Cargo",
+      "region": "SEA",
+      "position": {
+        "longitude": 105.85,
+        "latitude": -3.0
+      }
+    },
+    {
+      "id": "SHP-133",
+      "shipmentId": "SHP-2026-00133",
+      "status": "In transit",
+      "detail": "Pacific Air Logistics · 735 km/h · ETA 20:20",
+      "eta": "20:20",
+      "heading": 222,
+      "lastUpdated": "11 sec ago",
+      "speed": "735 km/h",
+      "markerId": "shp-133",
+      "risk": "medium",
+      "mode": "Air",
+      "customer": "Pacific Air Logistics",
+      "region": "SEA",
+      "position": {
+        "longitude": 121.0198,
+        "latitude": 14.5086
+      }
+    },
+    {
+      "id": "SHP-134",
+      "shipmentId": "SHP-2026-00134",
+      "status": "Delayed",
+      "detail": "ASEAN Ground Freight · 36 km/h · ETA 07:50",
+      "eta": "07:50",
+      "heading": 190,
+      "lastUpdated": "2 min ago",
+      "speed": "36 km/h",
+      "markerId": "shp-134",
+      "risk": "high",
+      "mode": "Road",
+      "customer": "ASEAN Ground Freight",
+      "region": "SEA",
+      "position": {
+        "longitude": 100.5018,
+        "latitude": 13.7563
+      }
+    },
+    {
+      "id": "SHP-135",
+      "shipmentId": "SHP-2026-00135",
+      "status": "At hub",
+      "detail": "EastSea Logistics · 0 kn · ETA 11:25",
+      "eta": "11:25",
+      "heading": 0,
+      "lastUpdated": "45 sec ago",
+      "speed": "0 kn",
+      "markerId": "shp-135",
+      "risk": "low",
+      "mode": "Ocean",
+      "customer": "EastSea Logistics",
+      "region": "SEA",
+      "position": {
+        "longitude": 100.9,
+        "latitude": 12.65
+      }
+    }
+  ],
+  "routes": [
+    {
+      "id": "shp-128-route",
+      "label": "Cat Lai Port → Port Klang",
+      "shipmentId": "SHP-2026-00128",
+      "kind": "current",
+      "layer": "operations",
+      "coordinates": [
+        {
+          "longitude": 106.785,
+          "latitude": 10.756
+        },
+        {
+          "longitude": 104.65,
+          "latitude": 3.1
+        },
+        {
+          "longitude": 101.35,
+          "latitude": 3.0
+        }
+      ]
+    },
+    {
+      "id": "shp-129-route",
+      "label": "Cu Chi Logistics Hub → Kuala Lumpur Logistics Hub",
+      "shipmentId": "SHP-2026-00129",
+      "kind": "risk",
+      "layer": "traffic",
+      "coordinates": [
+        {
+          "longitude": 106.4933,
+          "latitude": 10.9733
+        },
+        {
+          "longitude": 104.9282,
+          "latitude": 11.5564
+        },
+        {
+          "longitude": 100.5018,
+          "latitude": 13.7563
+        },
+        {
+          "longitude": 101.6869,
+          "latitude": 3.139
+        }
+      ]
+    },
+    {
+      "id": "shp-130-route",
+      "label": "Noi Bai Cargo Terminal → Changi Airfreight Centre",
+      "shipmentId": "SHP-2026-00130",
+      "kind": "completed",
+      "layer": "operations",
+      "coordinates": [
+        {
+          "longitude": 105.8067,
+          "latitude": 21.2187
+        },
+        {
+          "longitude": 103.9915,
+          "latitude": 1.3644
+        }
+      ]
+    },
+    {
+      "id": "shp-131-route",
+      "label": "Laem Chabang Port → Port of Singapore",
+      "shipmentId": "SHP-2026-00131",
+      "kind": "current",
+      "layer": "operations",
+      "coordinates": [
+        {
+          "longitude": 100.9,
+          "latitude": 13.08
+        },
+        {
+          "longitude": 101.85,
+          "latitude": 7.25
+        },
+        {
+          "longitude": 103.75,
+          "latitude": 1.25
+        }
+      ]
+    },
+    {
+      "id": "shp-132-route",
+      "label": "Tanjung Priok Port → Port of Singapore",
+      "shipmentId": "SHP-2026-00132",
+      "kind": "risk",
+      "layer": "restrictions",
+      "coordinates": [
+        {
+          "longitude": 106.88,
+          "latitude": -6.1
+        },
+        {
+          "longitude": 105.85,
+          "latitude": -3.0
+        },
+        {
+          "longitude": 103.75,
+          "latitude": 1.25
+        }
+      ]
+    },
+    {
+      "id": "shp-133-route",
+      "label": "NAIA Cargo Terminal → Changi Airfreight Centre",
+      "shipmentId": "SHP-2026-00133",
+      "kind": "planned",
+      "layer": "operations",
+      "coordinates": [
+        {
+          "longitude": 121.0198,
+          "latitude": 14.5086
+        },
+        {
+          "longitude": 103.9915,
+          "latitude": 1.3644
+        }
+      ]
+    },
+    {
+      "id": "shp-134-route",
+      "label": "Bangkok Logistics Hub → Kuala Lumpur Logistics Hub",
+      "shipmentId": "SHP-2026-00134",
+      "kind": "alternative",
+      "layer": "traffic",
+      "coordinates": [
+        {
+          "longitude": 100.5018,
+          "latitude": 13.7563
+        },
+        {
+          "longitude": 100.474,
+          "latitude": 7.0084
+        },
+        {
+          "longitude": 101.6869,
+          "latitude": 3.139
+        }
+      ]
+    },
+    {
+      "id": "shp-135-route",
+      "label": "Hai Phong Port → Laem Chabang Port",
+      "shipmentId": "SHP-2026-00135",
+      "kind": "completed",
+      "layer": "operations",
+      "coordinates": [
+        {
+          "longitude": 106.774,
+          "latitude": 20.8449
+        },
+        {
+          "longitude": 108.1,
+          "latitude": 14.5
+        },
+        {
+          "longitude": 100.9,
+          "latitude": 12.65
+        }
+      ]
+    }
+  ]
+}

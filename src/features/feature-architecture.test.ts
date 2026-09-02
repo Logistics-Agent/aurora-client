@@ -75,7 +75,7 @@ const rootCompositionIndexes = [
 ] as const;
 
 const dynamicRouteAdapters = [
-  "src/app/(dashboard)/shipments/[shipmentId]/tracking/page.tsx",
+  "src/app/(staff)/shipments/[shipmentId]/tracking/page.tsx",
   "src/app/(customer)/portal/shipments/[shipmentId]/page.tsx",
   "src/app/(customer)/portal/shipments/[shipmentId]/tracking/page.tsx",
 ] as const;
@@ -96,8 +96,11 @@ function featurePath(relativePath: string) {
 describe("feature ownership architecture", () => {
   it("uses singular src/lib for shared infrastructure", () => {
     expect(existsSync(resolve(projectRoot, "src/libs"))).toBe(false);
-    expect(existsSync(resolve(projectRoot, "src/lib/query/index.ts"))).toBe(
+    expect(existsSync(resolve(projectRoot, "src/lib/query-client.ts"))).toBe(
       true,
+    );
+    expect(existsSync(resolve(projectRoot, "src/lib/query/index.ts"))).toBe(
+      false,
     );
   });
 

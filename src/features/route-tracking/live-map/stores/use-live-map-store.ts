@@ -14,8 +14,8 @@ type LiveMapState = {
 };
 
 export const useLiveMapStore = create<LiveMapState>((set) => ({
-  selectedShipmentId: "SHP-128",
-  selectedMarkerId: "shp-128",
+  selectedShipmentId: "",
+  selectedMarkerId: "",
   realtimeState: "live",
   mapAvailability: "available",
   selectShipment: (selectedShipmentId, selectedMarkerId) =>

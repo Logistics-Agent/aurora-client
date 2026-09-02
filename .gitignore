@@ -42,4 +42,6 @@ next-env.d.ts
 
 /logistics_control_tower_nextjs_feature_architecture_pack_v3
 /templates
-/docs
+/docs/*
+!/docs/
+!/docs/**

@@ -41,6 +41,8 @@ export function markersToFeatureCollection(markers: LogisticsGeoMarker[]) {
         tone: marker.tone,
         shipmentId: marker.shipmentId ?? "",
         heading: marker.heading ?? 0,
+        mode: marker.metadata?.mode ?? "",
+        status: marker.metadata?.status ?? "",
       },
     })),
   };

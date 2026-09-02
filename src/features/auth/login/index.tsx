@@ -5,13 +5,13 @@ import { useState } from "react";
 import { LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { authService } from "@/api/services/auth.service";
 import { AuthFrame } from "../components/auth-frame";
-import { authenticateMock } from "../mock";
 
 export function LoginPage() {
-  const [state, setState] = useState<
-    "default" | "loading" | "error" | "locked"
-  >("default");
+  const [state, setState] = useState<"default" | "loading" | "locked">(
+    "default",
+  );
 
   return (
     <AuthFrame
@@ -23,26 +23,11 @@ export function LoginPage() {
         onSubmit={(event) => {
           event.preventDefault();
           setState("loading");
-          window.setTimeout(
-            () =>
-              setState(
-                authenticateMock("ops@acmelogistics.com", "password") ===
-                  "success"
-                  ? "default"
-                  : "error",
-              ),
-            500,
+          window.location.assign(
+            authService.buildLoginRedirectUrl("/dashboard"),
           );
         }}
       >
-        {state === "error" && (
-          <div
-            role="alert"
-            className="border-l-4 border-critical bg-red-50 p-3 text-sm text-red-700"
-          >
-            Email or password is incorrect.
-          </div>
-        )}
         {state === "locked" && (
           <div
             role="alert"

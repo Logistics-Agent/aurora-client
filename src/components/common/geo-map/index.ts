@@ -3,6 +3,7 @@ export type {
   GeoMapAvailability,
   GeoPoint,
   LogisticsGeoMarker,
+  LogisticsGeoMarkerMetadata,
   LogisticsGeoRoute,
   LogisticsGeoRouteKind,
 } from "./types";

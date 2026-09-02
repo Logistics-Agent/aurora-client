@@ -89,6 +89,9 @@ export function SvgMapFallback({
       marker.position.latitude,
       bounds,
     ),
+    heading: marker.heading,
+    metadata: marker.metadata,
+    position: marker.position,
   }));
 
   return (

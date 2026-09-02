@@ -1,56 +1,77 @@
 "use client";
 
-import { useState } from "react";
-import { StatusBadge, WorkspaceCard } from "@/components/common";
+import { useRouter } from "next/navigation";
+import { WorkspaceCard } from "@/components/common";
 import { PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { markNotificationRead, notificationMocks } from "../mock";
+import { useNotificationsQuery } from "@/hooks/queries/notifications/use-notifications-query";
+import { useNotificationMutations } from "@/hooks/mutations/notifications/use-notification-mutations";
+import { safeNotificationPath } from "../utils/fcm-payload";
+import { FcmPermissionControl } from "../components/fcm-permission-control";
+import { NotificationEmptyState } from "../components/notification-empty-state";
+import { NotificationList } from "../components/notification-list";
 
 export function NotificationCenterPage() {
-  const [notifications, setNotifications] = useState(notificationMocks);
+  const router = useRouter();
+  const notificationsQuery = useNotificationsQuery(
+    { page: 1, pageSize: 20, unreadOnly: false },
+  );
+  const { markRead, markAllRead } = useNotificationMutations();
 
   return (
     <>
       <PageHeader
         title="Notification Center"
-        description="Persistent critical events grouped by time."
+        description="Persistent shipment and document events for your workspace."
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            disabled={markAllRead.isPending}
+            onClick={() => void markAllRead.mutateAsync()}
+          >
+            {markAllRead.isPending ? "Marking read…" : "Mark all read"}
+          </Button>
+        }
       />
       <WorkspaceCard>
-        <div className="space-y-3">
-          {notifications.map((notification) => (
-            <div
-              className="rounded-lg border border-border p-4"
-              key={notification.id}
-            >
-              <div className="flex justify-between gap-3">
-                <p className="font-semibold">{notification.title}</p>
-                <StatusBadge
-                  label={notification.read ? "Read" : "Unread"}
-                  intent={notification.read ? "neutral" : "critical"}
-                />
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {notification.body} · {notification.time}
+        <div className="space-y-5">
+          <FcmPermissionControl />
+          {notificationsQuery.isPending && (
+            <p className="text-sm text-muted-foreground">
+              Loading notifications…
+            </p>
+          )}
+          {notificationsQuery.isError && (
+            <div className="space-y-2" role="alert">
+              <p className="text-sm text-red-700">
+                Unable to load notifications.
               </p>
               <Button
+                type="button"
                 size="sm"
                 variant="outline"
-                className="mt-3"
-                disabled={notification.read}
-                onClick={() =>
-                  setNotifications((current) =>
-                    current.map((item) =>
-                      item.id === notification.id
-                        ? markNotificationRead(item)
-                        : item,
-                    ),
-                  )
-                }
+                onClick={() => void notificationsQuery.refetch()}
               >
-                {notification.read ? "Read" : "Mark read"}
+                Retry
               </Button>
             </div>
-          ))}
+          )}
+          {notificationsQuery.isSuccess &&
+            notificationsQuery.data.notifications.length === 0 && (
+              <NotificationEmptyState />
+            )}
+          {notificationsQuery.isSuccess &&
+            notificationsQuery.data.notifications.length > 0 && (
+              <NotificationList
+                notifications={notificationsQuery.data.notifications}
+                onMarkRead={(id) => void markRead.mutateAsync(id)}
+                onOpen={(actionUrl) => {
+                  const path = safeNotificationPath(actionUrl ?? undefined);
+                  if (path) router.push(path);
+                }}
+              />
+            )}
         </div>
       </WorkspaceCard>
     </>

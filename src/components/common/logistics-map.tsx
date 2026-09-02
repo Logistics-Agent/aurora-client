@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import type { LogisticsGeoMarkerMetadata } from "./geo-map/types";
+import { MarkerDetailsFields } from "./geo-map/components/marker-details-fields";
 
 export type LogisticsMapRouteKind =
   | "planned"
@@ -27,7 +29,7 @@ export type LogisticsMapRoute = {
   label: string;
   path: string;
   kind: LogisticsMapRouteKind;
-  layer?: "traffic" | "restrictions";
+  layer?: "operations" | "traffic" | "restrictions";
 };
 
 export type LogisticsMapMarker = {
@@ -38,6 +40,9 @@ export type LogisticsMapMarker = {
   y: number;
   tone: "origin" | "current" | "destination" | "alert";
   shipmentId?: string;
+  heading?: number;
+  metadata?: LogisticsGeoMarkerMetadata;
+  position?: { latitude: number; longitude: number };
 };
 
 const routeStyles: Record<
@@ -232,7 +237,7 @@ export function LogisticsMap({
 
         {selectedMarker && (
           <div
-            className="absolute z-20 w-52 -translate-x-1/2 rounded-lg border border-border bg-white p-3 shadow-lg"
+            className="absolute z-20 max-h-[calc(100%-1.5rem)] w-80 max-w-[calc(100%-1.5rem)] -translate-x-1/2 overflow-y-auto rounded-lg border border-border bg-white p-3 shadow-lg"
             style={{
               left: `${Math.min(78, Math.max(22, selectedMarker.x))}%`,
               top: `${Math.max(5, selectedMarker.y - 28)}%`,
@@ -242,6 +247,11 @@ export function LogisticsMap({
             <p className="mt-1 text-xs text-muted-foreground">
               {selectedMarker.detail}
             </p>
+            <MarkerDetailsFields
+              metadata={selectedMarker.metadata}
+              position={selectedMarker.position}
+              heading={selectedMarker.heading}
+            />
             {selectedMarker.shipmentId && (
               <p className="mt-2 text-xs font-medium text-primary">
                 {selectedMarker.shipmentId}

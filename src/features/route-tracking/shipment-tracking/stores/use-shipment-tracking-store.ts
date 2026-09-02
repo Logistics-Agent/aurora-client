@@ -17,7 +17,7 @@ type ShipmentTrackingState = {
 
 export const useShipmentTrackingStore = create<ShipmentTrackingState>(
   (set) => ({
-    selectedMarkerId: "tracking-current",
+    selectedMarkerId: "",
     realtimeState: "live",
     mapAvailability: "available",
     trackingException: "normal",

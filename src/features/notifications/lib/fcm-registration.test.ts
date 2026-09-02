@@ -1,0 +1,146 @@
+import { describe, expect, it, vi } from "vitest";
+import { registerFcmDevice } from "./fcm-registration";
+
+const mockGetFirebaseMessaging = vi.fn();
+const mockIsFcmSupported = vi.fn();
+const mockRegisterFirebaseServiceWorker = vi.fn();
+const mockGetToken = vi.fn();
+
+vi.mock("./firebase-client", () => ({
+  getFirebaseMessaging: () => mockGetFirebaseMessaging(),
+  isFcmSupported: () => mockIsFcmSupported(),
+  registerFirebaseServiceWorker: () => mockRegisterFirebaseServiceWorker(),
+}));
+
+vi.mock("firebase/messaging", () => ({
+  getToken: (...args: unknown[]) => mockGetToken(...args),
+}));
+
+describe("registerFcmDevice", () => {
+  it("returns unsupported without requesting a token", async () => {
+    mockIsFcmSupported.mockResolvedValue(false);
+    const registerDevice = vi.fn();
+
+    await expect(
+      registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }),
+    ).resolves.toEqual({ status: "unsupported" });
+    expect(mockGetToken).not.toHaveBeenCalled();
+    expect(registerDevice).not.toHaveBeenCalled();
+  });
+
+  it("gets a token and registers the browser device", async () => {
+    const messaging = { name: "messaging" };
+    const serviceWorkerRegistration = { scope: "/" };
+    const device = { id: "device-1", platform: "Web", isActive: true };
+    const registerDevice = vi.fn().mockResolvedValue(device);
+    mockIsFcmSupported.mockResolvedValue(true);
+    mockGetFirebaseMessaging.mockResolvedValue(messaging);
+    mockRegisterFirebaseServiceWorker.mockResolvedValue(
+      serviceWorkerRegistration,
+    );
+    mockGetToken.mockResolvedValue("browser-token");
+
+    await expect(
+      registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }),
+    ).resolves.toEqual({ status: "registered", device });
+
+    expect(mockGetToken).toHaveBeenCalledWith(messaging, {
+      serviceWorkerRegistration,
+      vapidKey: "public-vapid-key",
+    });
+    expect(registerDevice).toHaveBeenCalledWith({
+      token: "browser-token",
+      platform: "Web",
+      appVersion: "Aurora Web",
+    });
+  });
+
+  it("returns an empty-token result without registering a device", async () => {
+    mockIsFcmSupported.mockResolvedValue(true);
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+    mockRegisterFirebaseServiceWorker.mockResolvedValue({ scope: "/" });
+    mockGetToken.mockResolvedValue("");
+    const registerDevice = vi.fn();
+
+    await expect(
+      registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }),
+    ).resolves.toEqual({ status: "empty-token" });
+    expect(registerDevice).not.toHaveBeenCalled();
+  });
+
+  it("returns the Firebase error when token creation fails", async () => {
+    const firebaseError = new Error("messaging/invalid-vapid-key");
+    mockIsFcmSupported.mockResolvedValue(true);
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+    mockRegisterFirebaseServiceWorker.mockResolvedValue({ scope: "/" });
+    mockGetToken.mockRejectedValue(firebaseError);
+    const registerDevice = vi.fn();
+
+    await expect(
+      registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }),
+    ).resolves.toEqual({ status: "firebase-error", error: firebaseError });
+    expect(registerDevice).not.toHaveBeenCalled();
+  });
+
+  it("keeps the generated token when backend device registration fails", async () => {
+    const registrationError = new Error("Unauthorized");
+    mockIsFcmSupported.mockResolvedValue(true);
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+    mockRegisterFirebaseServiceWorker.mockResolvedValue({ scope: "/" });
+    mockGetToken.mockResolvedValue("browser-token");
+    const registerDevice = vi.fn().mockRejectedValue(registrationError);
+
+    await expect(
+      registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }),
+    ).resolves.toEqual({
+      status: "registration-failed",
+      token: "browser-token",
+      error: registrationError,
+    });
+  });
+
+  it("returns a timeout result when Firebase never settles the token request", async () => {
+    mockIsFcmSupported.mockResolvedValue(true);
+    mockGetFirebaseMessaging.mockResolvedValue({ name: "messaging" });
+    mockRegisterFirebaseServiceWorker.mockResolvedValue({ scope: "/" });
+    mockGetToken.mockReturnValue(new Promise(() => undefined));
+    const registerDevice = vi.fn();
+    const settled = vi.fn();
+
+    vi.useFakeTimers();
+    try {
+      void registerFcmDevice({
+        appVersion: "Aurora Web",
+        registerDevice,
+        vapidKey: "public-vapid-key",
+      }).then(settled);
+
+      await vi.advanceTimersByTimeAsync(15_000);
+
+      expect(settled).toHaveBeenCalledWith({ status: "timeout" });
+      expect(registerDevice).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

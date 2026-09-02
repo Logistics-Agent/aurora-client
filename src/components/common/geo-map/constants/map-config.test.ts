@@ -40,6 +40,5 @@ describe("map runtime config", () => {
       "tile.openstreetmap.org",
     );
   });
-});
-  });
+
 });
