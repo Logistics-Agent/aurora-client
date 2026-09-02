@@ -82,7 +82,6 @@ src/features/<feature>/
 ├── hooks/                       # local UI/composition hooks only
 ├── lib/                         # feature-specific infrastructure
 ├── mock/                        # UI-only fixtures, when needed
-├── schemas/                     # feature form/input schemas, when needed
 ├── stores/                      # feature client/spatial state, when needed
 ├── types/                       # feature-only types
 ├── utils/                       # feature-only pure helpers
@@ -102,7 +101,6 @@ src/features/<feature>/<sub-feature>/
 ├── hooks/
 ├── lib/
 ├── mock/
-├── schemas/
 ├── sections/
 ├── stores/
 ├── tabs/
