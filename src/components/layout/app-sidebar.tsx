@@ -16,7 +16,6 @@ export function AppSidebar() {
       accountSubtitle="Staff workspace"
       accountInitials="AN"
       showNotifications
-      showRealtimeStatus
     />
   );
 }
