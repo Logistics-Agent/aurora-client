@@ -58,4 +58,23 @@ describe("geo map conversion", () => {
     ]);
     expect(getOperationalBounds([], [])).toBeUndefined();
   });
+
+  it("marks only selected and current markers as DOM-active for large fleets", () => {
+    const fleet = Array.from({ length: 101 }, (_, index) => ({
+      ...markers[0],
+      id: `vehicle-${index}`,
+      tone: index === 1 ? ("current" as const) : ("origin" as const),
+    }));
+
+    const featureCollection = markersToFeatureCollection(
+      fleet,
+      new Set(["vehicle-0", "vehicle-1"]),
+    );
+
+    expect(
+      featureCollection.features
+        .filter(({ properties }) => properties.hasDomMarker)
+        .map(({ properties }) => properties.id),
+    ).toEqual(["vehicle-0", "vehicle-1"]);
+  });
 });

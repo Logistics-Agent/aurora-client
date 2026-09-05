@@ -4,14 +4,12 @@
 
 Route Planning, Live Operations Map, Shipment Tracking, and the Shipment Detail route tab use a real WebGL geospatial renderer instead of SVG geometry.
 
-- `maplibre-gl@5.24.0`: vector-tile map, camera, GeoJSON sources, line/circle layers, building extrusion, attribution, scale, navigation controls, and WebGL2-to-WebGL1 compatibility fallback.
+- `maplibre-gl@6.6.0`: vector-tile map, camera, GeoJSON sources, line/circle layers, building extrusion, attribution, scale, and navigation controls. Pinned to exact version `6.6.0` to avoid worker/library bundle mismatch.
 - `three@0.185.1`: one restrained selected-shipment model in a MapLibre custom 3D layer when WebGL2 is available.
 - `@types/three@0.185.4`: strict TypeScript declarations for the existing Three.js dependency.
 - OpenFreeMap Liberty: zero-credential default vector style using OpenMapTiles/OpenStreetMap data.
-- OpenFreeMap vector-lite style: inline resilient style using the same vector tile service without glyph or sprite dependencies when the primary Liberty style does not complete within eight seconds.
+- OpenFreeMap vector-lite style: inline resilient style using the same vector tile service without glyph or sprite dependencies when the primary style does not complete within eight seconds.
 - MapTiler Terrain RGB v2: optional elevation source when a public browser key is configured.
-
-MapLibre 5.24 is intentionally pinned to the final v5 line because MapLibre 6 removed WebGL1. The capability gate accepts WebGL2 or WebGL1, and MapLibre tries WebGL2 before WebGL1. This preserves a real vector map and building extrusion on browser/GPU combinations that reject WebGL2. The Three.js shipment model remains WebGL2-only and is omitted on WebGL1 without taking down the map.
 
 Official references:
 
@@ -19,11 +17,33 @@ Official references:
 - [OpenFreeMap quick start](https://openfreemap.org/quick_start/)
 - [MapTiler 3D terrain with MapLibre](https://docs.maptiler.com/guides/maps-apis/maps-platform/how-to-build-a-3d-map-with-maplibre-v2-gl-js/)
 
+## Worker Asset Distribution and Validation
+
+MapLibre requires dedicated web worker scripts for background tile parsing and geometry tiling.
+
+1. **Runtime Worker Copying (`scripts/copy-maplibre-worker.mjs`):**
+   - Automatically executed before `dev` and `build`.
+   - Copies only runtime `.mjs` artifacts (`maplibre-gl-worker.mjs` and `maplibre-gl-shared.mjs`) into `public/maplibre/`.
+   - Excludes `.js.map`, `.d.ts`, or non-runtime bundle files to avoid build bloat and unnecessary static assets.
+2. **Worker Configuration (`load-maplibre.ts`):**
+   - Uses `maplibregl.setWorkerUrl()` to bind worker scripts to the application's base path (`NEXT_PUBLIC_BASE_PATH`).
+   - Dynamically resolves both worker and shared module URLs with trailing slash normalization.
+3. **Pre-Mount Asset Health Probing (`maplibre-asset-health.ts`):**
+   - In browser environments, probes worker asset availability via same-origin `GET` requests with `cache: 'no-store'` before instantiating the WebGL canvas.
+   - If assets return 404 or fail to load, immediately transitions to the fallback state rather than hanging on worker creation.
+4. **Postbuild Validation (`scripts/check-maplibre-assets.mjs`):**
+   - Automatically invoked during `pnpm build` via `postbuild` (or standalone via `pnpm check:maplibre-assets`).
+   - Validates existence, minimum file size, and valid JavaScript syntax of both worker files in `public/maplibre/`.
+   - Accepts a server URL as a positional CLI argument, or through `MAPLIBRE_SMOKE_SERVER_URL`, for live HTTP response and MIME type verification.
+
 ## Environment
 
 ```dotenv
 # Optional; defaults to OpenFreeMap Liberty.
 NEXT_PUBLIC_MAP_STYLE_URL=
+
+# Optional; independent secondary vector style fallback (must not share host with primary).
+NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL=
 
 # Optional; enables MapTiler Terrain RGB v2.
 NEXT_PUBLIC_MAPTILER_KEY=
@@ -81,22 +101,37 @@ The basemap and geographic coordinates are real. Shipment movement is not realti
 
 No API, Axios call, TanStack Query hook, WebSocket, SSE connection, or fake endpoint was added.
 
-## Fallback
+## Fallback and Error Resilience
 
 The previous SVG renderer remains available as `SvgMapFallback`.
 
-The renderer first attempts the configured vector style. It initializes operational layers on MapLibre's `style.load` event, but it keeps the loading gate visible until MapLibre's `load` event confirms the first visually complete render. A recoverable resource error does not immediately destroy the primary style. If that style does not render within eight seconds, the renderer switches to the inline OpenFreeMap vector-lite style. The resilient style removes glyph and sprite dependencies while retaining real vector landcover, water, roads, route layers, markers, and building extrusion.
+The renderer implements a multi-stage, idempotent fallback cascade:
+1. **Primary Style:** Attempts the configured vector style (`NEXT_PUBLIC_MAP_STYLE_URL` or OpenFreeMap Liberty).
+2. **Independent Fallback Style:** If configured via `NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL`, fails over to this operator-selected secondary vector provider.
+3. **Resilient Style:** If primary (and secondary) fail or exceed an 8-second visual completeness gate, switches to the inline OpenFreeMap vector-lite style. This style operates without external glyph or sprite dependencies while retaining real vector roads, landcover, water, routes, and building extrusion.
+4. **Interactive SVG Fallback:** If all vector styles fail or if WebGL is unavailable / context lost, activates `SvgMapFallback`.
 
-The same eight-second render gate applies to the vector-lite style. If neither style produces a visually complete frame, the renderer shows the interactive SVG route and marker fallback instead of an empty “map unavailable” panel. A later `webglcontextlost` event also activates this usable fallback.
+### Error Classification and Recovery
+Rather than silently stalling until the idle timeout expires, runtime errors are classified immediately via `classifyMapLibreError`:
+- `asset-load-failure`: Worker or shared module failed to fetch or returned non-200.
+- `webgl-context-lost`: WebGL context was destroyed by browser/GPU watchdog.
+- `webgl-unsupported`: Hardware or driver lacks WebGL capability.
+- `style-load-failure`: Vector style JSON failed to parse or could not be loaded.
+- `tile-error`: Fatal vector tile decode or network failure.
+- `unknown`: General runtime exception.
 
-The SVG renderer activates only when:
+When falling back to SVG due to an error, `SvgMapFallback` displays:
+- A descriptive error banner informing the user of the underlying cause.
+- A semantic `data-health-state` attribute for automated testing and health monitoring.
+- An accessible **"Thử lại tải bản đồ 3D"** (Retry) button with nonce invalidation, cleanly tearing down and re-attempting WebGL initialization without requiring a full page refresh.
 
-- WebGL is unavailable;
-- both the primary and resilient vector styles cannot initialize;
-- the map is explicitly unavailable;
-- component tests run in JSDOM.
+## Fleet-Scale Marker Strategy
 
-The fallback preserves shipment children, route/marker semantics, retry behavior, layer controls, and an explicit `3D map fallback` badge. Provider errors after a visually complete render do not automatically destroy the operational context.
+To prevent browser DOM exhaustion and frame drops when tracking dense fleets:
+- **DOM Marker Threshold (`HTML_MARKER_LIMIT = 100`):** When marker count exceeds 100, full HTML DOM markers are rendered exclusively for the `selectedMarkerId` or active `tone === "current"` vehicles.
+- **GPU Circle Layer Fallback:** All non-selected fleet markers transition to GPU-accelerated circle layers with full opacity, preserving spatial awareness at 60 FPS without thousands of DOM elements.
+- **Dynamic Reconciliation:** Selecting a marker dynamically promotes it to a full interactive DOM marker while demoting previously selected markers back to GPU rendering.
+
 
 ## Brave on Linux troubleshooting
 

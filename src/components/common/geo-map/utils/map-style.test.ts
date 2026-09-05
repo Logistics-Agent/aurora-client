@@ -28,6 +28,34 @@ describe("map style inspection", () => {
     expect(
       getBuildingLayerTarget({ version: 8, sources: {}, layers: [] }),
     ).toBeUndefined();
+    expect(
+      getBuildingLayerTarget({
+        version: 8,
+        sources: { osm: { type: "raster" } },
+        layers: [{ id: "osm", type: "raster" }],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("handles building source without symbol layers gracefully", () => {
+    expect(
+      getBuildingLayerTarget({
+        version: 8,
+        sources: { openmaptiles: { type: "vector" } },
+        layers: [
+          {
+            id: "building",
+            type: "fill",
+            source: "openmaptiles",
+            "source-layer": "building",
+          },
+        ],
+      }),
+    ).toEqual({
+      source: "openmaptiles",
+      sourceLayer: "building",
+      beforeLayerId: undefined,
+    });
   });
 
   it("uses a restrained responsive and reduced-motion pitch", () => {

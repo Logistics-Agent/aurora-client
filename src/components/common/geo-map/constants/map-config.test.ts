@@ -12,6 +12,8 @@ describe("map runtime config", () => {
     );
     expect(getMapRuntimeConfig({})).toEqual({
       styleUrl: DEFAULT_MAP_STYLE_URL,
+      fallbackStyleUrl: undefined,
+      hasIndependentFallback: false,
       terrainUrl: undefined,
       hasTerrain: false,
     });
@@ -25,6 +27,8 @@ describe("map runtime config", () => {
       }),
     ).toEqual({
       styleUrl: "https://maps.example/style.json",
+      fallbackStyleUrl: undefined,
+      hasIndependentFallback: false,
       terrainUrl:
         "https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=demo-key",
       hasTerrain: true,
@@ -41,4 +45,35 @@ describe("map runtime config", () => {
     );
   });
 
+  it("handles empty and whitespace-only NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL", () => {
+    expect(
+      getMapRuntimeConfig({
+        NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL: "",
+      }),
+    ).toMatchObject({
+      fallbackStyleUrl: undefined,
+      hasIndependentFallback: false,
+    });
+
+    expect(
+      getMapRuntimeConfig({
+        NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL: "   ",
+      }),
+    ).toMatchObject({
+      fallbackStyleUrl: undefined,
+      hasIndependentFallback: false,
+    });
+  });
+
+  it("configures valid NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL", () => {
+    expect(
+      getMapRuntimeConfig({
+        NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL:
+          "https://fallback-tiles.example.com/style.json",
+      }),
+    ).toMatchObject({
+      fallbackStyleUrl: "https://fallback-tiles.example.com/style.json",
+      hasIndependentFallback: true,
+    });
+  });
 });

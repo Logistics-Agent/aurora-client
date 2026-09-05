@@ -5,11 +5,11 @@ import type {
   LogisticsGeoRouteKind,
 } from "../types";
 import {
+  getDomMarkerIds,
   markersToFeatureCollection,
   routesToFeatureCollection,
 } from "./geojson";
 import { getBuildingLayerTarget } from "./map-style";
-
 const ROUTE_SOURCE_ID = "aurora-operational-routes";
 const MARKER_SOURCE_ID = "aurora-operational-markers";
 const BUILDING_LAYER_ID = "aurora-3d-buildings";
@@ -33,7 +33,9 @@ export function setBuildingLayersVisibility(
   );
 
   buildingLayerIds.forEach((layerId) => {
-    map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    if (typeof map.getLayer !== "function" || map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    }
   });
 }
 
@@ -52,9 +54,10 @@ export function syncOperationalLayers(
   map: MapLibreMap,
   routes: LogisticsGeoRoute[],
   markers: LogisticsGeoMarker[],
+  domMarkerIds = getDomMarkerIds(markers),
 ) {
   const routeData = routesToFeatureCollection(routes);
-  const markerData = markersToFeatureCollection(markers);
+  const markerData = markersToFeatureCollection(markers, domMarkerIds);
   const routeSource = map.getSource(ROUTE_SOURCE_ID) as
     | GeoJSONSource
     | undefined;
@@ -96,11 +99,7 @@ export function syncOperationalLayers(
         "circle-radius": ["case", ["==", ["get", "tone"], "current"], 9, 7],
         "circle-opacity": [
           "case",
-          [
-            "all",
-            ["!=", ["get", "mode"], ""],
-            ["!=", ["get", "status"], ""],
-          ],
+          ["==", ["get", "hasDomMarker"], true],
           0,
           1,
         ],
@@ -127,6 +126,11 @@ export function addBuildingExtrusions(map: MapLibreMap) {
   const target = getBuildingLayerTarget(map.getStyle());
   if (!target) return false;
 
+  const beforeLayerId =
+    target.beforeLayerId && map.getLayer(target.beforeLayerId)
+      ? target.beforeLayerId
+      : undefined;
+
   map.addLayer(
     {
       id: BUILDING_LAYER_ID,
@@ -151,13 +155,17 @@ export function addBuildingExtrusions(map: MapLibreMap) {
         "fill-extrusion-opacity": 0.48,
       },
     },
-    target.beforeLayerId,
+    beforeLayerId,
   );
   return true;
 }
-
 export function addTerrain(map: MapLibreMap, terrainUrl?: string) {
-  if (!terrainUrl) return false;
+  if (!terrainUrl) {
+    if (typeof map.setTerrain === "function") {
+      map.setTerrain(null);
+    }
+    return false;
+  }
   if (!map.getSource("aurora-terrain")) {
     map.addSource("aurora-terrain", {
       type: "raster-dem",
@@ -166,6 +174,8 @@ export function addTerrain(map: MapLibreMap, terrainUrl?: string) {
       maxzoom: 14,
     });
   }
-  map.setTerrain({ source: "aurora-terrain", exaggeration: 1.15 });
+  if (typeof map.setTerrain === "function") {
+    map.setTerrain({ source: "aurora-terrain", exaggeration: 1.15 });
+  }
   return true;
 }

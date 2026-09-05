@@ -12,9 +12,15 @@ import { MapControls } from "./components/map-controls";
 import { MapPointerCoordinates } from "./components/map-pointer-coordinates";
 import { SvgMapFallback } from "./components/svg-map-fallback";
 import { useWebglCapability } from "./hooks/use-webgl-capability";
+import { useMapMarkerReconciliation } from "./hooks/use-map-marker-reconciliation";
+import type { MapHealthState } from "./types/map-health";
+import {
+  classifyMapLibreError,
+  getCachedMapLibreWorkerAssets,
+} from "./utils/maplibre-asset-health";
 import type { LogisticsGeoMarker, LogisticsGeoRoute } from "./types";
-import { getOperationalBounds } from "./utils/geojson";
-import { loadMapLibre } from "./utils/load-maplibre";
+import { getDomMarkerIds, getOperationalBounds } from "./utils/geojson";
+import { getDocumentBaseUri, loadMapLibre } from "./utils/load-maplibre";
 import { getMapPitch } from "./utils/map-style";
 import {
   addBuildingExtrusions,
@@ -28,13 +34,8 @@ import {
   SHIPMENT_MODEL_LAYER_ID,
 } from "./utils/shipment-model-layer";
 import { MapMarkerPopup } from "./components/map-marker-popup";
-import {
-  createShipmentMapMarker,
-  updateShipmentMapMarker,
-} from "./utils/shipment-map-marker";
 
 type MapLibreModule = Awaited<ReturnType<typeof loadMapLibre>>;
-type MapLibreMarker = InstanceType<MapLibreModule["Marker"]>;
 
 type LogisticsGeoMapProps = {
   routes: LogisticsGeoRoute[];
@@ -71,9 +72,10 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const mapLibreModuleRef = useRef<MapLibreModule | null>(null);
-  const customMarkerRefs = useRef(new Map<string, MapLibreMarker>());
   const [mapFailed, setMapFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [healthState, setHealthState] = useState<MapHealthState>("checking");
+  const [retryNonce, setRetryNonce] = useState(0);
   const [buildingsAvailable, setBuildingsAvailable] = useState(false);
   const [pointerCoordinates, setPointerCoordinates] = useState<{
     latitude: number;
@@ -126,6 +128,7 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
   const lastFocusedMarkerIdRef = useRef<string | undefined>(undefined);
   const latestDataRef = useRef({
     bounds,
+    domMarkerIds: getDomMarkerIds(markers, selectedMarkerId),
     markers,
     onMarkerSelect,
     visibleRoutes,
@@ -134,15 +137,17 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
   useEffect(() => {
     latestDataRef.current = {
       bounds,
+      domMarkerIds: getDomMarkerIds(markers, selectedMarkerId),
       markers,
       onMarkerSelect,
       visibleRoutes,
     };
-  }, [bounds, markers, onMarkerSelect, visibleRoutes]);
+  }, [bounds, markers, onMarkerSelect, selectedMarkerId, visibleRoutes]);
 
   const resetView = useCallback(() => {
-    if (!mapRef.current || !bounds) return;
-    mapRef.current.fitBounds(bounds, {
+    const currentBounds = latestDataRef.current.bounds;
+    if (!mapRef.current || !currentBounds) return;
+    mapRef.current.fitBounds(currentBounds, {
       padding: 70,
       pitch: getResponsivePitch(),
       bearing: -18,
@@ -150,7 +155,7 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
         ? 0
         : 700,
     });
-  }, [bounds]);
+  }, []);
 
   useEffect(() => {
     if (
@@ -167,75 +172,132 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
     let resizeObserver: ResizeObserver | undefined;
     let styleLoadTimeout: number | undefined;
     let resizeFrameId: number | undefined;
-    const customMarkers = customMarkerRefs.current;
 
-    void loadMapLibre()
-      .then((maplibre) => {
-        if (disposed || !containerRef.current) return;
-        mapLibreModuleRef.current = maplibre;
-        const map = new maplibre.Map({
-          container: containerRef.current,
-          style: MAP_RUNTIME_CONFIG.styleUrl,
-          center: [105.2, 6.1],
-          zoom: 4.8,
-          pitch: getResponsivePitch(),
-          bearing: -18,
-          canvasContextAttributes: {
-            antialias: true,
-            contextType: "webgl2",
-          },
-          attributionControl: {},
-          cooperativeGestures: true,
-        });
-        let hasLoadedStyle = false;
-        let hasRenderedMap = false;
-        let usingLiteStyle = false;
-        const armStyleLoadTimeout = (onTimeout: () => void) => {
-          window.clearTimeout(styleLoadTimeout);
-          styleLoadTimeout = window.setTimeout(
-            onTimeout,
-            MAP_STYLE_LOAD_TIMEOUT_MS,
-          );
-        };
-        const activateLiteStyle = () => {
-          if (disposed || hasRenderedMap || usingLiteStyle) return;
-          usingLiteStyle = true;
-          hasLoadedStyle = false;
-          armStyleLoadTimeout(() => {
-            if (!disposed && !hasRenderedMap) setMapFailed(true);
-          });
-          map.setStyle(OPENFREEMAP_LITE_STYLE);
-        };
-        mapRef.current = map;
-        map.resize();
-        if (typeof window.requestAnimationFrame === "function") {
-          resizeFrameId = window.requestAnimationFrame(() => {
-            if (!disposed) map.resize();
-          });
+    setHealthState("checking");
+    const baseUri = getDocumentBaseUri();
+
+    void getCachedMapLibreWorkerAssets(fetch, baseUri)
+      .then((assetHealth) => {
+        if (disposed) return;
+        if (!assetHealth.ok) {
+          setHealthState("worker-error");
+          setMapFailed(true);
+          return;
         }
-        map.addControl(
-          new maplibre.NavigationControl({ visualizePitch: true }),
-          "bottom-right",
-        );
-        map.addControl(new maplibre.ScaleControl(), "bottom-left");
-        map.on("error", (event) => {
-          if (process.env.NODE_ENV !== "production") {
-            console.error("[LogisticsGeoMap] MapLibre error", event?.error);
+
+        return loadMapLibre(baseUri).then((maplibre) => {
+          if (disposed || !containerRef.current) return;
+          mapLibreModuleRef.current = maplibre;
+          const map = new maplibre.Map({
+            container: containerRef.current,
+            style: MAP_RUNTIME_CONFIG.styleUrl,
+            center: [105.2, 6.1],
+            zoom: 4.8,
+            pitch: getResponsivePitch(),
+            bearing: -18,
+            canvasContextAttributes: {
+              antialias: true,
+              contextType: "webgl2",
+            },
+            attributionControl: {},
+            cooperativeGestures: true,
+          });
+          let hasLoadedStyle = false;
+          let hasRenderedMap = false;
+          let currentStage: "primary" | "independent" | "resilient" | "failed" =
+            "primary";
+          const armStyleLoadTimeout = (onTimeout: () => void) => {
+            window.clearTimeout(styleLoadTimeout);
+            styleLoadTimeout = window.setTimeout(
+              onTimeout,
+              MAP_STYLE_LOAD_TIMEOUT_MS,
+            );
+          };
+          const advanceFallback = () => {
+            if (disposed || hasRenderedMap) return;
+
+            if (currentStage === "primary") {
+              if (
+                MAP_RUNTIME_CONFIG.hasIndependentFallback &&
+                MAP_RUNTIME_CONFIG.fallbackStyleUrl
+              ) {
+                currentStage = "independent";
+                hasLoadedStyle = false;
+                armStyleLoadTimeout(advanceFallback);
+                map.setStyle(MAP_RUNTIME_CONFIG.fallbackStyleUrl);
+                return;
+              }
+              currentStage = "resilient";
+              hasLoadedStyle = false;
+              armStyleLoadTimeout(advanceFallback);
+              map.setStyle(OPENFREEMAP_LITE_STYLE);
+              return;
+            }
+
+            if (currentStage === "independent") {
+              currentStage = "resilient";
+              hasLoadedStyle = false;
+              armStyleLoadTimeout(advanceFallback);
+              map.setStyle(OPENFREEMAP_LITE_STYLE);
+              return;
+            }
+
+            if (currentStage === "resilient") {
+              currentStage = "failed";
+              setHealthState((prev) =>
+                prev === "checking" ? "style-error" : prev,
+              );
+              setMapFailed(true);
+              return;
+            }
+          };
+          mapRef.current = map;
+          map.resize();
+          if (typeof window.requestAnimationFrame === "function") {
+            resizeFrameId = window.requestAnimationFrame(() => {
+              if (!disposed) map.resize();
+            });
           }
-        });
-        map.on("webglcontextlost", () => {
-          if (!disposed) setMapFailed(true);
-        });
+          map.addControl(
+            new maplibre.NavigationControl({ visualizePitch: true }),
+            "bottom-right",
+          );
+          map.addControl(new maplibre.ScaleControl(), "bottom-left");
+          map.on("error", (event) => {
+            const classified = classifyMapLibreError(event?.error);
+            if (classified === "worker-error") {
+              setHealthState("worker-error");
+              advanceFallback();
+            } else if (classified === "style-error") {
+              setHealthState("style-error");
+              advanceFallback();
+            } else if (classified === "tile-error") {
+              setHealthState("tile-error");
+            }
+            if (process.env.NODE_ENV !== "production") {
+              console.error("[LogisticsGeoMap] MapLibre error", event?.error);
+            }
+          });
+          map.on("webglcontextlost", () => {
+            if (!disposed) {
+              setHealthState("webgl-error");
+              setMapFailed(true);
+            }
+          });
         map.on("style.load", () => {
           if (disposed) return;
           map.resize();
           hasLoadedStyle = true;
           const latest = latestDataRef.current;
-          syncOperationalLayers(map, latest.visibleRoutes, latest.markers);
+          syncOperationalLayers(
+            map,
+            latest.visibleRoutes,
+            latest.markers,
+            latest.domMarkerIds,
+          );
           const hasBuildings = addBuildingExtrusions(map);
           setBuildingsAvailable(hasBuildings);
-          if (usingLiteStyle) {
-          } else {
+          if (currentStage !== "resilient") {
             addTerrain(map, MAP_RUNTIME_CONFIG.terrainUrl);
           }
           if (latest.bounds) {
@@ -257,6 +319,7 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
           hasRenderedMap = true;
           window.clearTimeout(styleLoadTimeout);
           setMapReady(true);
+          setHealthState("ready");
         });
         map.on("click", (event) => {
           const markerId = map.queryRenderedFeatures(event.point, {
@@ -281,9 +344,15 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
           resizeObserver = new ResizeObserver(() => map.resize());
           resizeObserver.observe(containerRef.current);
         }
-        armStyleLoadTimeout(activateLiteStyle);
-      })
-      .catch(() => setMapFailed(true));
+        armStyleLoadTimeout(advanceFallback);
+      });
+    })
+    .catch(() => {
+      if (!disposed) {
+        setHealthState("worker-error");
+        setMapFailed(true);
+      }
+    });
 
     return () => {
       disposed = true;
@@ -292,75 +361,44 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
         window.cancelAnimationFrame(resizeFrameId);
       }
       resizeObserver?.disconnect();
-      customMarkers.forEach((marker) => marker.remove());
-      customMarkers.clear();
       mapLibreModuleRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
-        setMapReady(false);
-        setBuildingsAvailable(false);
-        setPointerCoordinates(null);
+      setMapReady(false);
+      setBuildingsAvailable(false);
+      setPointerCoordinates(null);
     };
-  }, [capability, loading, mapFailed, unavailable]);
+  }, [capability, loading, mapFailed, retryNonce, unavailable]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    const maplibre = mapLibreModuleRef.current;
-    if (!map || !mapReady || !maplibre) return;
-
-    const visibleCustomMarkerIds = new Set<string>();
-
-    markers.forEach((marker) => {
-      visibleCustomMarkerIds.add(marker.id);
-
-      const existingMarker = customMarkerRefs.current.get(marker.id);
-      if (existingMarker) {
-        existingMarker.setLngLat([
-          marker.position.longitude,
-          marker.position.latitude,
-        ]);
-        updateShipmentMapMarker(existingMarker.getElement(), marker);
-        return;
-      }
-
-      const element = createShipmentMapMarker(
-        marker,
-        (markerId) => latestDataRef.current.onMarkerSelect?.(markerId),
-      );
-      if (!element) return;
-
-      const mapMarker = new maplibre.Marker({
-        element,
-        anchor: "center",
-      })
-        .setLngLat([marker.position.longitude, marker.position.latitude])
-        .addTo(map);
-      customMarkerRefs.current.set(marker.id, mapMarker);
-    });
-
-    customMarkerRefs.current.forEach((marker, markerId) => {
-      if (visibleCustomMarkerIds.has(markerId)) return;
-      marker.remove();
-      customMarkerRefs.current.delete(markerId);
-    });
-  }, [mapReady, markers]);
+  useMapMarkerReconciliation({
+    mapRef,
+    mapLibreModuleRef,
+    mapReady,
+    markers,
+    selectedMarkerId,
+    onMarkerSelect,
+  });
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
-    syncOperationalLayers(map, visibleRoutes, markers);
+    const latest = latestDataRef.current;
+    syncOperationalLayers(
+      map,
+      latest.visibleRoutes,
+      latest.markers,
+      latest.domMarkerIds,
+    );
     const hasOperationalDataChanged =
       previousOperationalDataKeyRef.current !== undefined &&
       previousOperationalDataKeyRef.current !== operationalDataKey;
     previousOperationalDataKeyRef.current = operationalDataKey;
-    if (hasOperationalDataChanged && bounds) resetView();
+    if (hasOperationalDataChanged && latest.bounds) resetView();
   }, [
-    bounds,
     mapReady,
-    markers,
     operationalDataKey,
     resetView,
-    visibleRoutes,
+    selectedMarkerId,
   ]);
 
   useEffect(() => {
@@ -468,8 +506,13 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
         <SvgMapFallback
           {...props}
           unavailable={unavailable}
+          healthState={
+            capability !== "supported" ? "webgl-error" : healthState
+          }
           onRetry={() => {
             setMapFailed(false);
+            setHealthState("checking");
+            setRetryNonce((n) => n + 1);
             onRetry?.();
           }}
         />

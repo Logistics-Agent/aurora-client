@@ -75,15 +75,20 @@ export const OPENFREEMAP_LITE_STYLE = {
 
 type PublicMapEnvironment = {
   NEXT_PUBLIC_MAP_STYLE_URL?: string;
+  NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL?: string;
   NEXT_PUBLIC_MAPTILER_KEY?: string;
 };
 
 export function getMapRuntimeConfig(environment: PublicMapEnvironment) {
   const maptilerKey = environment.NEXT_PUBLIC_MAPTILER_KEY?.trim();
+  const fallbackStyleUrl =
+    environment.NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL?.trim();
 
   return {
     styleUrl:
       environment.NEXT_PUBLIC_MAP_STYLE_URL?.trim() || DEFAULT_MAP_STYLE_URL,
+    fallbackStyleUrl: fallbackStyleUrl || undefined,
+    hasIndependentFallback: Boolean(fallbackStyleUrl),
     terrainUrl: maptilerKey
       ? `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${maptilerKey}`
       : undefined,
@@ -93,5 +98,7 @@ export function getMapRuntimeConfig(environment: PublicMapEnvironment) {
 
 export const MAP_RUNTIME_CONFIG = getMapRuntimeConfig({
   NEXT_PUBLIC_MAP_STYLE_URL: process.env.NEXT_PUBLIC_MAP_STYLE_URL,
+  NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL:
+    process.env.NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL,
   NEXT_PUBLIC_MAPTILER_KEY: process.env.NEXT_PUBLIC_MAPTILER_KEY,
 });

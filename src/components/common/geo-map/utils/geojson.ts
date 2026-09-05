@@ -1,4 +1,26 @@
-import type { LogisticsGeoMarker, LogisticsGeoRoute } from "../types";
+import {
+  HTML_MARKER_LIMIT,
+  type LogisticsGeoMarker,
+  type LogisticsGeoRoute,
+} from "../types";
+
+export function getDomMarkerIds(
+  markers: LogisticsGeoMarker[],
+  selectedMarkerId?: string,
+) {
+  if (markers.length <= HTML_MARKER_LIMIT) {
+    return new Set(markers.map((marker) => marker.id));
+  }
+
+  return new Set(
+    markers
+      .filter(
+        (marker) =>
+          marker.id === selectedMarkerId || marker.tone === "current",
+      )
+      .map((marker) => marker.id),
+  );
+}
 
 export function routesToFeatureCollection(routes: LogisticsGeoRoute[]) {
   return {
@@ -22,7 +44,10 @@ export function routesToFeatureCollection(routes: LogisticsGeoRoute[]) {
   };
 }
 
-export function markersToFeatureCollection(markers: LogisticsGeoMarker[]) {
+export function markersToFeatureCollection(
+  markers: LogisticsGeoMarker[],
+  domMarkerIds = getDomMarkerIds(markers),
+) {
   return {
     type: "FeatureCollection" as const,
     features: markers.map((marker) => ({
@@ -43,6 +68,7 @@ export function markersToFeatureCollection(markers: LogisticsGeoMarker[]) {
         heading: marker.heading ?? 0,
         mode: marker.metadata?.mode ?? "",
         status: marker.metadata?.status ?? "",
+        hasDomMarker: domMarkerIds.has(marker.id),
       },
     })),
   };

@@ -13,7 +13,29 @@ const mapHarness = vi.hoisted(() => ({
   renderedFeatures: [] as unknown[],
   flyToCalls: [] as unknown[],
   markers: [] as Array<{ element: HTMLElement; removed: boolean }>,
+  setDataCalls: 0,
+  workerAssetHealth: {
+    worker: "ok" as "ok" | "error",
+    shared: "ok" as "ok" | "error",
+    ok: true,
+  },
 }));
+
+vi.mock("./utils/maplibre-asset-health", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./utils/maplibre-asset-health")>();
+  return {
+    ...actual,
+    getCachedMapLibreWorkerAssets: vi.fn().mockImplementation(() => ({
+      then(onFulfill: (val: unknown) => unknown) {
+        return Promise.resolve(onFulfill(mapHarness.workerAssetHealth));
+      },
+      catch() {
+        return this;
+      },
+    })),
+  };
+});
 
 vi.mock("./hooks/use-webgl-capability", () => ({
   useWebglCapability: () => "supported",
@@ -31,7 +53,11 @@ vi.mock("./utils/load-maplibre", () => {
 
     addControl() { }
     addSource(id: string) {
-      this.sources.set(id, { setData() { } });
+      this.sources.set(id, {
+        setData() {
+          mapHarness.setDataCalls += 1;
+        },
+      });
     }
     getSource(id: string) {
       return this.sources.get(id);
@@ -106,6 +132,7 @@ vi.mock("./utils/load-maplibre", () => {
   }
 
   return {
+    getDocumentBaseUri: () => undefined,
     loadMapLibre: () => {
       mapHarness.loadCalls += 1;
       return {
@@ -152,7 +179,10 @@ vi.mock("./utils/load-maplibre", () => {
 });
 
 import { LogisticsGeoMap } from "./logistics-geo-map";
-import { OPENFREEMAP_LITE_STYLE } from "./constants/map-config";
+import {
+  MAP_RUNTIME_CONFIG,
+  OPENFREEMAP_LITE_STYLE,
+} from "./constants/map-config";
 
 describe("LogisticsGeoMap WebGL readiness", () => {
   beforeEach(() => {
@@ -171,6 +201,12 @@ describe("LogisticsGeoMap WebGL readiness", () => {
     mapHarness.renderedFeatures = [];
     mapHarness.flyToCalls = [];
     mapHarness.markers = [];
+    mapHarness.setDataCalls = 0;
+    mapHarness.workerAssetHealth = {
+      worker: "ok",
+      shared: "ok",
+      ok: true,
+    };
     mapHarness.handlers.clear();
   });
 
@@ -432,6 +468,103 @@ describe("LogisticsGeoMap WebGL readiness", () => {
     expect(screen.queryByText("Map tiles unavailable")).not.toBeInTheDocument();
   });
 
+  it("falls back to independent fallback URL first when configured, then resilient style, then SVG", () => {
+    const originalFallback = MAP_RUNTIME_CONFIG.fallbackStyleUrl;
+    const originalHasFallback = MAP_RUNTIME_CONFIG.hasIndependentFallback;
+    try {
+      MAP_RUNTIME_CONFIG.fallbackStyleUrl =
+        "https://secondary.example/style.json";
+      MAP_RUNTIME_CONFIG.hasIndependentFallback = true;
+
+      vi.useFakeTimers();
+      render(<LogisticsGeoMap routes={[]} markers={[]} />);
+
+      // Stage 1: primary style times out -> secondary URL
+      act(() => vi.advanceTimersByTime(8_000));
+      expect(mapHarness.setStyles).toEqual([
+        "https://secondary.example/style.json",
+      ]);
+
+      // Stage 2: secondary style times out -> resilient style
+      act(() => vi.advanceTimersByTime(8_000));
+      expect(mapHarness.setStyles).toEqual([
+        "https://secondary.example/style.json",
+        OPENFREEMAP_LITE_STYLE,
+      ]);
+
+      // Stage 3: resilient style times out -> SVG fallback
+      act(() => vi.advanceTimersByTime(8_000));
+      expect(screen.getByText("3D map fallback")).toBeVisible();
+    } finally {
+      MAP_RUNTIME_CONFIG.fallbackStyleUrl = originalFallback;
+      MAP_RUNTIME_CONFIG.hasIndependentFallback = originalHasFallback;
+    }
+  });
+
+  it("does not request secondary URL when independent fallback is not configured", () => {
+    expect(MAP_RUNTIME_CONFIG.hasIndependentFallback).toBe(false);
+    vi.useFakeTimers();
+    render(<LogisticsGeoMap routes={[]} markers={[]} />);
+
+    act(() => vi.advanceTimersByTime(8_000));
+    expect(mapHarness.setStyles).toEqual([OPENFREEMAP_LITE_STYLE]);
+  });
+
+  it("does not resync operational sources when rerendered with equivalent data", async () => {
+    const routes = [
+      {
+        id: "route",
+        label: "Route",
+        kind: "current" as const,
+        coordinates: [
+          { longitude: 105, latitude: 6 },
+          { longitude: 106, latitude: 7 },
+        ],
+      },
+    ];
+    const markers = [
+      {
+        id: "vehicle",
+        label: "Vehicle",
+        detail: "Current",
+        tone: "current" as const,
+        position: { longitude: 105, latitude: 6 },
+      },
+    ];
+    const { rerender } = render(
+      <LogisticsGeoMap routes={routes} markers={markers} />,
+    );
+
+    await vi.waitFor(() => {
+      expect(mapHarness.handlers.has("idle")).toBe(true);
+    });
+    act(() => mapHarness.handlers.get("style.load")?.());
+    act(() => mapHarness.handlers.get("load")?.());
+    act(() => mapHarness.handlers.get("idle")?.());
+
+    const setDataCallsAfterReady = mapHarness.setDataCalls;
+    rerender(
+      <LogisticsGeoMap
+        routes={routes.map((route) => ({ ...route }))}
+        markers={markers.map((marker) => ({ ...marker }))}
+      />,
+    );
+
+    expect(mapHarness.setDataCalls).toBe(setDataCallsAfterReady);
+  });
+  it("advances to the next style immediately after a style resource error", () => {
+    vi.useFakeTimers();
+    render(<LogisticsGeoMap routes={[]} markers={[]} />);
+
+    act(() =>
+      mapHarness.handlers.get("error")?.({
+        error: { dataType: "style", message: "style request failed" },
+      }),
+    );
+
+    expect(mapHarness.setStyles).toEqual([OPENFREEMAP_LITE_STYLE]);
+  });
+
   it("recovers with an interactive fallback when Brave loses WebGL", async () => {
     render(
       <LogisticsGeoMap
@@ -460,5 +593,153 @@ describe("LogisticsGeoMap WebGL readiness", () => {
     expect(
       screen.getByRole("img", { name: /Shipment position/ }),
     ).toBeVisible();
+  });
+
+  it("fails immediately to SVG fallback with retry when worker assets are unavailable", async () => {
+    mapHarness.workerAssetHealth = {
+      worker: "error",
+      shared: "ok",
+      ok: false,
+    };
+
+    render(<LogisticsGeoMap routes={[]} markers={[]} />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("3D map fallback")).toBeVisible();
+    });
+    expect(mapHarness.constructed).toBe(0);
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByText("3D map fallback")).toHaveAttribute(
+      "data-health-state",
+      "worker-error",
+    );
+  });
+
+  it("records health state and ignores recoverable tile errors until timeout", async () => {
+    vi.useFakeTimers();
+    render(<LogisticsGeoMap routes={[]} markers={[]} />);
+
+    act(() => mapHarness.handlers.get("style.load")?.());
+    // Fire tile error
+    act(() => {
+      mapHarness.handlers.get("error")?.({
+        error: { dataType: "tile", message: "404 tile not found" },
+      });
+    });
+
+    // Tile error should NOT trigger fallback immediately
+    expect(mapHarness.setStyles).toHaveLength(0);
+    expect(screen.queryByText("3D map fallback")).not.toBeInTheDocument();
+
+    // Advancing timeout should trigger fallback
+    act(() => vi.advanceTimersByTime(8_000));
+    expect(mapHarness.setStyles).toHaveLength(1);
+  });
+
+  it("sets data-health-state on fallback when webglcontextlost occurs", async () => {
+    render(<LogisticsGeoMap routes={[]} markers={[]} />);
+
+    await vi.waitFor(() => {
+      expect(mapHarness.handlers.has("webglcontextlost")).toBe(true);
+    });
+    act(() => mapHarness.handlers.get("style.load")?.());
+    act(() => mapHarness.handlers.get("load")?.());
+    act(() => mapHarness.handlers.get("idle")?.());
+    act(() => mapHarness.handlers.get("webglcontextlost")?.());
+
+    expect(screen.getByText("3D map fallback")).toBeVisible();
+    expect(screen.getByText("3D map fallback")).toHaveAttribute(
+      "data-health-state",
+      "webgl-error",
+    );
+  });
+
+  it("retains accessible HTML markers for small datasets", async () => {
+    const markers = Array.from({ length: 5 }, (_, i) => ({
+      id: `marker-${i}`,
+      label: `Marker ${i}`,
+      detail: `Detail ${i}`,
+      tone: "origin" as const,
+      position: { longitude: 106.0 + i * 0.1, latitude: 10.0 + i * 0.1 },
+    }));
+
+    render(<LogisticsGeoMap routes={[]} markers={markers} />);
+
+    await vi.waitFor(() => {
+      expect(mapHarness.handlers.has("idle")).toBe(true);
+    });
+    act(() => mapHarness.handlers.get("style.load")?.());
+    act(() => mapHarness.handlers.get("load")?.());
+    act(() => mapHarness.handlers.get("idle")?.());
+
+    expect(mapHarness.markers).toHaveLength(5);
+  });
+
+  it("renders DOM markers only for selected and current markers when dataset exceeds threshold", async () => {
+    const markers = Array.from({ length: 150 }, (_, i) => ({
+      id: `marker-${i}`,
+      label: `Marker ${i}`,
+      detail: `Detail ${i}`,
+      tone: i === 0 ? ("current" as const) : ("origin" as const),
+      position: { longitude: 106.0 + i * 0.01, latitude: 10.0 + i * 0.01 },
+    }));
+
+    render(
+      <LogisticsGeoMap
+        routes={[]}
+        markers={markers}
+        selectedMarkerId="marker-42"
+      />,
+    );
+
+    await vi.waitFor(() => {
+      expect(mapHarness.handlers.has("idle")).toBe(true);
+    });
+    act(() => mapHarness.handlers.get("style.load")?.());
+    act(() => mapHarness.handlers.get("load")?.());
+    act(() => mapHarness.handlers.get("idle")?.());
+
+    // Should NOT create 150 DOM markers!
+    expect(mapHarness.markers.length).toBeLessThan(10);
+    expect(mapHarness.markers.length).toBe(2);
+  });
+
+  it("reconciles and removes stale DOM markers when selection changes in large datasets", async () => {
+    const markers = Array.from({ length: 120 }, (_, i) => ({
+      id: `marker-${i}`,
+      label: `Marker ${i}`,
+      detail: `Detail ${i}`,
+      tone: "origin" as const,
+      position: { longitude: 106.0 + i * 0.01, latitude: 10.0 + i * 0.01 },
+    }));
+
+    const { rerender } = render(
+      <LogisticsGeoMap
+        routes={[]}
+        markers={markers}
+        selectedMarkerId="marker-10"
+      />,
+    );
+
+    await vi.waitFor(() => {
+      expect(mapHarness.handlers.has("idle")).toBe(true);
+    });
+    act(() => mapHarness.handlers.get("style.load")?.());
+    act(() => mapHarness.handlers.get("load")?.());
+    act(() => mapHarness.handlers.get("idle")?.());
+
+    expect(mapHarness.markers.length).toBe(1);
+    const initialMarker = mapHarness.markers[0];
+    expect(initialMarker.removed).toBe(false);
+
+    rerender(
+      <LogisticsGeoMap
+        routes={[]}
+        markers={markers}
+        selectedMarkerId="marker-20"
+      />,
+    );
+
+    expect(initialMarker.removed).toBe(true);
   });
 });
