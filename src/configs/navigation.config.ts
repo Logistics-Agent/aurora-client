@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   FileText,
   LayoutDashboard,
+  Mail,
   Map,
   Settings2,
   Truck,
@@ -26,6 +27,7 @@ export const staffNavigation: NavigationItem[] = [
   { label: "Route Planning", href: "/route-planning", icon: Activity },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Compliance", href: "/compliance", icon: ClipboardCheck },
+  { label: "Mail", href: "/mail", icon: Mail, capability: "mail:read" },
   { label: "AI Assistant", href: "/assistant", icon: Bot },
   {
     label: "Administration",

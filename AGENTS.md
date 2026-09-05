@@ -117,8 +117,10 @@ Create only the folders that are used. Keep a concern at the narrowest owner:
 - Used by multiple sub-features of one feature: promote it to the feature root.
 - Used by independent features: promote it to the appropriate shared root folder.
 - Every new feature and independent nested workflow follows this same local-first contract.
-- A nested sub-feature may repeat `components`, `constants`, `dto`, `hooks`, `lib`, `mock`, `schemas`, `stores`, `types`, and `utils`; add `dialogs`, `drawers`, `sections`, `tabs`, or `workflows` only when that responsibility is real.
-- Do not place feature-specific UI, state, helpers, DTOs, schemas, or fixtures in shared folders merely because a shared folder exists.
+- A nested sub-feature may repeat `components`, `constants`, `dto`, `hooks`, `lib`, `mock`, `stores`, `types`, and `utils`; add `dialogs`, `drawers`, `sections`, `tabs`, or `workflows` only when that responsibility is real.
+- Feature, domain and form-contract types belong in the nearest owning `types/` directory. Component-only props may remain beside the component when they are not part of a reusable contract.
+- Reusable pure form validation belongs in the nearest owning `utils/` directory. Do not create `schemas/` directories; external-data parsing and validation remains at the DTO boundary.
+- Do not place feature-specific UI, state, helpers, DTOs, validators, or fixtures in shared folders merely because a shared folder exists.
 - Do not create shared abstractions for hypothetical reuse.
 - Do not import another business feature's UI to assemble a page.
 

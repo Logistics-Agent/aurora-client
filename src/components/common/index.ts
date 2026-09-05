@@ -12,6 +12,7 @@ export {
 } from "./logistics-map";
 export { RiskBadge } from "./risk-badge";
 export { StatusBadge } from "./status-badge";
+export { MailboxIdentity, type MailboxIdentityProps } from "./mail";
 export { MetricCard, WorkspaceCard } from "./workspace-card";
 export {
   LogisticsGeoMap,

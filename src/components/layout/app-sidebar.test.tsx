@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { staffNavigation } from "@/configs/navigation.config";
 import { AppSidebar } from "./app-sidebar";
 
 vi.mock("next/navigation", () => ({
@@ -19,6 +20,16 @@ vi.mock("./notification-bell", () => ({
 }));
 
 describe("AppSidebar", () => {
+  it("declares Mail as a direct-capability navigation item", () => {
+    expect(staffNavigation).toContainEqual(
+      expect.objectContaining({
+        label: "Mail",
+        href: "/mail",
+        capability: "mail:read",
+      }),
+    );
+  });
+
   it("starts compact and expands on hover or keyboard focus", () => {
     render(<AppSidebar />);
 
@@ -41,5 +52,8 @@ describe("AppSidebar", () => {
     });
     expect(notificationLink).toHaveAttribute("href", "/notifications");
     expect(notificationLink).toHaveClass("w-full", "h-10");
+
+    const mailLink = within(sidebar).getByRole("link", { name: "Mail" });
+    expect(mailLink).toHaveAttribute("href", "/mail");
   });
 });
