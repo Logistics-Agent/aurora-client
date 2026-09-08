@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { api } from "@/lib/api";
 import { authService } from "./auth.service";
 
 describe("auth service", () => {
@@ -16,8 +17,27 @@ describe("auth service", () => {
     );
   });
 
-  it("does not call an Auth API before Auth integration is available", async () => {
-    await expect(authService.getCurrentUser()).resolves.toBeNull();
-    await expect(authService.logout()).resolves.toBeUndefined();
+  it("returns parsed user profile when /api/v1/auth/me succeeds", async () => {
+    vi.spyOn(api, "get").mockResolvedValueOnce({
+      userId: "usr-123",
+      tenantId: "tnt-456",
+      email: "staff@acmelogistics.com",
+      name: "Staff User",
+      role: "Staff",
+      permissions: ["route_planning:read", "route_planning:create"],
+      isAuthenticated: true,
+    });
+
+    const profile = await authService.getCurrentUser();
+    expect(profile).not.toBeNull();
+    expect(profile?.email).toBe("staff@acmelogistics.com");
+    expect(profile?.role).toBe("STAFF");
+    expect(profile?.permissions).toContain("route_planning:read");
+  });
+
+  it("returns null when /api/v1/auth/me fails (unauthenticated)", async () => {
+    vi.spyOn(api, "get").mockRejectedValueOnce(new Error("Unauthorized"));
+    const profile = await authService.getCurrentUser();
+    expect(profile).toBeNull();
   });
 });

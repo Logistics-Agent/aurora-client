@@ -13,6 +13,13 @@ vi.mock("@/hooks/mutations/auth/use-auth-logout", () => ({
   useAuthLogout: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
+vi.mock("@/hooks/queries/auth/use-current-user-query", () => ({
+  useCurrentUserQuery: () => ({
+    data: null,
+    isLoading: false,
+  }),
+}));
+
 afterEach(cleanup);
 
 describe("CustomerShell", () => {

@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 import Link from "next/link";
 import {
   Activity,
@@ -235,10 +234,4 @@ export default function Home() {
       </footer>
     </div>
   );
-=======
-import { redirect } from "next/navigation";
-
-export default function Home() {
-  redirect("/overview");
->>>>>>> Stashed changes
 }

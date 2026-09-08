@@ -43,6 +43,7 @@ type LogisticsGeoMapProps = {
   selectedRouteId?: string;
   selectedMarkerId?: string;
   onMarkerSelect?: (markerId: string) => void;
+  onRouteSelect?: (routeId: string) => void;
   loading?: boolean;
   unavailable?: boolean;
   onRetry?: () => void;
@@ -61,8 +62,10 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
   const {
     routes,
     markers,
+    selectedRouteId,
     selectedMarkerId,
     onMarkerSelect,
+    onRouteSelect,
     loading,
     unavailable,
     onRetry,
@@ -104,12 +107,13 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
     [restrictionsVisible, routes, trafficVisible],
   );
   const bounds = useMemo(
-    () => getOperationalBounds(visibleRoutes, markers),
-    [markers, visibleRoutes],
+    () => getOperationalBounds(visibleRoutes, markers, selectedRouteId),
+    [markers, selectedRouteId, visibleRoutes],
   );
   const operationalDataKey = useMemo(
     () =>
       JSON.stringify({
+        selectedRouteId,
         routes: visibleRoutes.map((route) => [
           route.id,
           route.kind,
@@ -122,7 +126,7 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
           marker.shipmentId,
         ]),
       }),
-    [markers, visibleRoutes],
+    [markers, selectedRouteId, visibleRoutes],
   );
   const previousOperationalDataKeyRef = useRef<string | undefined>(undefined);
   const lastFocusedMarkerIdRef = useRef<string | undefined>(undefined);
@@ -131,6 +135,8 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
     domMarkerIds: getDomMarkerIds(markers, selectedMarkerId),
     markers,
     onMarkerSelect,
+    onRouteSelect,
+    selectedRouteId,
     visibleRoutes,
   });
 
@@ -140,9 +146,19 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
       domMarkerIds: getDomMarkerIds(markers, selectedMarkerId),
       markers,
       onMarkerSelect,
+      onRouteSelect,
+      selectedRouteId,
       visibleRoutes,
     };
-  }, [bounds, markers, onMarkerSelect, selectedMarkerId, visibleRoutes]);
+  }, [
+    bounds,
+    markers,
+    onMarkerSelect,
+    onRouteSelect,
+    selectedMarkerId,
+    selectedRouteId,
+    visibleRoutes,
+  ]);
 
   const resetView = useCallback(() => {
     const currentBounds = latestDataRef.current.bounds;
@@ -294,6 +310,7 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
             latest.visibleRoutes,
             latest.markers,
             latest.domMarkerIds,
+            latest.selectedRouteId,
           );
           const hasBuildings = addBuildingExtrusions(map);
           setBuildingsAvailable(hasBuildings);
@@ -327,13 +344,40 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
           })[0]?.properties?.id;
           if (typeof markerId === "string") {
             latestDataRef.current.onMarkerSelect?.(markerId);
+            return;
+          }
+
+          const routeLayers = [
+            "aurora-route-highlight-core",
+            "aurora-route-current",
+            "aurora-route-alternative",
+            "aurora-route-risk",
+            "aurora-route-planned",
+            "aurora-route-completed",
+          ].filter((id) => Boolean(map.getLayer(id)));
+          const routeFeature = map.queryRenderedFeatures(event.point, {
+            layers: routeLayers,
+          })[0];
+          const routeId = routeFeature?.properties?.id;
+          if (typeof routeId === "string") {
+            latestDataRef.current.onRouteSelect?.(routeId);
           }
         });
         map.on("mousemove", (event) => {
-          const isMarker = map.queryRenderedFeatures(event.point, {
-            layers: ["aurora-markers"],
-          }).length > 0;
-          map.getCanvas().style.cursor = isMarker ? "pointer" : "";
+          const interactiveLayers = [
+            "aurora-markers",
+            "aurora-route-highlight-core",
+            "aurora-route-current",
+            "aurora-route-alternative",
+            "aurora-route-risk",
+            "aurora-route-planned",
+            "aurora-route-completed",
+          ].filter((id) => Boolean(map.getLayer(id)));
+          const hasInteractiveFeature =
+            map.queryRenderedFeatures(event.point, {
+              layers: interactiveLayers,
+            }).length > 0;
+          map.getCanvas().style.cursor = hasInteractiveFeature ? "pointer" : "";
           setPointerCoordinates({
             latitude: event.lngLat.lat,
             longitude: event.lngLat.lng,
@@ -388,6 +432,7 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
       latest.visibleRoutes,
       latest.markers,
       latest.domMarkerIds,
+      latest.selectedRouteId,
     );
     const hasOperationalDataChanged =
       previousOperationalDataKeyRef.current !== undefined &&
@@ -399,6 +444,7 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
     operationalDataKey,
     resetView,
     selectedMarkerId,
+    selectedRouteId,
   ]);
 
   useEffect(() => {

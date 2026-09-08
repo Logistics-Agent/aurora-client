@@ -1,5 +1,6 @@
+import { api } from "@/lib/api";
 import { env } from "@/configs";
-import type { UserProfile } from "@/dto/auth/auth.dto";
+import { parseAuthUserDto, type UserProfile } from "@/dto/auth/auth.dto";
 
 function toAbsoluteUrl(pathOrUrl: string): string {
   if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
@@ -32,7 +33,25 @@ export const authService = {
     );
   },
 
-  getCurrentUser: async (): Promise<UserProfile | null> => null,
+  getCurrentUser: async (): Promise<UserProfile | null> => {
+    try {
+      const response = await api.get<unknown>("/api/v1/auth/me");
+      if (!response) return null;
+      return parseAuthUserDto(response);
+    } catch {
+      // 401 Unauthenticated or network error
+      return null;
+    }
+  },
 
-  logout: async (): Promise<void> => undefined,
+  logout: async (): Promise<void> => {
+    try {
+      await api.post("/api/v1/auth/logout");
+    } catch {
+      // Best-effort logout
+    }
+    if (typeof window !== "undefined") {
+      window.location.assign(authService.buildLogoutRedirectUrl("/login"));
+    }
+  },
 };

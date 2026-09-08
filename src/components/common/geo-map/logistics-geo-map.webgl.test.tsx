@@ -94,6 +94,8 @@ vi.mock("./utils/load-maplibre", () => {
       mapHarness.setStyles.push(style);
     }
     setLayoutProperty() { }
+    setPaintProperty() { }
+    setFilter() { }
     triggerRepaint() { }
     removeLayer(id: string) {
       this.layers.delete(id);

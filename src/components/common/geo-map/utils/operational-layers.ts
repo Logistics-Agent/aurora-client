@@ -13,6 +13,8 @@ import { getBuildingLayerTarget } from "./map-style";
 const ROUTE_SOURCE_ID = "aurora-operational-routes";
 const MARKER_SOURCE_ID = "aurora-operational-markers";
 const BUILDING_LAYER_ID = "aurora-3d-buildings";
+const HIGHLIGHT_CASING_LAYER_ID = "aurora-route-highlight-casing";
+const HIGHLIGHT_CORE_LAYER_ID = "aurora-route-highlight-core";
 
 export function setBuildingLayersVisibility(
   map: MapLibreMap,
@@ -55,6 +57,7 @@ export function syncOperationalLayers(
   routes: LogisticsGeoRoute[],
   markers: LogisticsGeoMarker[],
   domMarkerIds = getDomMarkerIds(markers),
+  selectedRouteId?: string,
 ) {
   const routeData = routesToFeatureCollection(routes);
   const markerData = markersToFeatureCollection(markers, domMarkerIds);
@@ -71,24 +74,84 @@ export function syncOperationalLayers(
   if (markerSource) markerSource.setData(markerData);
   else map.addSource(MARKER_SOURCE_ID, { type: "geojson", data: markerData });
 
+  const opacityExp = selectedRouteId
+    ? (["case", ["==", ["get", "id"], selectedRouteId], 1.0, 0.35] as unknown as number)
+    : 0.92;
+
   (Object.keys(routePaint) as LogisticsGeoRouteKind[]).forEach((kind) => {
     const layerId = `aurora-route-${kind}`;
-    if (map.getLayer(layerId)) return;
     const paint = routePaint[kind];
-    map.addLayer({
-      id: layerId,
-      type: "line",
-      source: ROUTE_SOURCE_ID,
-      filter: ["==", ["get", "kind"], kind],
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: {
-        "line-color": paint.color,
-        "line-width": paint.width,
-        "line-opacity": 0.92,
-        ...(paint.dash ? { "line-dasharray": paint.dash } : {}),
-      },
-    });
+
+    if (!map.getLayer(layerId)) {
+      map.addLayer({
+        id: layerId,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        filter: ["==", ["get", "kind"], kind],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": paint.color,
+          "line-width": paint.width,
+          "line-opacity": opacityExp,
+          ...(paint.dash ? { "line-dasharray": paint.dash } : {}),
+        },
+      });
+    } else {
+      map.setPaintProperty(layerId, "line-opacity", opacityExp);
+    }
   });
+
+  const markerBeforeId = map.getLayer("aurora-markers")
+    ? "aurora-markers"
+    : undefined;
+
+  // Selected route casing (outer halo for high-contrast visibility)
+  if (!map.getLayer(HIGHLIGHT_CASING_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: HIGHLIGHT_CASING_LAYER_ID,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        filter: ["==", ["get", "id"], selectedRouteId ?? ""],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 11,
+          "line-opacity": 0.95,
+        },
+      },
+      markerBeforeId,
+    );
+  } else {
+    map.setFilter(
+      HIGHLIGHT_CASING_LAYER_ID,
+      ["==", ["get", "id"], selectedRouteId ?? ""],
+    );
+  }
+
+  // Selected route core line (vibrant Google Maps style prominent blue)
+  if (!map.getLayer(HIGHLIGHT_CORE_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: HIGHLIGHT_CORE_LAYER_ID,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        filter: ["==", ["get", "id"], selectedRouteId ?? ""],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#2563eb",
+          "line-width": 7,
+          "line-opacity": 1.0,
+        },
+      },
+      markerBeforeId,
+    );
+  } else {
+    map.setFilter(
+      HIGHLIGHT_CORE_LAYER_ID,
+      ["==", ["get", "id"], selectedRouteId ?? ""],
+    );
+  }
 
   if (!map.getLayer("aurora-markers")) {
     map.addLayer({

@@ -28,6 +28,7 @@ export function SvgMapFallback({
   selectedRouteId,
   selectedMarkerId,
   onMarkerSelect,
+  onRouteSelect,
   loading,
   unavailable,
   onRetry,
@@ -40,6 +41,7 @@ export function SvgMapFallback({
   selectedRouteId?: string;
   selectedMarkerId?: string;
   onMarkerSelect?: (markerId: string) => void;
+  onRouteSelect?: (routeId: string) => void;
   loading?: boolean;
   unavailable?: boolean;
   onRetry?: () => void;
@@ -105,6 +107,7 @@ export function SvgMapFallback({
       selectedRouteId={selectedRouteId}
       selectedMarkerId={selectedMarkerId}
       onMarkerSelect={onMarkerSelect}
+      onRouteSelect={onRouteSelect}
       loading={loading}
       unavailable={unavailable}
       onRetry={onRetry}

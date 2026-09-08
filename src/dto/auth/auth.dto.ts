@@ -19,13 +19,19 @@ export type AuthUserDto = {
 export type UserProfile = AuthUserDto;
 
 const authUserDtoValidator = z.object({
-  userId: z.string().min(1),
-  tenantId: z.string().min(1),
+  userId: z.string().default(""),
+  tenantId: z.string().default(""),
   email: z.string().email(),
-  name: z.string(),
-  role: z.enum(["SYSTEM_ADMIN", "TENANT_ADMIN", "MANAGER", "STAFF"]),
-  permissions: z.array(z.string()),
-  isAuthenticated: z.boolean(),
+  name: z.string().default(""),
+  role: z.string().transform((val) => {
+    const normalized = val.toUpperCase().replace(/\s+/g, "_");
+    if (normalized.includes("ADMIN") && normalized.includes("TENANT")) return "TENANT_ADMIN";
+    if (normalized.includes("SYSTEM")) return "SYSTEM_ADMIN";
+    if (normalized.includes("MANAGER")) return "MANAGER";
+    return "STAFF";
+  }) as z.ZodType<UserRole>,
+  permissions: z.array(z.string()).default([]),
+  isAuthenticated: z.boolean().default(true),
 });
 
 export function parseAuthUserDto(value: unknown): AuthUserDto {

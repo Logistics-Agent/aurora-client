@@ -26,6 +26,18 @@ type DetailTab = (typeof DETAIL_TABS)[number];
 export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
   const [tab, setTab] = useState<DetailTab>("overview");
   const [selectedMarkerId, setSelectedMarkerId] = useState("");
+  const [selectedRouteId, setSelectedRouteId] = useState("");
+
+  const aiInsightContent = (
+    <AiInsight
+      result="Port congestion may add 20–35 minutes."
+      confidence={68}
+      reason="Berth allocation is changing."
+      sources={["Port feed"]}
+      timestamp="Updated locally"
+      suggestedAction="Monitor berth allocation"
+    />
+  );
 
   return (
     <>
@@ -46,7 +58,11 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
           {DETAIL_TABS.map((item) => (
             <button
               type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tab === item ? "bg-blue-50 font-semibold text-primary" : "text-muted-foreground"}`}
+              className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                tab === item
+                  ? "bg-blue-50 font-semibold text-primary"
+                  : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
               key={item}
               onClick={() => setTab(item)}
             >
@@ -69,30 +85,35 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
           </div>
         )}
         {tab === "route" && (
-          <div className="mt-5 grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
+          <div className="mt-5 grid gap-5 lg:grid-cols-[1.55fr_0.85fr]">
             <LogisticsGeoMap
-              className="h-80"
+              className="h-[34rem] min-h-[30rem]"
               routes={shipmentDetailMapMock.routes}
               markers={shipmentDetailMapMock.markers}
+              selectedRouteId={selectedRouteId}
               selectedMarkerId={selectedMarkerId}
               onMarkerSelect={setSelectedMarkerId}
+              onRouteSelect={setSelectedRouteId}
             >
               <div className="absolute right-4 top-4 z-30 rounded-full bg-white/90 p-1 shadow-sm">
                 <RealtimeStatus state="live" simulated />
               </div>
             </LogisticsGeoMap>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <MetricCard
-                label="Current GPS"
-                value={shipmentGpsMock.coordinates}
-              />
-              <MetricCard label="Speed" value={shipmentGpsMock.speed} />
-              <MetricCard label="Heading" value={shipmentGpsMock.heading} />
-              <MetricCard
-                label="Last GPS"
-                value={shipmentGpsMock.lastUpdate}
-                meta={`Route progress ${shipmentGpsMock.progress}`}
-              />
+            <div className="flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MetricCard
+                  label="Current GPS"
+                  value={shipmentGpsMock.coordinates}
+                />
+                <MetricCard label="Speed" value={shipmentGpsMock.speed} />
+                <MetricCard label="Heading" value={shipmentGpsMock.heading} />
+                <MetricCard
+                  label="Last GPS"
+                  value={shipmentGpsMock.lastUpdate}
+                  meta={`Route progress ${shipmentGpsMock.progress}`}
+                />
+              </div>
+              {aiInsightContent}
             </div>
           </div>
         )}
@@ -114,14 +135,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
             ))}
           </div>
         )}
-        <AiInsight
-          result="Port congestion may add 20–35 minutes."
-          confidence={68}
-          reason="Berth allocation is changing."
-          sources={["Port feed"]}
-          timestamp="Updated locally"
-          suggestedAction="Monitor berth allocation"
-        />
+        {tab !== "route" && <div className="mt-5">{aiInsightContent}</div>}
       </WorkspaceCard>
     </>
   );
