@@ -2,6 +2,38 @@ import { api } from "@/lib/api";
 import { env } from "@/configs";
 import { parseAuthUserDto, type UserProfile } from "@/dto/auth/auth.dto";
 
+export type IdentifyResponse = {
+  exists: boolean;
+  tenantCode: string;
+  userType: string;
+};
+
+export type LoginRequest = {
+  email: string;
+  password: string;
+  tenantCode?: string;
+};
+
+export type LoginSuccessResponse = {
+  userId: string;
+  tenantId: string;
+  roles: string[];
+  permissions: string[];
+  expiresIn: number;
+};
+
+export type LoginErrorResponse = {
+  detail?: string;
+  requiresInvitationCompletion?: boolean;
+  session?: string;
+};
+
+export type CompleteInvitationRequest = {
+  email: string;
+  newPassword: string;
+  confirmationCode: string;
+};
+
 function toAbsoluteUrl(pathOrUrl: string): string {
   if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
     return pathOrUrl;
@@ -15,6 +47,20 @@ function toAbsoluteUrl(pathOrUrl: string): string {
 }
 
 export const authService = {
+  identify: async (email: string): Promise<IdentifyResponse> => {
+    return api.post("/api/v1/auth/identify", { email });
+  },
+
+  login: async (payload: LoginRequest): Promise<LoginSuccessResponse> => {
+    return api.post("/api/v1/auth/login", payload);
+  },
+
+  completeInvitation: async (
+    payload: CompleteInvitationRequest,
+  ): Promise<LoginSuccessResponse> => {
+    return api.post("/api/v1/auth/complete-invitation", payload);
+  },
+
   buildLoginRedirectUrl: (returnUrl: string = "/overview"): string => {
     const resolvedUrl = toAbsoluteUrl(returnUrl);
     return (
@@ -51,7 +97,8 @@ export const authService = {
       // Best-effort logout
     }
     if (typeof window !== "undefined") {
-      window.location.assign(authService.buildLogoutRedirectUrl("/login"));
+      window.location.assign("/login");
     }
   },
 };
+
