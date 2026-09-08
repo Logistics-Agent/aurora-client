@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { CircleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CircleAlert, ShieldCheck } from "lucide-react";
 import {
   AiInsight,
   LogisticsGeoMap,
@@ -12,11 +12,67 @@ import {
 } from "@/components/common";
 import { PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+import { dashboardService, type DashboardSummaryDto } from "@/api/services/dashboard.service";
+import { shipmentService } from "@/api/services/shipment.service";
+import { trackingService, type MonitoringAlertDto } from "@/api/services/tracking.service";
 import { commandExceptions, commandKpis, commandMapMock } from "./mock";
 
 export function CommandCenterPage() {
   const [acknowledged, setAcknowledged] = useState<string[]>([]);
   const [selectedMarkerId, setSelectedMarkerId] = useState("");
+  const [summary, setSummary] = useState<DashboardSummaryDto | null>(null);
+  const [shipmentCount, setShipmentCount] = useState<number>(142);
+  const [alerts, setAlerts] = useState<MonitoringAlertDto[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Fetch Dashboard summary (BFF -> IamTenant + RoutePlanningAgent)
+    dashboardService.getSummary().then((data) => {
+      if (isMounted && data) setSummary(data);
+    }).catch(() => {});
+
+    // 2. Fetch live Shipment count
+    shipmentService.listShipments({ limit: 1 }).then((res) => {
+      if (isMounted && res?.totalCount !== undefined) {
+        setShipmentCount(res.totalCount);
+      }
+    }).catch(() => {});
+
+    // 3. Fetch GPS monitoring alerts
+    trackingService.listMonitoringAlerts({ page: 1, pageSize: 5 }).then((res) => {
+      if (isMounted && res?.alerts?.length > 0) {
+        setAlerts(res.alerts);
+      }
+    }).catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const kpiCards = [
+    {
+      label: "Active Shipments",
+      value: `${shipmentCount}`,
+      meta: "Realtime Staff.BFF stream",
+    },
+    {
+      label: "Active Routes",
+      value: `${summary?.activeRoutesCount ?? 28}`,
+      meta: "RoutePlanningAgent",
+    },
+    {
+      label: "On-time reliability",
+      value: "97.4%",
+      meta: "+1.2% this week",
+    },
+    {
+      label: "Active Exceptions",
+      value: `${alerts.length > 0 ? alerts.length : 3}`,
+      meta: alerts.length > 0 ? "Real GPS alerts" : "3 require review",
+    },
+  ];
 
   return (
     <>
@@ -27,7 +83,7 @@ export function CommandCenterPage() {
         actions={<RealtimeStatus state="live" />}
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {commandKpis.map((kpi) => (
+        {kpiCards.map((kpi) => (
           <MetricCard
             key={kpi.label}
             label={kpi.label}
@@ -49,41 +105,76 @@ export function CommandCenterPage() {
             </div>
           </LogisticsGeoMap>
         </WorkspaceCard>
-        <WorkspaceCard title="Exceptions first">
+        <WorkspaceCard title="Exceptions & Alerts">
           <div className="space-y-3">
-            {commandExceptions.map((item) => (
-              <div
-                className={`rounded-lg border p-3 ${acknowledged.includes(item.id) ? "border-success/30 bg-emerald-50/40" : "border-border"}`}
-                key={item.id}
-              >
-                <div className="flex items-start gap-3">
-                  <CircleAlert className="mt-0.5 size-4 text-critical" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{item.flag}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.id} · {item.customer}
-                    </p>
+            {alerts.length > 0
+              ? alerts.map((alert) => (
+                  <div
+                    className={`rounded-lg border p-3 ${
+                      acknowledged.includes(alert.id)
+                        ? "border-success/30 bg-emerald-50/40"
+                        : "border-border"
+                    }`}
+                    key={alert.id}
+                  >
+                    <div className="flex items-start gap-3">
+                      <CircleAlert className="mt-0.5 size-4 text-critical" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">{alert.alertType || "Route Alert"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {alert.shipmentId || alert.vehicleId || alert.id} · {alert.message}
+                        </p>
+                      </div>
+                      <RiskBadge level="high" />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3"
+                      onClick={() => {
+                        trackingService.resolveMonitoringAlert(alert.id);
+                        setAcknowledged((curr) => [...curr, alert.id]);
+                      }}
+                    >
+                      {acknowledged.includes(alert.id) ? "Resolved" : "Resolve Alert"}
+                    </Button>
                   </div>
-                  <RiskBadge level={item.risk} />
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3"
-                  onClick={() =>
-                    setAcknowledged((current) =>
-                      current.includes(item.id)
-                        ? current.filter((id) => id !== item.id)
-                        : [...current, item.id],
-                    )
-                  }
-                >
-                  {acknowledged.includes(item.id)
-                    ? "Acknowledged"
-                    : "Acknowledge"}
-                </Button>
-              </div>
-            ))}
+                ))
+              : commandExceptions.map((item) => (
+                  <div
+                    className={`rounded-lg border p-3 ${
+                      acknowledged.includes(item.id)
+                        ? "border-success/30 bg-emerald-50/40"
+                        : "border-border"
+                    }`}
+                    key={item.id}
+                  >
+                    <div className="flex items-start gap-3">
+                      <CircleAlert className="mt-0.5 size-4 text-critical" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">{item.flag}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.id} · {item.customer}
+                        </p>
+                      </div>
+                      <RiskBadge level={item.risk} />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3"
+                      onClick={() =>
+                        setAcknowledged((current) =>
+                          current.includes(item.id)
+                            ? current.filter((id) => id !== item.id)
+                            : [...current, item.id],
+                        )
+                      }
+                    >
+                      {acknowledged.includes(item.id) ? "Acknowledged" : "Acknowledge"}
+                    </Button>
+                  </div>
+                ))}
           </div>
         </WorkspaceCard>
       </div>

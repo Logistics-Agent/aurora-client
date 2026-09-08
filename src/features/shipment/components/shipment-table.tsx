@@ -2,30 +2,70 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronRight, RefreshCw } from "lucide-react";
 import {
   EmptyState,
   FilterBar,
   RiskBadge,
   StatusBadge,
 } from "@/components/common";
-import { Button } from "@/components/ui/button";
+import { shipmentService, type ShipmentDto } from "@/api/services/shipment.service";
 import { shipmentUiFixtures } from "../mock";
 
 export function ShipmentTable() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
+  const [shipments, setShipments] = useState<
+    Array<{
+      id: string;
+      customer: string;
+      lane: string;
+      status: string;
+      risk: "low" | "medium" | "high";
+      eta: string;
+    }>
+  >([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchShipments = async () => {
+    setLoading(true);
+    try {
+      const response = await shipmentService.listShipments({ limit: 50 });
+      if (response?.shipments && response.shipments.length > 0) {
+        setShipments(
+          response.shipments.map((s) => ({
+            id: s.shipmentNo || s.id,
+            customer: s.customerName || "Enterprise Logistics Customer",
+            lane: `${s.originAddress || "Origin"} → ${s.destinationAddress || "Destination"}`,
+            status: s.status || "In Transit",
+            risk: s.riskLevel ?? "low",
+            eta: s.estimatedEta || "Within SLA",
+          })),
+        );
+      } else {
+        setShipments([]);
+      }
+    } catch {
+      setShipments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchShipments();
+  }, []);
 
   const rows = useMemo(
     () =>
-      shipmentUiFixtures.filter((item) =>
+      shipments.filter((item) =>
         `${item.id} ${item.customer} ${item.lane}`
           .toLowerCase()
           .includes(query.toLowerCase()),
       ),
-    [query],
+    [shipments, query],
   );
 
   return (

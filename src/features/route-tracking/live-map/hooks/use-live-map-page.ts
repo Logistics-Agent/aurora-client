@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { shipmentService, type ShipmentDto } from "@/api/services/shipment.service";
+import { trackingService, type CurrentLocationDto } from "@/api/services/tracking.service";
 import { liveMapMock, liveShipments } from "../mock";
 import { useLiveMapStore } from "../stores/use-live-map-store";
 import type { LiveMapFilter, LiveMapFilterState } from "../types";
@@ -23,6 +25,9 @@ export function useLiveMapPage() {
   const [selectedFilters, setSelectedFilters] =
     useState<LiveMapFilterState>(EMPTY_LIVE_MAP_FILTERS);
   const [shipmentPanelOpen, setShipmentPanelOpen] = useState(false);
+  const [realShipments, setRealShipments] = useState<ShipmentDto[]>([]);
+  const [liveLocations, setLiveLocations] = useState<Record<string, CurrentLocationDto>>({});
+
   const selectedShipmentId = useLiveMapStore(
     (state) => state.selectedShipmentId,
   );
@@ -33,6 +38,39 @@ export function useLiveMapPage() {
   const setMapAvailability = useLiveMapStore(
     (state) => state.setMapAvailability,
   );
+
+  // Query live shipments
+  useEffect(() => {
+    let isMounted = true;
+    shipmentService.listShipments({ limit: 50 }).then((res) => {
+      if (isMounted && res?.shipments?.length > 0) {
+        setRealShipments(res.shipments);
+      }
+    }).catch(() => {
+      // Keep defaults
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Poll GPS telemetry for selected shipment every 2.5s
+  useEffect(() => {
+    if (!selectedShipmentId) return;
+    let isMounted = true;
+    const pollSelectedGps = async () => {
+      const loc = await trackingService.getCurrentLocation(selectedShipmentId);
+      if (isMounted && loc) {
+        setLiveLocations((prev) => ({ ...prev, [selectedShipmentId]: loc }));
+      }
+    };
+    pollSelectedGps();
+    const interval = setInterval(pollSelectedGps, 2500);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [selectedShipmentId]);
 
   const displayShipments = useMemo(
     () =>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { AlertTriangle, ExternalLink } from "lucide-react";
 import {
   LogisticsGeoMap,
@@ -9,6 +10,7 @@ import {
 } from "@/components/common";
 import { PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+import { trackingService, type CurrentLocationDto, type GpsPositionDto } from "@/api/services/tracking.service";
 import { shipmentTrackingFixtures, trackingDeviationRoute } from "./mock";
 import { useShipmentTrackingStore } from "./stores/use-shipment-tracking-store";
 import { RealtimeBanner } from "../components/realtime-banner";
@@ -41,6 +43,50 @@ export function ShipmentTrackingPage({
   const setTrackingException = useShipmentTrackingStore(
     (state) => state.setTrackingException,
   );
+
+  const [liveLocation, setLiveLocation] = useState<CurrentLocationDto | null>(null);
+  const [positionHistory, setPositionHistory] = useState<GpsPositionDto[]>([]);
+
+  // 1. Poll Current Location every 2.5 seconds
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCurrentLocation = async () => {
+      const loc = await trackingService.getCurrentLocation(shipmentId);
+      if (isMounted && loc) {
+        setLiveLocation(loc);
+      }
+    };
+
+    fetchCurrentLocation();
+    const interval = setInterval(fetchCurrentLocation, 2500);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [shipmentId]);
+
+  // 2. Poll Position History every 5 seconds
+  useEffect(() => {
+    let isMounted = true;
+    const fetchHistory = async () => {
+      try {
+        const history = await trackingService.listPositionHistory(shipmentId, { pageSize: 50 });
+        if (isMounted && history?.positions) {
+          setPositionHistory(history.positions);
+        }
+      } catch {
+        // Keep existing
+      }
+    };
+
+    fetchHistory();
+    const interval = setInterval(fetchHistory, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [shipmentId]);
+
   const fixture = shipmentTrackingFixtures[shipmentId];
   const routes =
     fixture && trackingException === "deviation"
@@ -54,20 +100,33 @@ export function ShipmentTrackingPage({
     realtimeState,
   );
   const telemetry = fixture?.telemetry;
-  const mapMarkers =
-    fixture?.map.markers.map((marker) =>
-      marker.id === "tracking-current" && !isCurrentSnapshot
-        ? {
-            ...marker,
-            label: "Last-known GPS position",
-            detail:
-              realtimeState === "stale"
-                ? "Last update 18 mins ago · movement unavailable"
-                : "Movement unavailable",
-            tone: "alert" as const,
-          }
-        : marker,
-    ) ?? [];
+
+  const baseMarkers = fixture?.map.markers ?? [];
+  const mapMarkers = liveLocation
+    ? [
+        {
+          id: "tracking-current",
+          latitude: liveLocation.latitude,
+          longitude: liveLocation.longitude,
+          label: "Active Vehicle GPS",
+          detail: `${Math.round(liveLocation.speedKph ?? 50)} km/h · Heading ${Math.round(liveLocation.headingDegrees ?? 0)}°`,
+          tone: "primary" as const,
+        },
+        ...baseMarkers.filter((m) => m.id !== "tracking-current"),
+      ]
+    : baseMarkers.map((marker) =>
+        marker.id === "tracking-current" && !isCurrentSnapshot
+          ? {
+              ...marker,
+              label: "Last-known GPS position",
+              detail:
+                realtimeState === "stale"
+                  ? "Last update 18 mins ago · movement unavailable"
+                  : "Movement unavailable",
+              tone: "alert" as const,
+            }
+          : marker,
+      );
 
   function reconnect() {
     setRealtimeState("reconnecting");
@@ -152,37 +211,45 @@ export function ShipmentTrackingPage({
               }
             >
               <p className="text-xl font-semibold tabular-nums">
-                {hasLastKnownPosition && telemetry
-                  ? telemetry.coordinates
-                  : "Unavailable"}
+                {liveLocation
+                  ? `${liveLocation.latitude.toFixed(4)}, ${liveLocation.longitude.toFixed(4)}`
+                  : hasLastKnownPosition && telemetry
+                    ? telemetry.coordinates
+                    : "Unavailable"}
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <MetricCard
                   label="Speed"
                   value={
-                    isCurrentSnapshot && telemetry
-                      ? telemetry.speed
-                      : "Unavailable"
+                    liveLocation?.speedKph !== undefined
+                      ? `${Math.round(liveLocation.speedKph)} km/h`
+                      : isCurrentSnapshot && telemetry
+                        ? telemetry.speed
+                        : "Unavailable"
                   }
                 />
                 <MetricCard
                   label="Heading"
                   value={
-                    isCurrentSnapshot && telemetry
-                      ? telemetry.heading
-                      : "Unavailable"
+                    liveLocation?.headingDegrees !== undefined
+                      ? `${Math.round(liveLocation.headingDegrees)}°`
+                      : isCurrentSnapshot && telemetry
+                        ? telemetry.heading
+                        : "Unavailable"
                   }
                 />
                 <MetricCard
                   label="Last GPS"
                   value={
-                    realtimeState === "stale"
-                      ? "Last update 18 mins ago"
-                      : realtimeState === "live"
-                        ? telemetry?.lastGps
-                        : "Signal unavailable"
+                    liveLocation?.recordedAt
+                      ? new Date(liveLocation.recordedAt).toLocaleTimeString()
+                      : realtimeState === "stale"
+                        ? "Last update 18 mins ago"
+                        : realtimeState === "live"
+                          ? telemetry?.lastGps
+                          : "Signal unavailable"
                   }
-                  meta={telemetry?.source}
+                  meta={liveLocation ? "Aurora GPS Streamer" : telemetry?.source}
                 />
                 <MetricCard
                   label="ETA"

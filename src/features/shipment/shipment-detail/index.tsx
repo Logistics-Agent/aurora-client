@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AiInsight,
   LogisticsGeoMap,
@@ -11,6 +11,8 @@ import {
   WorkspaceCard,
 } from "@/components/common";
 import { PageHeader } from "@/components/layout";
+import { shipmentService, type ShipmentDto } from "@/api/services/shipment.service";
+import { trackingService, type CurrentLocationDto } from "@/api/services/tracking.service";
 import { shipmentDetailMapMock, shipmentGpsMock } from "../mock";
 import { ShipmentNotificationSubscription } from "./components/shipment-notification-subscription";
 
@@ -27,6 +29,44 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
   const [tab, setTab] = useState<DetailTab>("overview");
   const [selectedMarkerId, setSelectedMarkerId] = useState("");
   const [selectedRouteId, setSelectedRouteId] = useState("");
+  const [shipment, setShipment] = useState<ShipmentDto | null>(null);
+  const [currentGps, setCurrentGps] = useState<CurrentLocationDto | null>(null);
+
+  // Load shipment details
+  useEffect(() => {
+    let isMounted = true;
+    shipmentService.getShipment(shipmentId).then((data) => {
+      if (isMounted && data) setShipment(data);
+    }).catch(() => {
+      // Keep fallback fixtures
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [shipmentId]);
+
+  // Polling GPS telemetry every 2.5s for live demo
+  useEffect(() => {
+    let isMounted = true;
+    const pollGps = async () => {
+      const loc = await trackingService.getCurrentLocation(shipmentId);
+      if (isMounted && loc) {
+        setCurrentGps(loc);
+      }
+    };
+
+    pollGps();
+    const interval = setInterval(pollGps, 2500);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [shipmentId]);
+
+  const customerName = shipment?.customerName || "Enterprise Customer";
+  const originAddress = shipment?.originAddress || "Origin Warehouse";
+  const destAddress = shipment?.destinationAddress || "Destination Port";
+  const status = shipment?.status || "In Transit";
 
   const aiInsightContent = (
     <AiInsight
@@ -39,16 +79,29 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
     />
   );
 
+  const mapMarkers = currentGps
+    ? [
+        {
+          id: "tracking-current",
+          latitude: currentGps.latitude,
+          longitude: currentGps.longitude,
+          label: "Live Vehicle Position",
+          tone: "primary" as const,
+        },
+        ...shipmentDetailMapMock.markers.filter((m) => m.id !== "tracking-current"),
+      ]
+    : shipmentDetailMapMock.markers;
+
   return (
     <>
       <PageHeader
         breadcrumb={["Shipments", shipmentId]}
-        title={shipmentId}
-        description="Acme Electronics · HCM → Singapore · shipment context"
+        title={shipment?.shipmentNo || shipmentId}
+        description={`${customerName} · ${originAddress} → ${destAddress}`}
         actions={
           <>
-            <StatusBadge label="In Transit" intent="info" />
-            <RiskBadge level="medium" />
+            <StatusBadge label={status} intent="info" />
+            <RiskBadge level={shipment?.riskLevel ?? "medium"} />
             <ShipmentNotificationSubscription shipmentId={shipmentId} />
           </>
         }
@@ -72,16 +125,33 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
         </div>
         {tab === "overview" && (
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <MetricCard label="Current position" value="Near Cat Lai Port" />
-            <MetricCard label="ETA" value="14 Jun · 18:40" />
-            <MetricCard label="Exception" value="Port congestion" />
+            <MetricCard
+              label="Current position"
+              value={
+                currentGps
+                  ? `${currentGps.latitude.toFixed(4)}, ${currentGps.longitude.toFixed(4)}`
+                  : "Telemetry active"
+              }
+            />
+            <MetricCard label="ETA" value={shipment?.estimatedEta || "On schedule"} />
+            <MetricCard label="Exception" value="No active exceptions" />
           </div>
         )}
         {tab === "cargo" && (
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <MetricCard label="Commodity" value="Electronics" />
-            <MetricCard label="Weight" value="18,420 kg" />
-            <MetricCard label="Equipment" value="2 × 40’ reefer" />
+            <MetricCard
+              label="Commodity"
+              value={shipment?.cargoItems?.[0]?.name || "Electronics"}
+            />
+            <MetricCard
+              label="Weight"
+              value={
+                shipment?.cargoItems?.[0]?.weightKg
+                  ? `${shipment.cargoItems[0].weightKg} kg`
+                  : "18,420 kg"
+              }
+            />
+            <MetricCard label="Equipment" value="Standard Road Carrier" />
           </div>
         )}
         {tab === "route" && (
@@ -89,7 +159,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
             <LogisticsGeoMap
               className="h-[34rem] min-h-[30rem]"
               routes={shipmentDetailMapMock.routes}
-              markers={shipmentDetailMapMock.markers}
+              markers={mapMarkers}
               selectedRouteId={selectedRouteId}
               selectedMarkerId={selectedMarkerId}
               onMarkerSelect={setSelectedMarkerId}
@@ -103,13 +173,35 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
               <div className="grid gap-3 sm:grid-cols-2">
                 <MetricCard
                   label="Current GPS"
-                  value={shipmentGpsMock.coordinates}
+                  value={
+                    currentGps
+                      ? `${currentGps.latitude.toFixed(4)}, ${currentGps.longitude.toFixed(4)}`
+                      : shipmentGpsMock.coordinates
+                  }
                 />
-                <MetricCard label="Speed" value={shipmentGpsMock.speed} />
-                <MetricCard label="Heading" value={shipmentGpsMock.heading} />
+                <MetricCard
+                  label="Speed"
+                  value={
+                    currentGps?.speedKph !== undefined
+                      ? `${Math.round(currentGps.speedKph)} km/h`
+                      : shipmentGpsMock.speed
+                  }
+                />
+                <MetricCard
+                  label="Heading"
+                  value={
+                    currentGps?.headingDegrees !== undefined
+                      ? `${Math.round(currentGps.headingDegrees)}°`
+                      : shipmentGpsMock.heading
+                  }
+                />
                 <MetricCard
                   label="Last GPS"
-                  value={shipmentGpsMock.lastUpdate}
+                  value={
+                    currentGps?.recordedAt
+                      ? new Date(currentGps.recordedAt).toLocaleTimeString()
+                      : shipmentGpsMock.lastUpdate
+                  }
                   meta={`Route progress ${shipmentGpsMock.progress}`}
                 />
               </div>

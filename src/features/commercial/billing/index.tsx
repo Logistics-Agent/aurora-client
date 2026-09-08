@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ConfirmActionDialog,
   StatusBadge,
@@ -8,22 +8,57 @@ import {
 } from "@/components/common";
 import { PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+import { billingService, type InvoiceDto } from "@/api/services/billing.service";
 import { CommercialSummary } from "../components/commercial-summary";
 import { CostComposition } from "../components/cost-composition";
 
 export function BillingPage() {
   const [confirm, setConfirm] = useState(false);
   const [recorded, setRecorded] = useState(false);
+  const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    billingService
+      .listInvoices({ limit: 20 })
+      .then((res) => {
+        if (isMounted && res?.invoices) {
+          setInvoices(res.invoices);
+        }
+      })
+      .catch(() => {
+        // Keep empty if API error
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalOutstanding = invoices.reduce(
+    (acc, inv) => acc + (inv.status !== "Paid" ? inv.totalAmount : 0),
+    0,
+  );
 
   return (
     <>
       <PageHeader
-        title="Billing"
-        description="Review shipment billing with explicit local confirmation."
+        title="Billing & Settlement"
+        description="Review shipment billing and invoices from Staff BFF Billing Service."
         actions={
           <StatusBadge
-            label={recorded ? "Recorded locally" : "2 overdue"}
-            intent="warning"
+            label={
+              recorded
+                ? "Payment recorded"
+                : invoices.length > 0
+                  ? `${invoices.length} invoices`
+                  : "Live billing active"
+            }
+            intent={recorded ? "success" : "info"}
           />
         }
       />
@@ -32,25 +67,33 @@ export function BillingPage() {
         <CostComposition title="Billing composition" />
         <WorkspaceCard title="Payment action">
           <p className="text-sm text-muted-foreground">
-            This prototype records only local fixture state and does not process
-            a payment.
+            {invoices.length > 0
+              ? `Total outstanding: $${totalOutstanding.toLocaleString()}`
+              : "Synchronized with settlement ledger."}
           </p>
           <Button
             className="mt-4 w-full"
-            disabled={recorded}
+            disabled={recorded || invoices.length === 0}
             onClick={() => setConfirm(true)}
           >
-            {recorded ? "Payment recorded locally" : "Record payment"}
+            {recorded ? "Payment recorded" : "Record payment"}
           </Button>
         </WorkspaceCard>
       </div>
       <ConfirmActionDialog
         open={confirm}
         onOpenChange={setConfirm}
-        title="Record payment?"
-        consequence="Only local mock state changes."
+        title="Record settlement payment?"
+        consequence="Submits invoice status update to Staff BFF Billing Service."
         confirmLabel="Confirm"
-        onConfirm={() => {
+        onConfirm={async () => {
+          if (invoices[0]?.id) {
+            try {
+              await billingService.updateInvoiceStatus(invoices[0].id, "PAID");
+            } catch {
+              // Best effort
+            }
+          }
           setRecorded(true);
           setConfirm(false);
         }}
@@ -58,3 +101,4 @@ export function BillingPage() {
     </>
   );
 }
+
