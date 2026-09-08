@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { customerNavigation } from "@/configs/navigation.config";
+import { useSidebarStore } from "@/stores/sidebar.store";
+import { cn } from "@/lib/utils";
 import { WorkspaceSidebar } from "./workspace-sidebar";
 
 const mobileNavigation = customerNavigation
@@ -32,6 +34,7 @@ function isActivePath(pathname: string, href: string) {
 
 export function CustomerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isExpanded = useSidebarStore((state) => state.isExpanded);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -45,7 +48,12 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
         accountInitials="AC"
       />
 
-      <main className="min-w-0 flex-1 overflow-y-auto pb-[66px] lg:ml-[64px] lg:pb-0">
+      <main
+        className={cn(
+          "min-w-0 flex-1 overflow-y-auto pb-[66px] transition-[margin-left] duration-200 ease-out lg:pb-0",
+          isExpanded ? "lg:ml-[224px]" : "lg:ml-[64px]",
+        )}
+      >
         <div className="w-full p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
 

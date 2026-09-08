@@ -1,6 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
+<<<<<<< Updated upstream
 import { describe, expect, it, vi } from "vitest";
 import { staffNavigation } from "@/configs/navigation.config";
+=======
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useSidebarStore } from "@/stores/sidebar.store";
+>>>>>>> Stashed changes
 import { AppSidebar } from "./app-sidebar";
 
 vi.mock("next/navigation", () => ({
@@ -20,6 +26,7 @@ vi.mock("./notification-bell", () => ({
 }));
 
 describe("AppSidebar", () => {
+<<<<<<< Updated upstream
   it("declares Mail as a direct-capability navigation item", () => {
     expect(staffNavigation).toContainEqual(
       expect.objectContaining({
@@ -31,29 +38,42 @@ describe("AppSidebar", () => {
   });
 
   it("starts compact and expands on hover or keyboard focus", () => {
+=======
+  beforeEach(() => {
+    useSidebarStore.setState({ isExpanded: true });
+  });
+
+  it("renders expanded by default and can toggle to compact", async () => {
+    const user = userEvent.setup();
+>>>>>>> Stashed changes
     render(<AppSidebar />);
 
     const sidebar = screen.getByRole("complementary", {
       name: "Staff navigation",
     });
 
-    expect(sidebar).toHaveClass("w-[64px]");
+    expect(sidebar).toHaveClass("w-[224px]");
     expect(sidebar).toHaveClass("fixed");
     expect(sidebar).toHaveClass("inset-y-0");
     expect(sidebar).toHaveClass("z-50");
-    expect(sidebar).toHaveClass("hover:w-[224px]");
-    expect(sidebar).not.toHaveClass("focus-within:w-[224px]");
     expect(within(sidebar).getByText("Overview")).toBeInTheDocument();
-    expect(
-      within(sidebar).getByRole("link", { name: "Overview" }).firstElementChild,
-    ).toHaveClass("size-8", "shrink-0");
-    const notificationLink = within(sidebar).getByRole("link", {
-      name: "Notifications",
+
+    const collapseButton = screen.getByRole("button", {
+      name: "Collapse sidebar",
     });
+<<<<<<< Updated upstream
     expect(notificationLink).toHaveAttribute("href", "/notifications");
     expect(notificationLink).toHaveClass("w-full", "h-10");
 
     const mailLink = within(sidebar).getByRole("link", { name: "Mail" });
     expect(mailLink).toHaveAttribute("href", "/mail");
+=======
+    await user.click(collapseButton);
+
+    expect(sidebar).toHaveClass("w-[64px]");
+    expect(
+      screen.getByRole("button", { name: "Expand sidebar" }),
+    ).toBeInTheDocument();
+>>>>>>> Stashed changes
   });
 });

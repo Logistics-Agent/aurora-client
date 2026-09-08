@@ -2,14 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, HelpCircle, LogOut } from "lucide-react";
+import { Bell, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuthLogout } from "@/hooks/mutations/auth/use-auth-logout";
+import { useSidebarStore } from "@/stores/sidebar.store";
+import { cn } from "@/lib/utils";
 import type { NavigationItem } from "@/configs/navigation.config";
 
+<<<<<<< Updated upstream
 const sidebarItemClassName =
   "flex h-10 w-full items-center justify-start rounded-lg px-2 text-sm font-medium transition-colors";
 
+=======
+>>>>>>> Stashed changes
 type WorkspaceSidebarProps = {
   navigation: readonly NavigationItem[];
   ariaLabel: string;
@@ -33,12 +38,26 @@ export function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
   const pathname = usePathname();
   const logoutMutation = useAuthLogout();
+  const { isExpanded, toggleSidebar } = useSidebarStore();
+
+  const getItemClassName = (active?: boolean) =>
+    cn(
+      "flex h-10 items-center rounded-lg text-sm font-medium transition-[background-color,color,padding] duration-150",
+      isExpanded ? "justify-start px-2.5 gap-2.5" : "justify-center px-0 gap-0",
+      active
+        ? "bg-blue-50 text-primary font-semibold"
+        : "text-muted-foreground hover:bg-slate-50 hover:text-foreground",
+    );
 
   return (
     <aside
       aria-label={ariaLabel}
-      className="group/sidebar fixed inset-y-0 left-0 z-50 hidden w-[64px] overflow-hidden border-r border-border bg-card transition-[width] duration-200 ease-out hover:w-[224px] lg:flex lg:flex-col"
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 hidden overflow-hidden border-r border-border bg-card transition-[width] duration-200 ease-out lg:flex lg:flex-col",
+        isExpanded ? "w-[224px]" : "w-[64px]",
+      )}
     >
+<<<<<<< Updated upstream
       <div className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-4">
         <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-white">
           L
@@ -49,6 +68,48 @@ export function WorkspaceSidebar({
             {brandSubtitle}
           </p>
         </div>
+=======
+      <div className={cn(
+        "flex h-16 shrink-0 items-center border-b border-border transition-[padding] duration-200",
+        isExpanded ? "justify-between px-3" : "justify-center px-2",
+      )}>
+        {isExpanded ? (
+          <>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-sm">
+                L
+              </div>
+              <div className="min-w-0 overflow-hidden whitespace-nowrap">
+                <p className="truncate text-base font-bold leading-tight">{brandName}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {brandSubtitle}
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="size-8 shrink-0 text-muted-foreground hover:bg-slate-100 hover:text-foreground"
+              aria-label="Collapse sidebar"
+            >
+              <PanelLeftClose className="size-4" />
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="size-9 shrink-0 rounded-lg text-muted-foreground hover:bg-slate-100 hover:text-foreground"
+            aria-label="Expand sidebar"
+          >
+            <PanelLeftOpen className="size-5 text-primary" />
+          </Button>
+        )}
+>>>>>>> Stashed changes
       </div>
 
       <nav
@@ -66,19 +127,32 @@ export function WorkspaceSidebar({
               href={href}
               title={label}
               aria-current={active ? "page" : undefined}
+<<<<<<< Updated upstream
               className={`${sidebarItemClassName} ${active ? "bg-blue-50 text-primary" : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"}`}
+=======
+              className={getItemClassName(active)}
+>>>>>>> Stashed changes
             >
               <span className="flex size-8 shrink-0 items-center justify-center">
                 <Icon className="size-4" />
               </span>
+<<<<<<< Updated upstream
               <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left text-sm opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100">
                 {label}
               </span>
+=======
+              {isExpanded && (
+                <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
+                  {label}
+                </span>
+              )}
+>>>>>>> Stashed changes
             </Link>
           );
         })}
       </nav>
 
+<<<<<<< Updated upstream
       <div className="shrink-0 space-y-1 border-t border-border p-2">
         {showNotifications && (
           <Link
@@ -134,6 +208,88 @@ export function WorkspaceSidebar({
               {accountSubtitle}
             </span>
           </span>
+=======
+      <div className="shrink-0 space-y-3 border-t border-border p-2">
+        {showRealtimeStatus && (
+          <div className={cn(
+            "flex min-h-6 overflow-hidden whitespace-nowrap",
+            isExpanded ? "justify-start px-2" : "justify-center",
+          )}>
+            <RealtimeStatus state="live" />
+          </div>
+        )}
+        <div className="space-y-1">
+          {showNotifications && (
+            <Link
+              href="/notifications"
+              title="Notifications"
+              className={getItemClassName(pathname.startsWith("/notifications"))}
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center">
+                <Bell className="size-4" />
+              </span>
+              {isExpanded && (
+                <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
+                  Notifications
+                </span>
+              )}
+            </Link>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            className={getItemClassName(false)}
+            aria-label="Help"
+            title="Help"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center">
+              <HelpCircle className="size-4" />
+            </span>
+            {isExpanded && (
+              <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
+                Help
+              </span>
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className={getItemClassName(false)}
+            aria-label="Sign out"
+            title="Sign out"
+            disabled={logoutMutation.isPending}
+            onClick={() => logoutMutation.mutate()}
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center">
+              <LogOut className="size-4" />
+            </span>
+            {isExpanded && (
+              <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
+                Sign out
+              </span>
+            )}
+          </Button>
+          <div className={cn(
+            "flex h-10 items-center rounded-lg",
+            isExpanded ? "justify-start px-2.5 gap-2.5" : "justify-center px-0 gap-0",
+          )}>
+            <span className="flex size-8 shrink-0 items-center justify-center">
+              <Avatar className="size-8">
+                <AvatarFallback className="bg-primary text-xs font-semibold text-white">
+                  {accountInitials}
+                </AvatarFallback>
+              </Avatar>
+            </span>
+            {isExpanded && (
+              <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-sm font-medium">
+                <span className="block truncate text-foreground">{accountName}</span>
+                <span className="block truncate text-xs font-normal text-muted-foreground">
+                  {accountSubtitle}
+                </span>
+              </span>
+            )}
+          </div>
+>>>>>>> Stashed changes
         </div>
       </div>
     </aside>

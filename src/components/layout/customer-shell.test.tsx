@@ -1,5 +1,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useSidebarStore } from "@/stores/sidebar.store";
 import { CustomerShell } from "./customer-shell";
 
 vi.mock("next/navigation", () => ({
@@ -14,7 +16,12 @@ vi.mock("@/hooks/mutations/auth/use-auth-logout", () => ({
 afterEach(cleanup);
 
 describe("CustomerShell", () => {
-  it("renders the desktop customer workspace and preserves page content", () => {
+  beforeEach(() => {
+    useSidebarStore.setState({ isExpanded: true });
+  });
+
+  it("renders the desktop customer workspace and preserves page content", async () => {
+    const user = userEvent.setup();
     render(
       <CustomerShell>
         <p>Portal page content</p>
@@ -24,8 +31,7 @@ describe("CustomerShell", () => {
     const sidebar = screen.getByRole("complementary", {
       name: "Customer portal navigation",
     });
-    expect(sidebar).toHaveClass("w-[64px]");
-    expect(sidebar).toHaveClass("hover:w-[224px]");
+    expect(sidebar).toHaveClass("w-[224px]");
     expect(within(sidebar).getByText("Overview")).toBeInTheDocument();
     expect(within(sidebar).getByText("My Shipments")).toBeInTheDocument();
     expect(within(sidebar).getByText("Documents")).toBeInTheDocument();
@@ -37,6 +43,12 @@ describe("CustomerShell", () => {
       within(sidebar).getByRole("button", { name: "Help" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Portal page content")).toBeInTheDocument();
+
+    const collapseButton = screen.getByRole("button", {
+      name: "Collapse sidebar",
+    });
+    await user.click(collapseButton);
+    expect(sidebar).toHaveClass("w-[64px]");
   });
 
   it("renders the four-item mobile bottom navigation", () => {

@@ -13,11 +13,11 @@ Next.js App Router foundation for the enterprise logistics operating system.
 ## Commands
 
 ```bash
-pnpm dev
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
+pnpm.cmd dev
+pnpm.cmd lint
+pnpm.cmd typecheck
+pnpm.cmd test
+pnpm.cmd build
 ```
 
 ## Architecture
