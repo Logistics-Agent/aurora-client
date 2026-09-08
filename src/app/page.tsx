@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Mail,
   Map,
-  ShieldCheck,
   Truck,
   Users,
 } from "lucide-react";
@@ -67,19 +66,6 @@ const workspaceCards = [
     links: [
       { label: "Route Planning", href: "/route-planning" },
       { label: "Live Map", href: "/live-map" },
-    ],
-  },
-  {
-    title: "Tenant Administration & IAM",
-    badge: "Security & Control",
-    badgeColor: "bg-slate-100 text-slate-800 border-slate-300",
-    description:
-      "Enterprise control plane for managing tenant staff, fine-grained capability assignments, and security audit logs.",
-    href: "/admin/users",
-    icon: ShieldCheck,
-    links: [
-      { label: "Users & Roles", href: "/admin/users" },
-      { label: "Tenant Profile", href: "/admin/tenant" },
     ],
   },
   {

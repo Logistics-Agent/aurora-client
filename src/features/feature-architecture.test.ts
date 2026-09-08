@@ -12,12 +12,6 @@ const nestedPageIndexes = [
   "shipment/shipment-detail/index.tsx",
   "shipment/create-shipment/index.tsx",
   "shipment/import-shipments/index.tsx",
-  "administration/users/index.tsx",
-  "administration/roles/index.tsx",
-  "administration/tenant-settings/index.tsx",
-  "administration/audit-log/index.tsx",
-  "administration/ai-operations/index.tsx",
-  "administration/ai-execution-detail/index.tsx",
   "commercial/cost-estimate/index.tsx",
   "commercial/negotiations/index.tsx",
   "commercial/negotiation-detail/index.tsx",
@@ -50,7 +44,6 @@ const mailCompositionIndexes = [
 
 const forbiddenMonoliths = [
   "shipment/components/shipment-workspace.tsx",
-  "administration/components/admin-workspace.tsx",
   "commercial/components/commercial-workspace.tsx",
   "documents/components/document-workspace.tsx",
   "compliance/components/compliance-workspace.tsx",
