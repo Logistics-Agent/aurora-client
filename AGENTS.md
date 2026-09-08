@@ -6,8 +6,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
-<!-- END:nextjs-agent-rules -->
-
 # Aurora Client Engineering Rules
 
 ## Project scope and stack
@@ -183,3 +181,5 @@ Do not put Notification list data in Zustand. TanStack Query owns it; Zustand is
 - Add or update tests with behavior changes, especially API boundaries, FCM permission states and navigation.
 - Before claiming completion, run typecheck, lint, relevant tests, full tests when practical and a production build.
 - Do not commit secrets, Firebase Admin JSON, private keys or backend service keys. Public Firebase Web config and VAPID key may be supplied through `NEXT_PUBLIC_*` environment variables.
+
+<!-- END:nextjs-agent-rules -->

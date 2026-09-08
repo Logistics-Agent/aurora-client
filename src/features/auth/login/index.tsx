@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authService, type IdentifyResponse } from "@/api/services/auth.service";
-import { AuthFrame } from "../components/auth-frame";
+import { LoginFrame } from "./components/login-frame";
 
 type AuthStep = "IDENTIFY" | "PASSWORD" | "COMPLETE_INVITATION";
 
@@ -166,13 +166,13 @@ export function LoginPage() {
   };
 
   return (
-    <AuthFrame
+    <LoginFrame
       title={
         step === "COMPLETE_INVITATION"
           ? "Set New Password"
           : step === "PASSWORD"
             ? "Enter Password"
-            : "Sign In"
+            : "Welcome back"
       }
       description={
         step === "COMPLETE_INVITATION"
@@ -185,7 +185,7 @@ export function LoginPage() {
       <div className="space-y-5 animate-in fade-in duration-300">
         {/* Error Alert */}
         {errorMessage && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50/90 backdrop-blur-md p-3.5 text-xs text-rose-800 animate-in fade-in shadow-xs">
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/90 backdrop-blur-md p-3.5 text-xs text-rose-800 animate-in fade-in shadow-xs">
             <p className="font-semibold">{errorMessage}</p>
           </div>
         )}
@@ -285,6 +285,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-700 transition-colors"
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -336,6 +337,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
+                  aria-label={showNewPassword ? "Hide new password" : "Show new password"}
                   className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-700 transition-colors"
                 >
                   {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -393,7 +395,7 @@ export function LoginPage() {
           <span>Enterprise Secure Authentication · OAuth2 / OIDC</span>
         </div>
       </div>
-    </AuthFrame>
+    </LoginFrame>
   );
 }
 

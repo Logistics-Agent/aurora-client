@@ -1,14 +1,12 @@
 import Link from "next/link";
 import {
-  Activity,
   ArrowRight,
-  Bot,
   FileText,
+  Globe2,
   LayoutDashboard,
   Mail,
   Map,
   Truck,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -16,9 +14,7 @@ const workspaceCards = [
   {
     title: "Staff Operations Workspace",
     badge: "Operations",
-    badgeColor: "bg-blue-50 text-primary border-blue-200",
-    description:
-      "Core operational control tower with real-time shipment monitoring, exceptions, and hub throughput metrics.",
+    description: "Shipment monitoring, exceptions, and hub throughput metrics.",
     href: "/overview",
     icon: LayoutDashboard,
     links: [
@@ -30,9 +26,7 @@ const workspaceCards = [
   {
     title: "Staff Mail & Communications",
     badge: "AI Communications",
-    badgeColor: "bg-purple-50 text-ai border-purple-200",
-    description:
-      "3-pane operational mail workspace with customer inquiry triage, draft replies, and AI counter-offers.",
+    description: "Operational mail triage, draft replies, and AI assistance.",
     href: "/mail",
     icon: Mail,
     links: [
@@ -43,9 +37,7 @@ const workspaceCards = [
   {
     title: "Customer Self-Service Portal",
     badge: "Customer Facing",
-    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    description:
-      "Dedicated portal for shippers and consignees to track cargo, download commercial documents, and pay invoices.",
+    description: "Track cargo, documents, invoices, and customer requests.",
     href: "/portal",
     icon: Truck,
     links: [
@@ -58,9 +50,7 @@ const workspaceCards = [
   {
     title: "Route Planning & Live Map",
     badge: "Geospatial Engine",
-    badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-    description:
-      "Multi-modal route planner with waypoint optimization, weather disruption alerts, and live GPS map.",
+    description: "Plan multimodal routes and review live GPS conditions.",
     href: "/route-planning",
     icon: Map,
     links: [
@@ -71,9 +61,7 @@ const workspaceCards = [
   {
     title: "Compliance & Documents",
     badge: "Audit & Trade",
-    badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    description:
-      "Customs documentation repository, regulatory verification, bill of lading filing, and automated compliance checks.",
+    description: "Review customs documentation and compliance findings.",
     href: "/compliance",
     icon: FileText,
     links: [
@@ -85,139 +73,97 @@ const workspaceCards = [
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-white">
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+    <main className="min-h-screen overflow-x-hidden bg-[#f8fafc] text-[#172b3e] selection:bg-sky-500/20 dark:bg-[#080f18] dark:text-[#eaf0f7]">
+      <header className="border-b border-[#cad6e1]/80 bg-[#f8fafc]/80 backdrop-blur-xl dark:border-[#344354] dark:bg-[#080f18]/80">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
+          <Link href="/" className="flex items-center gap-3 text-sm font-semibold tracking-[0.2em]">
+            <Globe2 className="size-6 text-[#2f659e] dark:text-[#9aabbd]" />
+            AURORA
+          </Link>
           <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-sm">
-              L
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">Aurora</span>
-                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wide">
-                  Control Tower
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">ACME Logistics Operations</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button size="sm" asChild className="shadow-sm">
-              <Link href="/overview" className="gap-1.5">
-                <span>Enter Workspace</span>
-                <ArrowRight className="size-3.5" />
+            <Link href="/login" className="rounded-lg px-3 py-2 text-xs font-semibold text-[#627489] transition-colors hover:bg-[#cad6e1]/50 hover:text-[#172b3e] dark:text-[#9aabbd] dark:hover:bg-[#344354] dark:hover:text-[#eaf0f7]">
+              Sign in
+            </Link>
+            <Button asChild className="rounded-lg bg-[#2f659e] text-white shadow-none hover:bg-[#3c77b3]">
+              <Link href="/overview" className="gap-2">
+                Open workspace <ArrowRight className="size-4" />
               </Link>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="border-b border-border bg-gradient-to-b from-card to-background px-4 py-12 sm:px-6 sm:py-16">
-        <div className="mx-auto max-w-3xl text-center space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-3 py-1 text-xs font-medium text-primary">
-            <span className="size-2 rounded-full bg-primary animate-pulse" />
-            Active Platform Workspaces
-          </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
-            Logistics AI Control Tower
-          </h1>
-          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            Centralized intelligent logistics suite for autonomous dispatching, live fleet tracking,
-            multimodal route planning, and customer collaboration.
-          </p>
-          <div className="pt-4 flex flex-wrap justify-center gap-3">
-            <Button size="lg" asChild className="shadow-md shadow-primary/20">
-              <Link href="/overview" className="gap-2 font-semibold">
-                <LayoutDashboard className="size-4" /> Open Operations Workspace
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link href="/portal" className="gap-2">
-                <Truck className="size-4" /> Customer Portal
-              </Link>
-            </Button>
+      <section className="border-b border-[#cad6e1]/70 bg-[radial-gradient(ellipse_at_78%_44%,#d6e1ec_0,#edf2f7_43%,#f8fafc_78%)] px-6 py-20 dark:border-[#344354] dark:bg-[radial-gradient(ellipse_at_78%_44%,#192b3d_0,#0b1521_45%,#080f18_80%)] lg:px-10 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="max-w-2xl">
+            <p className="mb-5 text-[10px] font-semibold tracking-[0.24em] text-[#627489] dark:text-[#9aabbd]">
+              LOGISTICS AI CONTROL TOWER
+            </p>
+            <h1 className="max-w-xl text-4xl font-medium leading-[1.08] tracking-[-0.045em] text-[#172b3e] dark:text-[#eaf0f7] sm:text-6xl">
+              One view of every moving part.
+            </h1>
+            <p className="mt-6 max-w-xl text-sm leading-8 text-[#627489] dark:text-[#9aabbd] sm:text-base">
+              Aurora connects operations, communications, route planning, and customer visibility in one calm control tower.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button asChild className="h-11 rounded-lg bg-[#2f659e] px-5 text-white shadow-none hover:bg-[#3c77b3]">
+                <Link href="/overview" className="gap-2">
+                  <LayoutDashboard className="size-4" /> Open operations
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-11 rounded-lg border-[#cad6e1] bg-transparent px-5 text-[#172b3e] hover:bg-[#cad6e1]/40 dark:border-[#344354] dark:text-[#eaf0f7] dark:hover:bg-[#344354]">
+                <Link href="/portal" className="gap-2">
+                  <Truck className="size-4" /> Customer portal
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Direct Module Navigation Cards */}
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-foreground">
-                Workspaces & Applications
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Select an entry point below to navigate directly to each operational module.
-              </p>
-            </div>
+      <section className="mx-auto max-w-7xl px-6 py-12 lg:px-10 lg:py-16">
+        <div className="mb-7 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.2em] text-[#627489] dark:text-[#9aabbd]">WORKSPACES</p>
+            <h2 className="mt-2 text-xl font-medium tracking-tight text-[#172b3e] dark:text-[#eaf0f7]">Choose an operational entry point</h2>
           </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {workspaceCards.map(
-              ({ title, badge, badgeColor, description, href, icon: Icon, links }) => (
-                <div
-                  key={href}
-                  className="group flex flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/40 hover:shadow-md"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex size-10 items-center justify-center rounded-lg bg-secondary text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-                        <Icon className="size-5" />
-                      </div>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide ${badgeColor}`}
-                      >
-                        {badge}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                        <Link href={href} className="flex items-center gap-1.5 focus:outline-none">
-                          {title}
-                          <ArrowRight className="size-3.5 opacity-0 transition-all -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0" />
-                        </Link>
-                      </h3>
-                      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                        {description}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 border-t border-border pt-3">
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Quick Links
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {links.map((link) => (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-[11px] font-medium text-foreground hover:bg-blue-50 hover:text-primary transition-colors"
-                        >
-                          {link.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ),
-            )}
-          </div>
+          <span className="hidden text-xs text-[#627489] dark:text-[#9aabbd] sm:block">{workspaceCards.length} connected areas</span>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-card py-6 text-center text-xs text-muted-foreground">
-        <p>Aurora Logistics AI Control Tower • Development & Testing Workspace</p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {workspaceCards.map(({ title, badge, description, href, icon: Icon, links }) => (
+            <article key={href} className="group flex min-h-52 flex-col justify-between rounded-xl border border-[#cad6e1] bg-white/70 p-5 shadow-[0_10px_30px_rgba(23,43,62,0.04)] transition-colors hover:border-[#5b95d2] dark:border-[#344354] dark:bg-[#101c2a]/80 dark:shadow-none">
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="grid size-10 place-items-center rounded-lg bg-[#edf2f7] text-[#2f659e] transition-colors group-hover:bg-[#2f659e] group-hover:text-white dark:bg-[#192b3d] dark:text-[#9aabbd] dark:group-hover:bg-[#3c77b3] dark:group-hover:text-white">
+                    <Icon className="size-5" />
+                  </span>
+                  <span className="rounded-full border border-[#cad6e1] px-2 py-1 text-[10px] font-semibold text-[#627489] dark:border-[#344354] dark:text-[#9aabbd]">
+                    {badge}
+                  </span>
+                </div>
+                <h3 className="mt-5 text-sm font-semibold text-[#172b3e] dark:text-[#eaf0f7]">
+                  <Link href={href} className="inline-flex items-center gap-1.5 hover:text-[#2f659e] dark:hover:text-[#9aabbd]">
+                    {title} <ArrowRight className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
+                </h3>
+                <p className="mt-2 text-xs leading-6 text-[#627489] dark:text-[#9aabbd]">{description}</p>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-1.5 border-t border-[#cad6e1]/70 pt-3 dark:border-[#344354]">
+                {links.map((link) => (
+                  <Link key={link.href} href={link.href} className="rounded-md bg-[#edf2f7] px-2 py-1 text-[10px] font-medium text-[#627489] transition-colors hover:bg-[#d6e1ec] hover:text-[#2f659e] dark:bg-[#192b3d] dark:text-[#9aabbd] dark:hover:bg-[#344354] dark:hover:text-[#eaf0f7]">
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <footer className="border-t border-[#cad6e1]/70 px-6 py-6 text-center text-[10px] tracking-wide text-[#627489] dark:border-[#344354] dark:text-[#9aabbd] lg:px-10">
+        Aurora Logistics AI Control Tower · Operational clarity, in motion.
       </footer>
-    </div>
+    </main>
   );
 }

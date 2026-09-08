@@ -8,7 +8,7 @@ import { QueryProvider } from "./query-provider";
 export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <QueryProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <TooltipProvider>
           {children}
           <Toaster />
