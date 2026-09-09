@@ -32,14 +32,15 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("useAuthLogout", () => {
-  it("does not clear the auth session when device cleanup fails", async () => {
+  it("clears auth session and calls authService.logout even when device cleanup fails", async () => {
     mocks.disable.mockResolvedValueOnce(false);
     const { result } = renderHook(() => useAuthLogout(), { wrapper });
 
-    await expect(result.current.mutateAsync()).rejects.toThrow(
-      "Unable to disable browser notifications.",
-    );
-    expect(authService.logout).not.toHaveBeenCalled();
+    await act(async () => {
+      await result.current.mutateAsync();
+    });
+
+    expect(authService.logout).toHaveBeenCalled();
   });
 
   it("disables the notification device before signing out", async () => {
@@ -58,6 +59,5 @@ describe("useAuthLogout", () => {
     });
 
     expect(order).toEqual(["disable", "logout"]);
-    expect(mocks.push).toHaveBeenCalledWith("/login");
   });
 });

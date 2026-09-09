@@ -1,20 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { AlertTriangle, ExternalLink } from "lucide-react";
 import {
   LogisticsGeoMap,
   MetricCard,
   WorkspaceCard,
+  type LogisticsGeoMarker,
 } from "@/components/common";
 import { PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { trackingService, type CurrentLocationDto, type GpsPositionDto } from "@/api/services/tracking.service";
-import { shipmentTrackingFixtures, trackingDeviationRoute } from "./mock";
+import { useCurrentLocationQuery } from "@/hooks/queries/tracking/use-current-location-query";
+import {
+  gpsSimulatorRoute,
+  shipmentTrackingFixtures,
+  trackingDeviationRoute,
+} from "./mock";
 import { useShipmentTrackingStore } from "./stores/use-shipment-tracking-store";
 import { RealtimeBanner } from "../components/realtime-banner";
 import { RealtimeFixtureControls } from "../components/realtime-fixture-controls";
+
+const SHIPMENT_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function ShipmentTrackingPage({
   shipmentId = "SHP-2026-00128",
@@ -44,73 +51,46 @@ export function ShipmentTrackingPage({
     (state) => state.setTrackingException,
   );
 
-  const [liveLocation, setLiveLocation] = useState<CurrentLocationDto | null>(null);
-  const [positionHistory, setPositionHistory] = useState<GpsPositionDto[]>([]);
-
-  // 1. Poll Current Location every 2.5 seconds
-  useEffect(() => {
-    let isMounted = true;
-    const fetchCurrentLocation = async () => {
-      const loc = await trackingService.getCurrentLocation(shipmentId);
-      if (isMounted && loc) {
-        setLiveLocation(loc);
-      }
-    };
-
-    fetchCurrentLocation();
-    const interval = setInterval(fetchCurrentLocation, 2500);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [shipmentId]);
-
-  // 2. Poll Position History every 5 seconds
-  useEffect(() => {
-    let isMounted = true;
-    const fetchHistory = async () => {
-      try {
-        const history = await trackingService.listPositionHistory(shipmentId, { pageSize: 50 });
-        if (isMounted && history?.positions) {
-          setPositionHistory(history.positions);
-        }
-      } catch {
-        // Keep existing
-      }
-    };
-
-    fetchHistory();
-    const interval = setInterval(fetchHistory, 5000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [shipmentId]);
+  const { data: liveLocation = null } = useCurrentLocationQuery(
+    shipmentId,
+    "vehicle",
+    1_000,
+  );
 
   const fixture = shipmentTrackingFixtures[shipmentId];
+  const isSimulatorShipment = SHIPMENT_UUID_PATTERN.test(shipmentId);
   const routes =
     fixture && trackingException === "deviation"
       ? [...fixture.map.routes, trackingDeviationRoute]
-      : (fixture?.map.routes ?? []);
-  const isCurrentSnapshot = realtimeState === "live";
+      : (fixture?.map.routes ?? [gpsSimulatorRoute]);
+  const effectiveRealtimeState = fixture
+    ? realtimeState
+    : liveLocation
+      ? "live"
+      : "reconnecting";
+  const isCurrentSnapshot = effectiveRealtimeState === "live";
   const hasLastKnownPosition = ["live", "stale", "reconnecting"].includes(
-    realtimeState,
-  );
-  const hasRetainedProgress = ["live", "stale", "reconnecting"].includes(
-    realtimeState,
+    effectiveRealtimeState,
   );
   const telemetry = fixture?.telemetry;
+  const hasRetainedProgress =
+    Boolean(telemetry) &&
+    ["live", "stale", "reconnecting"].includes(effectiveRealtimeState);
 
   const baseMarkers = fixture?.map.markers ?? [];
-  const mapMarkers = liveLocation
+  const mapMarkers: LogisticsGeoMarker[] = liveLocation
     ? [
         {
           id: "tracking-current",
-          latitude: liveLocation.latitude,
-          longitude: liveLocation.longitude,
+          position: {
+            latitude: liveLocation.latitude,
+            longitude: liveLocation.longitude,
+          },
           label: "Active Vehicle GPS",
           detail: `${Math.round(liveLocation.speedKph ?? 50)} km/h · Heading ${Math.round(liveLocation.headingDegrees ?? 0)}°`,
-          tone: "primary" as const,
+          shipmentId,
+          heading: liveLocation.headingDegrees,
+          tone: "current",
         },
         ...baseMarkers.filter((m) => m.id !== "tracking-current"),
       ]
@@ -120,7 +100,7 @@ export function ShipmentTrackingPage({
               ...marker,
               label: "Last-known GPS position",
               detail:
-                realtimeState === "stale"
+                effectiveRealtimeState === "stale"
                   ? "Last update 18 mins ago · movement unavailable"
                   : "Movement unavailable",
               tone: "alert" as const,
@@ -140,7 +120,7 @@ export function ShipmentTrackingPage({
         description={
           fixture
             ? `${shipmentId} · HCM → Singapore`
-            : `${shipmentId} · tracking fixture unavailable`
+            : `${shipmentId} · San Jose CR to Panama City PA`
         }
         actions={
           fixture ? (
@@ -164,7 +144,7 @@ export function ShipmentTrackingPage({
           ) : undefined
         }
       />
-      {!fixture ? (
+      {!fixture && !isSimulatorShipment ? (
         <WorkspaceCard title="No tracking fixture">
           <p className="text-sm text-muted-foreground">
             No tracking fixture exists for {shipmentId}. Telemetry from another
@@ -176,7 +156,7 @@ export function ShipmentTrackingPage({
         </WorkspaceCard>
       ) : (
         <>
-          {trackingException === "deviation" && (
+          {fixture && trackingException === "deviation" && (
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
               <div>
                 <p className="font-semibold">
@@ -243,9 +223,9 @@ export function ShipmentTrackingPage({
                   value={
                     liveLocation?.recordedAt
                       ? new Date(liveLocation.recordedAt).toLocaleTimeString()
-                      : realtimeState === "stale"
+                      : effectiveRealtimeState === "stale"
                         ? "Last update 18 mins ago"
-                        : realtimeState === "live"
+                        : effectiveRealtimeState === "live"
                           ? telemetry?.lastGps
                           : "Signal unavailable"
                   }
@@ -256,7 +236,7 @@ export function ShipmentTrackingPage({
                   value={
                     isCurrentSnapshot && telemetry
                       ? telemetry.eta
-                      : realtimeState === "stale" && telemetry
+                      : effectiveRealtimeState === "stale" && telemetry
                         ? `Last calculated ${telemetry.eta}`
                         : "Unavailable"
                   }
@@ -300,7 +280,7 @@ export function ShipmentTrackingPage({
           </div>
           <div className="mt-4">
             <RealtimeBanner
-              state={realtimeState}
+              state={effectiveRealtimeState}
               shipmentId={shipmentId}
               onReconnect={reconnect}
             />

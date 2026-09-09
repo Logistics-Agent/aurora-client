@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuthLogout } from "@/hooks/mutations/auth/use-auth-logout";
 import { AuthFrame } from "../components/auth-frame";
 import { tenantMocks } from "../mock";
 
 export function SelectTenantPage() {
   const [selected, setSelected] = useState("ACME Logistics");
+  const logoutMutation = useAuthLogout();
 
   return (
     <AuthFrame
@@ -40,6 +42,8 @@ export function SelectTenantPage() {
         <Button className="mt-4 w-full">Continue to {selected}</Button>
         <button
           type="button"
+          onClick={() => logoutMutation.mutate()}
+          disabled={logoutMutation.isPending}
           className="w-full text-center text-sm text-muted-foreground hover:underline"
         >
           Sign out
