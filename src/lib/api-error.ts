@@ -33,11 +33,14 @@ export class ApiError extends Error {
 type ErrorEnvelope = {
   code?: string;
   details?: unknown;
+  detail?: string;
   error?: string;
   fieldErrors?: ApiFieldErrors;
   message?: string | string[];
   statusCode?: number;
   success?: boolean;
+  requiresInvitationCompletion?: boolean;
+  session?: string;
 };
 
 const FALLBACK_MESSAGES: Record<number, string> = {
@@ -49,7 +52,7 @@ const FALLBACK_MESSAGES: Record<number, string> = {
   500: "Something went wrong. Please try again later.",
 };
 
-function normalizeMessage(message: ErrorEnvelope["message"], status: number) {
+function normalizeMessage(message: ErrorEnvelope["message"] | string, status: number) {
   if (Array.isArray(message)) {
     return message.join(", ");
   }
@@ -68,7 +71,7 @@ function fromEnvelope(error: ErrorEnvelope) {
     code: error.code ?? error.error,
     details: error.details,
     fieldErrors: error.fieldErrors,
-    message: normalizeMessage(error.message, status),
+    message: normalizeMessage(error.message ?? error.detail, status),
     status,
   });
 }
@@ -93,9 +96,9 @@ export function toApiError(error: unknown): ApiError {
 
     return new ApiError({
       code: data?.code ?? data?.error,
-      details: data?.details,
+      details: data?.details ?? data,
       fieldErrors: data?.fieldErrors,
-      message: normalizeMessage(data?.message, status),
+      message: normalizeMessage(data?.message ?? data?.detail, status),
       status,
     });
   }

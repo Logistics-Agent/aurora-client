@@ -1,8 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
-import { authService } from "./auth.service";
+import { authService, getInvitationSession } from "./auth.service";
+import { ApiError } from "@/lib/api-error";
 
 describe("auth service", () => {
+  it("extracts the Cognito session from an invitation-completion conflict", () => {
+    const error = new ApiError({
+      message: "Complete invitation",
+      status: 409,
+      details: { requiresInvitationCompletion: true, session: "cognito-session" },
+    });
+
+    expect(getInvitationSession(error)).toBe("cognito-session");
+  });
+
+  it("does not treat an unrelated conflict as an invitation challenge", () => {
+    const error = new ApiError({ message: "Conflict", status: 409, details: {} });
+    expect(getInvitationSession(error)).toBeNull();
+  });
   it("builds a login redirect with an absolute encoded return path", () => {
     const url = authService.buildLoginRedirectUrl("/dashboard?tab=notifications");
     expect(url).toContain("/api/v1/auth/login?returnUrl=");

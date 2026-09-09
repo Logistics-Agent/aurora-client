@@ -1,6 +1,7 @@
 import { api } from "@/lib/api";
 import { env } from "@/configs";
 import { parseAuthUserDto, type UserProfile } from "@/dto/auth/auth.dto";
+import { toApiError } from "@/lib/api-error";
 
 export type IdentifyResponse = {
   exists: boolean;
@@ -27,6 +28,19 @@ export type LoginErrorResponse = {
   requiresInvitationCompletion?: boolean;
   session?: string;
 };
+
+function isLoginErrorResponse(value: unknown): value is LoginErrorResponse {
+  return typeof value === "object" && value !== null;
+}
+
+export function getInvitationSession(error: unknown): string | null {
+  const apiError = toApiError(error);
+  if (apiError.status !== 409 || !isLoginErrorResponse(apiError.details)) return null;
+  if (!apiError.details.requiresInvitationCompletion) return null;
+  return typeof apiError.details.session === "string" && apiError.details.session.trim()
+    ? apiError.details.session
+    : null;
+}
 
 export type CompleteInvitationRequest = {
   email: string;

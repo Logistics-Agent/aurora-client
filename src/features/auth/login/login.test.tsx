@@ -3,9 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { authService } from "@/api/services/auth.service";
 import { LoginPage } from "./index";
+import { ApiError } from "@/lib/api-error";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({}), useSearchParams: () => new URLSearchParams() }));
-vi.mock("@/api/services/auth.service", () => ({ authService: { identify: vi.fn(), login: vi.fn(), completeInvitation: vi.fn() } }));
+vi.mock("@/api/services/auth.service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/services/auth.service")>();
+  return {
+    ...actual,
+    authService: { identify: vi.fn(), login: vi.fn(), completeInvitation: vi.fn() },
+  };
+});
 vi.mock("./components/login-frame", () => ({ LoginFrame: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 
 async function identify() {
@@ -26,7 +33,7 @@ describe("Login presentation preserves authentication", () => {
     expect(screen.getByRole("button", { name: "Sign In" })).toBeDisabled();
   });
   it("preserves tenant payload, password visibility and invalid-credential feedback", async () => {
-    vi.mocked(authService.login).mockRejectedValue({ response: { status: 401 } });
+    vi.mocked(authService.login).mockRejectedValue(new ApiError({ message: "Unauthorized", status: 401 }));
     render(<LoginPage />);
     await identify();
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong-password" } });
@@ -37,7 +44,7 @@ describe("Login presentation preserves authentication", () => {
     expect(authService.login).toHaveBeenCalledWith({ email: "staff@example.com", password: "wrong-password", tenantCode: "ACME" });
   });
   it("retains invitation challenge, validation and completion payload", async () => {
-    vi.mocked(authService.login).mockRejectedValue({ response: { status: 409, data: { session: "challenge" } } });
+    vi.mocked(authService.login).mockRejectedValue(new ApiError({ message: "Complete invitation", status: 409, details: { requiresInvitationCompletion: true, session: "challenge" } }));
     vi.mocked(authService.completeInvitation).mockRejectedValue(new Error("Server unavailable"));
     render(<LoginPage />);
     await identify();

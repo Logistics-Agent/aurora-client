@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { authService, type IdentifyResponse } from "@/api/services/auth.service";
+import { authService, getInvitationSession, type IdentifyResponse } from "@/api/services/auth.service";
+import { getApiErrorMessage, toApiError } from "@/lib/api-error";
 import { LoginFrame } from "./components/login-frame";
 
 type AuthStep = "IDENTIFY" | "PASSWORD" | "COMPLETE_INVITATION";
@@ -67,12 +68,8 @@ export function LoginPage() {
           "We couldn't find an account matching that email address. Please contact your system administrator.",
         );
       }
-    } catch (err: any) {
-      setErrorMessage(
-        err?.response?.data?.detail ||
-          err?.message ||
-          "Unable to identify account. Please check your connection and try again.",
-      );
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -100,27 +97,16 @@ export function LoginPage() {
       setTimeout(() => {
         window.location.assign(returnUrl);
       }, 500);
-    } catch (err: any) {
-      // Check for 409 Conflict indicating first-time login (FORCE_CHANGE_PASSWORD)
-      if (
-        err?.response?.status === 409 ||
-        err?.response?.data?.requiresInvitationCompletion
-      ) {
-        const session =
-          err?.response?.data?.session ||
-          err?.response?.data?.detail?.replace("NEW_PASSWORD_REQUIRED:", "") ||
-          "";
+    } catch (error: unknown) {
+      const session = getInvitationSession(error);
+      if (session) {
         setSessionCode(session);
         setStep("COMPLETE_INVITATION");
         setErrorMessage(null);
-      } else if (err?.response?.status === 401) {
+      } else if (toApiError(error).status === 401) {
         setErrorMessage("Incorrect password. Please verify your credentials.");
       } else {
-        setErrorMessage(
-          err?.response?.data?.detail ||
-            err?.message ||
-            "Authentication failed. Please try again.",
-        );
+        setErrorMessage(getApiErrorMessage(error));
       }
     } finally {
       setIsLoading(false);
@@ -154,12 +140,8 @@ export function LoginPage() {
       setTimeout(() => {
         window.location.assign(returnUrl);
       }, 600);
-    } catch (err: any) {
-      setErrorMessage(
-        err?.response?.data?.detail ||
-          err?.message ||
-          "Failed to set new password. Please try again.",
-      );
+    } catch (error: unknown) {
+      setErrorMessage(getApiErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
