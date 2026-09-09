@@ -66,7 +66,7 @@ export function DocumentReview({
   }, [initialDocumentId]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected?.id) return;
     const fetchOcrDetails = async () => {
       try {
         const review = await documentsService.getOcrReviewDetails(selected.id);
@@ -86,7 +86,7 @@ export function DocumentReview({
     if (showOcrFields) {
       void fetchOcrDetails();
     }
-  }, [selected.id, showOcrFields]);
+  }, [selected?.id, showOcrFields]);
 
   return (
     <>
@@ -105,9 +105,9 @@ export function DocumentReview({
             </div>
           </WorkspaceCard>
         )}
-        <WorkspaceCard
-          title="Document queue"
-          action={
+        <WorkspaceCard>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">Document queue</h2>
             <Button
               variant="outline"
               size="sm"
@@ -119,8 +119,8 @@ export function DocumentReview({
               />
               Refresh
             </Button>
-          }
-        >
+          </div>
+
           {documents.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               No documents currently in review queue.
@@ -232,5 +232,3 @@ export function DocumentReview({
     </>
   );
 }
-
-

@@ -89,3 +89,22 @@ export const trackingDeviationRoute: LogisticsGeoRoute = {
   kind: "risk",
   layer: "traffic",
 };
+
+// Mirrors the CLI simulator corridor so a UUID-based live demo has map context.
+export const gpsSimulatorRoute: LogisticsGeoRoute = {
+  id: "gps-simulator-route",
+  label: "San Jose CR to Panama City PA",
+  coordinates: [
+    { latitude: 9.9333, longitude: -84.0833 },
+    { latitude: 9.8653, longitude: -83.9189 },
+    { latitude: 9.3789, longitude: -83.7042 },
+    { latitude: 8.9667, longitude: -83.5167 },
+    { latitude: 8.5333, longitude: -82.8333 },
+    { latitude: 8.4333, longitude: -82.4333 },
+    { latitude: 8.2333, longitude: -81.75 },
+    { latitude: 8.1, longitude: -80.9667 },
+    { latitude: 8.4, longitude: -80.4167 },
+    { latitude: 8.9824, longitude: -79.5199 },
+  ],
+  kind: "planned",
+};

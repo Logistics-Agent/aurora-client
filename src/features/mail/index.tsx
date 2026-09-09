@@ -16,29 +16,34 @@ export interface MailPageProps {
 
 const defaultRepository = defaultMailApiRepository;
 
+const defaultResourceScope: MailResourceScope = {
+  accessibleMailboxIds: ["mailbox-operations", "mailbox-support"],
+  permissions: [
+    "mail:read",
+    "mail:thread:claim",
+    "mail:thread:reassign",
+    "mail:thread:unassign",
+    "mail:draft:create",
+    "mail:send",
+  ],
+};
+
 export function MailPage({
   initialThreadId,
   user: explicitUser,
-  resourceScope = "department",
+  resourceScope: explicitResourceScope,
   repository = defaultRepository,
 }: MailPageProps): React.JSX.Element {
   const { data: currentUser } = useCurrentUserQuery();
 
   const user: UserProfile = explicitUser ?? (currentUser
     ? {
-        userId: currentUser.id,
+        userId: currentUser.userId,
         tenantId: currentUser.tenantId || "default-tenant",
-        name: currentUser.displayName || currentUser.email || "Staff Member",
+        name: currentUser.name || currentUser.email || "Staff Member",
         email: currentUser.email,
-        role: (currentUser.role || "Operator") as any,
-        permissions: currentUser.permissions || [
-          "mail:read",
-          "mail:thread:claim",
-          "mail:thread:reassign",
-          "mail:thread:unassign",
-          "mail:draft:create",
-          "mail:send",
-        ],
+        role: currentUser.role || "STAFF",
+        permissions: currentUser.permissions ? [...currentUser.permissions] : [...defaultResourceScope.permissions],
         isAuthenticated: true,
       }
     : {
@@ -46,17 +51,20 @@ export function MailPage({
         tenantId: "default-tenant",
         name: "Anonymous Staff",
         email: "staff@aurora.internal",
-        role: "Operator" as any,
-        permissions: [
-          "mail:read",
-          "mail:thread:claim",
-          "mail:thread:reassign",
-          "mail:thread:unassign",
-          "mail:draft:create",
-          "mail:send",
-        ],
+        role: "STAFF",
+        permissions: [...defaultResourceScope.permissions],
         isAuthenticated: true,
       });
+
+  const resourceScope: MailResourceScope =
+    explicitResourceScope &&
+    typeof explicitResourceScope === "object" &&
+    Array.isArray(explicitResourceScope.accessibleMailboxIds)
+      ? explicitResourceScope
+      : {
+          accessibleMailboxIds: defaultResourceScope.accessibleMailboxIds,
+          permissions: user.permissions ?? defaultResourceScope.permissions,
+        };
 
   const props: MailWorkspaceProps = { user, resourceScope, initialThreadId, repository };
   return <MailWorkspace {...props} />;
@@ -64,4 +72,3 @@ export function MailPage({
 
 export { MailWorkspace } from "./components/mail-workspace";
 export { MailAccessState } from "./components/mail-access-state";
-

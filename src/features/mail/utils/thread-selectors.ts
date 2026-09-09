@@ -17,7 +17,7 @@ export function selectVisibleMailboxes(
   mailboxes: readonly (string | MailMailbox)[],
   resourceScope: MailResourceScope,
 ): (string | MailMailbox)[] {
-  const allowedMailboxIds = new Set(resourceScope.accessibleMailboxIds);
+  const allowedMailboxIds = new Set(resourceScope?.accessibleMailboxIds ?? []);
 
   return mailboxes.filter((mailbox) =>
     allowedMailboxIds.has(typeof mailbox === "string" ? mailbox : mailbox.id),
@@ -30,7 +30,7 @@ export function selectVisibleThreads(
   userId: string,
   resourceScope: MailResourceScope,
 ): MailThread[] {
-  const allowedMailboxIds = new Set(resourceScope.accessibleMailboxIds);
+  const allowedMailboxIds = new Set(resourceScope?.accessibleMailboxIds ?? []);
   const search = filters.search?.trim().toLocaleLowerCase();
 
   return threads.filter((thread) => {

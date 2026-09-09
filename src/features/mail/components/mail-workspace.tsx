@@ -42,8 +42,11 @@ export function MailWorkspace({
   });
   const { selectThread } = workspace;
   const scopedMailboxes = useMemo(
-    () => mailMailboxFixtures.filter((mailbox) => resourceScope.accessibleMailboxIds.includes(mailbox.id)),
-    [resourceScope.accessibleMailboxIds],
+    () =>
+      mailMailboxFixtures.filter((mailbox) =>
+        (resourceScope?.accessibleMailboxIds ?? []).includes(mailbox.id),
+      ),
+    [resourceScope?.accessibleMailboxIds],
   );
   const assignees = useMemo(
     () => mailPersonaFixtures.map(({ userId, name }) => ({ userId, name })),
@@ -137,14 +140,6 @@ export function MailWorkspace({
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Aurora Operations</p>
             <h1 className="font-heading text-2xl font-semibold">Mail workspace</h1>
             <p className="text-sm text-muted-foreground">Shared mailbox work, clearly attributed to each human operator.</p>
-            <p
-              role="status"
-              aria-live="polite"
-              aria-label="Mail data source"
-              className="text-xs font-medium text-amber-700 dark:text-amber-300"
-            >
-              UI-only demo data from a mock repository; not connected to live mail.
-            </p>
           </div>
           {viewportMode === "mid" ? (
             <button

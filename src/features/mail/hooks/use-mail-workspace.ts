@@ -213,10 +213,10 @@ export function useMailWorkspace({
       threads.find(
         (thread) =>
           thread.id === selectedThreadId &&
-          resourceScope.accessibleMailboxIds.includes(thread.mailboxId),
+          (resourceScope?.accessibleMailboxIds ?? []).includes(thread.mailboxId),
       ) ?? null
     );
-  }, [permissions.canRead, resourceScope.accessibleMailboxIds, selectedThreadId, threads]);
+  }, [permissions.canRead, resourceScope?.accessibleMailboxIds, selectedThreadId, threads]);
 
   const visibleThreads = useMemo(() => {
     if (!permissions.canRead) return [];
@@ -273,7 +273,7 @@ export function useMailWorkspace({
       const thread = threads.find(
         (item) =>
           item.id === threadId &&
-          resourceScope.accessibleMailboxIds.includes(item.mailboxId),
+          (resourceScope?.accessibleMailboxIds ?? []).includes(item.mailboxId),
       );
       if (!thread) throw new Error(`Mail thread ${threadId} is unavailable.`);
 
