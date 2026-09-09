@@ -4,7 +4,7 @@ import { type FormEvent, useState } from "react";
 
 import { useCorpusMutations } from "@/hooks/mutations/corpus/use-corpus-mutations";
 
-import { DEFAULT_KNOWLEDGE_CATEGORY } from "../constants/corpus.constants";
+import { DEFAULT_KNOWLEDGE_CATEGORY } from "../constants/knowledge-promotion.constants";
 
 export function useCorpusPromotionForm() {
   const [id, setId] = useState("");

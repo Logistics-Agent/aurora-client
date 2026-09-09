@@ -5,7 +5,7 @@ import { type FormEvent, useState } from "react";
 import type { RegulatoryQueryInput } from "@/api/services/corpus.service";
 import { useRegulatoryCorpusQuery } from "@/hooks/queries/corpus/use-corpus-queries";
 
-import { CORPUS_QUERY_DEFAULTS } from "../constants/corpus.constants";
+import { CORPUS_QUERY_DEFAULTS } from "../constants/regulatory-search.constants";
 
 export function useCorpusSearch() {
   const [query, setQuery] = useState("");

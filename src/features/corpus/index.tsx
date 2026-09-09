@@ -1,8 +1,8 @@
 import { PageHeader } from "@/components/layout";
 
-import { CorpusIngestionForm } from "./components/corpus-ingestion-form";
-import { CorpusPromotionForm } from "./components/corpus-promotion-form";
-import { CorpusSearch } from "./components/corpus-search";
+import { KnowledgePromotionWorkflow } from "./knowledge-promotion";
+import { RegulatoryIngestionWorkflow } from "./regulatory-ingestion";
+import { RegulatorySearchWorkflow } from "./regulatory-search";
 
 export function CorpusPage() {
   return (
@@ -13,10 +13,10 @@ export function CorpusPage() {
       />
       <div className="space-y-4">
         <div className="grid gap-4 lg:grid-cols-2">
-          <CorpusIngestionForm />
-          <CorpusPromotionForm />
+          <RegulatoryIngestionWorkflow />
+          <KnowledgePromotionWorkflow />
         </div>
-        <CorpusSearch />
+        <RegulatorySearchWorkflow />
       </div>
     </>
   );
