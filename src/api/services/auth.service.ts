@@ -34,6 +34,21 @@ export type CompleteInvitationRequest = {
   confirmationCode: string;
 };
 
+export type ForgotPasswordRequest = {
+  email: string;
+};
+
+export type ResetPasswordRequest = {
+  email: string;
+  newPassword: string;
+  confirmationCode: string;
+};
+
+export type ChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 function toAbsoluteUrl(pathOrUrl: string): string {
   if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
     return pathOrUrl;
@@ -59,6 +74,24 @@ export const authService = {
     payload: CompleteInvitationRequest,
   ): Promise<LoginSuccessResponse> => {
     return api.post("/api/v1/auth/complete-invitation", payload);
+  },
+
+  forgotPassword: async (
+    payload: ForgotPasswordRequest,
+  ): Promise<{ message: string }> => {
+    return api.post("/api/v1/auth/forgot-password", payload);
+  },
+
+  resetPassword: async (
+    payload: ResetPasswordRequest,
+  ): Promise<{ message: string }> => {
+    return api.post("/api/v1/auth/reset-password", payload);
+  },
+
+  changePassword: async (
+    payload: ChangePasswordRequest,
+  ): Promise<{ message: string }> => {
+    return api.post("/api/v1/auth/change-password", payload);
   },
 
   buildLoginRedirectUrl: (returnUrl: string = "/overview"): string => {
@@ -101,4 +134,5 @@ export const authService = {
     }
   },
 };
+
 

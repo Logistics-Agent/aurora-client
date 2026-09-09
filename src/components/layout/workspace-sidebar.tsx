@@ -176,22 +176,6 @@ export function WorkspaceSidebar({
           type="button"
           variant="ghost"
           className={getItemClassName(false)}
-          aria-label="Help"
-          title="Help"
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center">
-            <HelpCircle className="size-4" />
-          </span>
-          {isExpanded && (
-            <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
-              Help
-            </span>
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          className={getItemClassName(false)}
           aria-label="Sign out"
           title="Sign out"
           disabled={logoutMutation.isPending}

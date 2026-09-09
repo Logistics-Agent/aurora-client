@@ -90,6 +90,12 @@ export function RoutePlanningPage() {
   const addCustomRouteToShipment = useRoutePlanningStore(
     (state) => state.addCustomRouteToShipment,
   );
+  const optimizeRouteWithVroom = useRoutePlanningStore(
+    (state) => state.optimizeRouteWithVroom,
+  );
+  const requestAiRecommendation = useRoutePlanningStore(
+    (state) => state.requestAiRecommendation,
+  );
   const fetchLiveBackendData = useRoutePlanningStore(
     (state) => state.fetchLiveBackendData,
   );
@@ -228,16 +234,17 @@ export function RoutePlanningPage() {
 
     try {
       if (selectedRoute?.id) {
-        await routePlanningApiService.getRouteRecommendation(selectedRoute.id);
+        await Promise.allSettled([
+          requestAiRecommendation(selectedRoute.id),
+          optimizeRouteWithVroom(selectedRoute.id),
+        ]);
       }
     } catch {
-      // Fallback
-    }
-
-    window.setTimeout(() => {
+      // Handled
+    } finally {
       setIsRecalculating(false);
       setCalculationState("ready");
-    }, 600);
+    }
   };
 
   const handleOriginFacilityChange = (facilityId: string) => {
@@ -325,25 +332,22 @@ export function RoutePlanningPage() {
 
   const handleRunSolver = async () => {
     setIsSolving(true);
-    // VROOM & OSRM Central America Solver via Staff.Bff
     try {
       if (selectedRoute?.id) {
-        await routePlanningApiService.optimizeRoute(selectedRoute.id);
+        await optimizeRouteWithVroom(selectedRoute.id);
       }
     } catch {
-      // Local fallback calculation
-    }
-
-    window.setTimeout(() => {
+      // Handled
+    } finally {
       setIsSolving(false);
       const approxDistance = Math.round(customStops.length * 240);
       const approxHours = Math.round(approxDistance / 55);
       setSolverResult({
-        distanceKm: approxDistance,
-        durationHours: approxHours,
-        risk: "Low",
+        distanceKm: selectedRoute?.distanceKm ?? approxDistance,
+        durationHours: Math.round((selectedRoute?.durationMinutes ?? approxHours * 60) / 60),
+        risk: selectedRoute?.risk ?? "Low",
       });
-    }, 600);
+    }
   };
 
   const handleSaveCustomRoute = () => {
