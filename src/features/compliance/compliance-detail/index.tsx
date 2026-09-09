@@ -1,5 +1,5 @@
-import { StatusBadge } from "@/components/common";
 import { PageHeader } from "@/components/layout";
+
 import { FindingReview } from "../components/finding-review";
 
 export function ComplianceDetailPage({ findingId }: { findingId: string }) {
@@ -8,10 +8,9 @@ export function ComplianceDetailPage({ findingId }: { findingId: string }) {
       <PageHeader
         breadcrumb={["Compliance", findingId]}
         title={findingId}
-        description="Finding evidence and explicit human resolution."
-        actions={<StatusBadge label="Review required" intent="critical" />}
+        description="Load the persisted evaluation that contains this finding to inspect its evidence."
       />
-      <FindingReview initialFindingId={findingId} />
+      <FindingReview initialEvaluationId={findingId} />
     </>
   );
 }
