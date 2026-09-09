@@ -9,6 +9,7 @@ import {
   Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HomeEarth } from "@/components/common/home-earth";
 
 const workspaceCards = [
   {
@@ -94,7 +95,7 @@ export default function Home() {
       </header>
 
       <section className="border-b border-[#cad6e1]/70 bg-[radial-gradient(ellipse_at_78%_44%,#d6e1ec_0,#edf2f7_43%,#f8fafc_78%)] px-6 py-20 dark:border-[#344354] dark:bg-[radial-gradient(ellipse_at_78%_44%,#192b3d_0,#0b1521_45%,#080f18_80%)] lg:px-10 lg:py-28">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)] lg:gap-4">
           <div className="max-w-2xl">
             <p className="mb-5 text-[10px] font-semibold tracking-[0.24em] text-[#627489] dark:text-[#9aabbd]">
               LOGISTICS AI CONTROL TOWER
@@ -117,6 +118,9 @@ export default function Home() {
                 </Link>
               </Button>
             </div>
+          </div>
+          <div className="relative order-first lg:order-last">
+            <HomeEarth />
           </div>
         </div>
       </section>
