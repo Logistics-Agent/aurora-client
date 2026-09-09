@@ -1,35 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { AiInsight, EmptyState, WorkspaceCard } from "@/components/common";
+import type { FormEvent } from "react";
+
 import { PageHeader } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { assistantAnswerMock } from "./mock";
+import { getApiErrorMessage } from "@/lib/api-error";
+
+import { AssistantAccessCard } from "./components/assistant-access-card";
+import { AssistantAnswer } from "./components/assistant-answer";
+import { AssistantComposer } from "./components/assistant-composer";
+import { useAssistantWorkspace } from "./hooks/use-assistant-workspace";
 
 export function AiAssistantPage() {
-  const [asked, setAsked] = useState(false);
+  const { question, setQuestion, askQuestion, answer, error, isPending } = useAssistantWorkspace();
+  const ask = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await askQuestion();
+  };
 
   return (
     <>
       <PageHeader
         title="AI Assistant"
-        description="Ask about visible shipment context; sensitive actions require human review."
+        description="Ask grounded questions about permitted operational and compliance context."
       />
-      <WorkspaceCard title="Shipment context">
-        <div className="min-h-52 rounded-xl border border-border bg-secondary p-4">
-          {asked ? (
-            <AiInsight {...assistantAnswerMock} timestamp="Prepared locally" />
-          ) : (
-            <EmptyState
-              title="Ask a logistics question"
-              description="Try: What is the current risk for SHP-2026-00128?"
-            />
-          )}
+      <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
+        <div className="space-y-4">
+          <AssistantComposer
+            question={question}
+            isPending={isPending}
+            errorMessage={error ? getApiErrorMessage(error) : undefined}
+            onQuestionChange={setQuestion}
+            onSubmit={ask}
+          />
+          {answer && <AssistantAnswer response={answer} />}
         </div>
-        <Button className="mt-4" onClick={() => setAsked(true)}>
-          Ask mock question
-        </Button>
-      </WorkspaceCard>
+        <AssistantAccessCard />
+      </div>
     </>
   );
 }
