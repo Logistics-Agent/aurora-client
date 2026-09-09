@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  BookOpen,
   Bot,
   ClipboardCheck,
   FileText,
@@ -10,6 +11,7 @@ import {
   Settings,
   Truck,
 } from "lucide-react";
+
 import { PERMISSIONS } from "@/constants/permissions";
 
 export type NavigationItem = {
@@ -43,16 +45,32 @@ export const staffNavigation: NavigationItem[] = [
     label: "Documents",
     href: "/documents",
     icon: FileText,
+    capability: PERMISSIONS.DOCUMENTS.READ,
+  },
+  {
+    label: "Compliance",
+    href: "/compliance",
+    icon: ClipboardCheck,
+    capability: PERMISSIONS.COMPLIANCE.READ,
+  },
+  {
+    label: "Regulatory Corpus",
+    href: "/corpus",
+    icon: BookOpen,
     capability: PERMISSIONS.DOCUMENTS.INGEST,
   },
-  { label: "Compliance", href: "/compliance", icon: ClipboardCheck },
   {
     label: "Mail",
     href: "/mail",
     icon: Mail,
     capability: PERMISSIONS.MAIL.READ,
   },
-  { label: "AI Assistant", href: "/assistant", icon: Bot },
+  {
+    label: "AI Assistant",
+    href: "/assistant",
+    icon: Bot,
+    capability: PERMISSIONS.ASSISTANT.QUERY,
+  },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

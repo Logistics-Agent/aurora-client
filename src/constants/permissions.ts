@@ -54,14 +54,21 @@ export const PERMISSIONS = {
 
   // Documents
   DOCUMENTS: {
+    READ: "documents:read",
     INGEST: "documents:ingest",
     MANAGE: "documents:manage",
   },
 
   // Compliance
   COMPLIANCE: {
+    READ: "compliance:read",
     OVERRIDE: "compliance:override",
     PLATFORM_INGEST: "compliance:platform:ingest",
+  },
+
+  // AI assistant
+  ASSISTANT: {
+    QUERY: "assistant:query",
   },
 
   // Financial & Tax
@@ -108,6 +115,7 @@ export type PermissionCode =
   | (typeof PERMISSIONS.OCR)[keyof typeof PERMISSIONS.OCR]
   | (typeof PERMISSIONS.DOCUMENTS)[keyof typeof PERMISSIONS.DOCUMENTS]
   | (typeof PERMISSIONS.COMPLIANCE)[keyof typeof PERMISSIONS.COMPLIANCE]
+  | (typeof PERMISSIONS.ASSISTANT)[keyof typeof PERMISSIONS.ASSISTANT]
   | (typeof PERMISSIONS.FINANCIAL)[keyof typeof PERMISSIONS.FINANCIAL]
   | (typeof PERMISSIONS.BILLING)[keyof typeof PERMISSIONS.BILLING]
   | (typeof PERMISSIONS.GPS)[keyof typeof PERMISSIONS.GPS]

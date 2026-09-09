@@ -1,100 +1,113 @@
+import { CONTROLLERS } from "@/configs/api";
+import {
+  type DocumentList,
+  type DocumentReview,
+  type DocumentStatus,
+  parseDocumentListDto,
+  parseDocumentReviewDto,
+  parseDocumentStatusDto,
+} from "@/dto/documents/document.dto";
 import { api } from "@/lib/api";
+import { ApiError } from "@/lib/api-error";
 
-export type UnifiedDocumentStatus =
-  | "QUEUED"
-  | "PROCESSING"
-  | "NEEDS_REVIEW"
-  | "VERIFIED"
-  | "REJECTED"
-  | "FAILED";
+export type UnifiedDocumentStatusResponse = DocumentStatus;
+export type ListShipmentDocumentsResponse = DocumentList;
+export type OcrReviewDetailsResponse = DocumentReview;
 
-export type UnifiedDocumentStage =
-  | "UPLOADED"
-  | "OCR_PROCESSING"
-  | "HUMAN_REVIEW"
-  | "COMPLETED"
-  | "ERROR";
-
-export type UnifiedDocumentStatusResponse = {
-  jobId: string;
-  sourceType: string;
-  status: UnifiedDocumentStatus;
-  stage: UnifiedDocumentStage;
-  fileName: string;
-  needsReview: boolean;
-  confidence: number;
-  normalizedJson?: string | null;
-  errorCode?: string | null;
-  errorMessage?: string | null;
-  createdAt?: string | null;
-  completedAt?: string | null;
+export type DocumentReviewInput = {
+  decision: "CONFIRM" | "CORRECT" | "REJECT";
+  correctedFields?: Record<string, string>;
+  reviewNotes?: string;
 };
 
-export type ListShipmentDocumentsResponse = {
-  items: UnifiedDocumentStatusResponse[];
+export type SubmitShipmentDocumentInput = {
+  idempotencyKey?: string;
+  storageReference: string;
+  fileName: string;
+  mimeType?: string;
+  sizeBytes: number;
+  documentTypeHint: number;
+  externalDocumentId: string;
+  shipmentId?: string;
+};
+
+export type DocumentListParams = {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  shipmentId?: string;
+};
+
+export type NormalizedDocumentListParams = {
   page: number;
   pageSize: number;
-  totalItems: number;
-  totalPages: number;
+  status?: string;
+  shipmentId?: string;
 };
 
-export type OcrFieldReviewItem = {
-  fieldName: string;
-  fieldValue: string;
-  confidence: number;
-  needsReview: boolean;
+export const DEFAULT_DOCUMENT_LIST_PARAMS: NormalizedDocumentListParams = {
+  page: 1,
+  pageSize: 20,
 };
 
-export type OcrReviewDetailsResponse = {
-  documentId: string;
-  jobId: string;
-  status: UnifiedDocumentStatus;
-  artifactReference: string;
-  detectedDocumentType: string;
-  confidence: number;
-  reviewReasons: string[];
-  fields: OcrFieldReviewItem[];
-};
+export function normalizeDocumentListParams(
+  params: DocumentListParams = {},
+): NormalizedDocumentListParams {
+  return {
+    page: params.page ?? DEFAULT_DOCUMENT_LIST_PARAMS.page,
+    pageSize: params.pageSize ?? DEFAULT_DOCUMENT_LIST_PARAMS.pageSize,
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.shipmentId ? { shipmentId: params.shipmentId } : {}),
+  };
+}
+
+function parseResponse<T>(response: unknown, parser: (value: unknown) => T): T {
+  try {
+    return parser(response);
+  } catch (error) {
+    throw new ApiError({
+      message: "Document service returned an invalid response.",
+      code: "SERVER",
+      details: error,
+      status: 500,
+    });
+  }
+}
 
 export const documentsService = {
-  listDocuments: async (params?: {
-    page?: number;
-    pageSize?: number;
-    status?: string;
-    shipmentId?: string;
-  }): Promise<ListShipmentDocumentsResponse> => {
-    return api.get("/api/v1/documents/shipment-documents", { params });
+  listDocuments: async (params?: DocumentListParams): Promise<ListShipmentDocumentsResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.documents.shipmentDocuments, {
+      params: normalizeDocumentListParams(params),
+    });
+    return parseResponse(response, parseDocumentListDto);
   },
 
   getDocument: async (id: string): Promise<UnifiedDocumentStatusResponse> => {
-    return api.get(`/api/v1/documents/shipment-documents/${id}`);
+    const response = await api.get<unknown>(CONTROLLERS.documents.shipmentDocument(id));
+    return parseResponse(response, parseDocumentStatusDto);
   },
 
   getOcrReviewDetails: async (id: string): Promise<OcrReviewDetailsResponse> => {
-    return api.get(`/api/v1/documents/shipment-documents/${id}/review`);
+    const response = await api.get<unknown>(CONTROLLERS.documents.shipmentDocumentReview(id));
+    return parseResponse(response, parseDocumentReviewDto);
   },
 
   reviewDocument: async (
     id: string,
-    body: {
-      decision: "CONFIRM" | "CORRECT" | "REJECT";
-      correctedFields?: Record<string, string>;
-      reviewNotes?: string;
-    },
+    body: DocumentReviewInput,
   ): Promise<UnifiedDocumentStatusResponse> => {
-    return api.post(`/api/v1/documents/shipment-documents/${id}/review`, body);
+    const response = await api.post<unknown>(CONTROLLERS.documents.shipmentDocumentReview(id), {
+      action: body.decision,
+      fields: Object.entries(body.correctedFields ?? {}).map(([name, value]) => ({ name, value })),
+      comment: body.reviewNotes ?? null,
+    });
+    return parseResponse(response, parseDocumentStatusDto);
   },
 
-  submitShipmentDocument: async (body: {
-    storageReference: string;
-    fileName: string;
-    mimeType?: string;
-    sizeBytes?: number;
-    documentTypeHint?: number;
-    shipmentId?: string;
-    idempotencyKey?: string;
-  }): Promise<UnifiedDocumentStatusResponse> => {
-    return api.post("/api/v1/documents/shipment", body);
+  submitShipmentDocument: async (
+    body: SubmitShipmentDocumentInput,
+  ): Promise<UnifiedDocumentStatusResponse> => {
+    const response = await api.post<unknown>(CONTROLLERS.documents.shipmentDocumentSubmit, body);
+    return parseResponse(response, parseDocumentStatusDto);
   },
 };
-
