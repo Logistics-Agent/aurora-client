@@ -122,6 +122,87 @@ Create only the folders that are used. Keep a concern at the narrowest owner:
 - Do not create shared abstractions for hypothetical reuse.
 - Do not import another business feature's UI to assemble a page.
 
+### Ownership rules for hooks and feature files
+
+The two `hooks` levels have different responsibilities and must not be mixed:
+
+- `src/hooks/queries/<domain>/` contains TanStack Query hooks for server reads. These hooks call a domain service, define query lifecycle options, and own cache invalidation or query keys. They do not contain form state, dialog state, selected-row state, input handlers, or page composition.
+- `src/hooks/mutations/<domain>/` contains TanStack mutation hooks for server writes. These hooks call a domain service and update or invalidate the relevant cache. They do not own local UI state or render product behavior.
+- `src/features/<feature>/hooks/` contains feature-local UI and composition hooks that are shared by two or more sub-features of that feature. Examples include a shared review workflow, feature-level selection state, or a browser lifecycle that belongs only to that feature.
+- `src/features/<feature>/<sub-feature>/hooks/` contains hooks used only by that sub-feature. Form state, step transitions, dialog state, draft values, local filtering, and event handlers belong here when they are not shared elsewhere.
+- A hook used by only one component stays beside that component. Do not create a feature hook for a single trivial callback or to avoid keeping a small piece of local state near its owner.
+
+The same ownership rule applies to every feature directory:
+
+- Root `components/`, `constants/`, `types/`, `utils/`, `lib/`, `mock/`, and `stores/` are for code shared by multiple sub-features of the same feature.
+- Use the singular directory name `lib/`; do not introduce a parallel `libs/` directory. Keep feature-specific infrastructure in the feature or sub-feature `lib/`, and keep genuinely reusable infrastructure in `src/lib/`.
+- A sub-feature owns its own `components/`, `constants/`, `types/`, `utils/`, `lib/`, `mock/`, and `stores/` when that code serves only that workflow. Add `dialogs/`, `drawers/`, `sections/`, `tabs/`, or `workflows/` only when the sub-feature actually has that responsibility.
+- A file must move to the feature root only after it is genuinely consumed by multiple sub-features. A file must move to a shared `src/` folder only after it is genuinely consumed by independent business features.
+- Do not leave ingestion, promotion, search, review, upload, or other independent workflows together in one root `components/` or `hooks/` folder merely because they use the same domain API.
+- Do not create empty placeholder directories. The required structure describes ownership; only create a directory when it contains a real owner.
+
+### Sub-feature boundaries and imports
+
+Treat each sub-feature as an independently understandable page or workflow:
+
+```text
+src/features/<feature>/<sub-feature>/
+├── components/       # UI owned by this workflow
+├── constants/         # labels, defaults, and options owned by this workflow
+├── hooks/             # local UI/composition state owned by this workflow
+├── types/             # workflow-only contracts
+├── utils/             # workflow-only pure helpers and validation
+└── index.tsx          # public workflow composition
+```
+
+- A sub-feature may import shared primitives from its feature root and server hooks from `src/hooks/queries` or `src/hooks/mutations`.
+- A sub-feature must not import another sub-feature's internal file. If both need the code, promote it to the feature root; if unrelated features need it, promote it to the appropriate shared root.
+- The feature root `index.tsx` may compose sub-feature public `index.tsx` entries. It should not reach into another sub-feature's private components, hooks, constants, or utils.
+- A sub-feature `index.tsx` is the public boundary for that workflow. Route adapters and feature composition should import that entry instead of deep-linking to internal files.
+- Root feature components may compose more than one sub-feature only when they are explicitly shared workflow primitives. Otherwise, keep page composition inside the owning sub-feature.
+- Do not use barrel exports to hide an invalid ownership boundary. Export a file only when its public owner is clear.
+
+Use this decision order before adding a file:
+
+1. List every current consumer of the behavior.
+2. Put it beside the component when there is one consumer.
+3. Put it in the sub-feature when every consumer belongs to one workflow.
+4. Promote it to the feature root when at least two sub-features consume it.
+5. Promote it to a shared `src/` location only when independent features consume it.
+
+For example, a corpus feature with independent ingestion, promotion, and search workflows should be organized like this:
+
+```text
+src/features/corpus/
+├── regulatory-ingestion/
+│   ├── components/
+│   ├── constants/
+│   ├── hooks/
+│   └── index.tsx
+├── knowledge-promotion/
+│   ├── components/
+│   ├── constants/
+│   ├── hooks/
+│   └── index.tsx
+├── regulatory-search/
+│   ├── components/
+│   ├── constants/
+│   ├── hooks/
+│   └── index.tsx
+└── index.tsx
+```
+
+The API service, query keys, DTO parser, and server hooks for those workflows still stay in their canonical domain locations. Only the UI and local composition behavior is owned by the sub-features.
+
+### Types, validation, mocks, and tests by owner
+
+- External response shapes and boundary parsers belong in `src/dto/<domain>/`. Do not copy those DTOs into a feature subdirectory.
+- Feature-only state, form, and component contracts belong in the nearest owning `types/` directory. Keep a type beside a component only when it is not reused.
+- Pure validation or formatting used by one workflow belongs in that workflow's `utils/`; reusable external payload validation belongs in the DTO parser.
+- Mocks belong beside the feature or sub-feature that owns the UI using them, must be visibly UI-only, and must never be used as a fallback for a live API response.
+- Tests should follow the code owner: API/service and DTO tests stay with their domain data layer, shared feature composition tests stay at the feature root, and workflow-specific UI or hook tests stay in the sub-feature directory.
+- When moving a file, move its tests and mocks with it, update imports, and run the feature's tests before committing. Do not leave compatibility copies in the old folder.
+
 ### Notification feature example
 
 Notification server data remains in the canonical root data layer, while notification UI behavior stays feature-owned:
