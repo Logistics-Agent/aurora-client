@@ -56,6 +56,7 @@ import type {
   RouteStopType,
 } from "./types";
 import { routePlanningApiService } from "@/api/services/route-planning.service";
+import { toast } from "sonner";
 
 export function RoutePlanningPage() {
   const shipments = useRoutePlanningStore((state) => state.shipments);
@@ -239,9 +240,13 @@ export function RoutePlanningPage() {
           requestAiRecommendation(selectedRoute.id),
           optimizeRouteWithVroom(selectedRoute.id),
         ]);
+        toast.success("Đã hoàn tất tính toán lại lộ trình", {
+          description: "Các tuyến đường và khuyến nghị AI đã được đồng bộ.",
+          duration: 4000,
+        });
       }
     } catch {
-      // Handled
+      // Handled in store with toasts
     } finally {
       setIsRecalculating(false);
       setCalculationState("ready");
@@ -343,10 +348,16 @@ export function RoutePlanningPage() {
       setIsSolving(false);
       const approxDistance = Math.round(customStops.length * 240);
       const approxHours = Math.round(approxDistance / 55);
+      const dist = selectedRoute?.distanceKm ?? approxDistance;
+      const dur = Math.round((selectedRoute?.durationMinutes ?? approxHours * 60) / 60);
       setSolverResult({
-        distanceKm: selectedRoute?.distanceKm ?? approxDistance,
-        durationHours: Math.round((selectedRoute?.durationMinutes ?? approxHours * 60) / 60),
+        distanceKm: dist,
+        durationHours: dur,
         risk: selectedRoute?.risk ?? "Low",
+      });
+      toast.success("Đã chạy bộ giải VROOM/OSRM", {
+        description: `Khoảng cách: ${dist} km · Thời gian: ${dur}h · Rủi ro: ${selectedRoute?.risk ?? "Low"}`,
+        duration: 4000,
       });
     }
   };
@@ -386,7 +397,13 @@ export function RoutePlanningPage() {
       })),
     };
 
-    addCustomRouteToShipment(currentShipment.id, newRoute);
+    if (currentShipment) {
+      addCustomRouteToShipment(currentShipment.id, newRoute);
+      toast.success("Đã lưu tuyến đường tùy chỉnh", {
+        description: `Tuyến "${customRouteName}" đã được liên kết với lô hàng.`,
+        duration: 4000,
+      });
+    }
     selectRoute(routeId);
     setActiveTab("routes");
   };

@@ -11,6 +11,8 @@ import type {
 } from "../types";
 import { routePlanningApiService } from "@/api/services/route-planning.service";
 import { mapBackendShipmentToPlanningItem } from "../utils/route-planning-mapper";
+import { toast } from "sonner";
+import { toApiError } from "@/lib/api-error";
 
 export type RoutePlanningTab = "routes" | "shipment" | "parameters" | "builder";
 export type OptimizationCriteria = "balanced" | "fastest" | "lowest_cost" | "avoid_tolls";
@@ -311,7 +313,26 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
         }
       }
     } catch (err) {
+      const apiErr = toApiError(err);
+      const errMsg = apiErr.message || "Optimization service hiện không khả dụng";
       console.warn("Backend VROOM call unavailable, performing local solver optimization:", err);
+
+      if (errMsg.includes("chính sách rủi ro") || errMsg.includes("Risk Policy")) {
+        toast.warning("Chính sách rủi ro (Risk Policy)", {
+          description: errMsg,
+          duration: 8000,
+        });
+      } else if (errMsg.includes("không khả dụng") || errMsg.includes("unavailable") || apiErr.status >= 500) {
+        toast.info("Đang áp dụng bộ giải lộ trình cục bộ (Local Solver)", {
+          description: "Dịch vụ VROOM/OSRM server tạm thời không phản hồi. Hệ thống tự động tính toán lộ trình tối ưu bằng bộ giải cục bộ.",
+          duration: 5000,
+        });
+      } else {
+        toast.error("Tối ưu hóa lộ trình thất bại", {
+          description: errMsg,
+          duration: 6000,
+        });
+      }
     }
 
     // Client-side solver optimization fallback (ensures responsive UX without 500 error blocks)
@@ -381,6 +402,12 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
         const res = await routePlanningApiService.getRouteRecommendation(ensuredId);
         if (res && res.summary) {
           backendHandled = true;
+          if (res.riskLevel === "High" || res.automationDecision === "PendingApproval") {
+            toast.warning("Cảnh báo rủi ro & Yêu cầu duyệt (Risk Governance)", {
+              description: res.summary,
+              duration: 8000,
+            });
+          }
           set((state) => {
             const updatedShipments = state.shipments.map((s) => {
               const hasRoute = s.routes.some((r) => r.id === targetId || r.id === routeId);
@@ -411,7 +438,21 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
         }
       }
     } catch (err) {
+      const apiErr = toApiError(err);
+      const errMsg = apiErr.message || "AI recommendation service hiện không khả dụng";
       console.warn("Backend AI recommendation handled:", err);
+
+      if (errMsg.includes("chính sách rủi ro") || errMsg.includes("Risk Policy")) {
+        toast.warning("Chính sách rủi ro (Risk Policy)", {
+          description: errMsg,
+          duration: 8000,
+        });
+      } else if (!errMsg.includes("unavailable") && !errMsg.includes("không khả dụng") && apiErr.status !== 500) {
+        toast.error("Đánh giá AI khuyến nghị thất bại", {
+          description: errMsg,
+          duration: 6000,
+        });
+      }
     }
 
     // Dynamic AI Evaluation fallback
