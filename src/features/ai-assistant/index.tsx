@@ -21,7 +21,6 @@ export function AiAssistantPage() {
     <div className="space-y-6 pb-12">
       <PageHeader
         title="AI Assistant"
-<<<<<<< HEAD
         description="Grounded logistics & compliance intelligence powered by official regulations and tenant SOP evidence."
       />
 
@@ -505,23 +504,5 @@ export function AiAssistantPage() {
         </WorkspaceCard>
       )}
     </div>
-=======
-        description="Ask grounded questions about permitted operational and compliance context."
-      />
-      <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
-        <div className="space-y-4">
-          <AssistantComposer
-            question={question}
-            isPending={isPending}
-            errorMessage={error ? getApiErrorMessage(error) : undefined}
-            onQuestionChange={setQuestion}
-            onSubmit={ask}
-          />
-          {answer && <AssistantAnswer response={answer} />}
-        </div>
-        <AssistantAccessCard />
-      </div>
-    </>
->>>>>>> f64c331b35ec021bf1625e19240479d7475ec0bd
   );
 }

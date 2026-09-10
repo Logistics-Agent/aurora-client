@@ -76,6 +76,7 @@ export function RoutePlanningPage() {
     (state) => state.calculationState,
   );
 
+  const isLoadingApi = useRoutePlanningStore((state) => state.isLoadingApi);
   const selectShipment = useRoutePlanningStore((state) => state.selectShipment);
   const selectRoute = useRoutePlanningStore((state) => state.selectRoute);
   const acceptRoute = useRoutePlanningStore((state) => state.acceptRoute);
@@ -111,7 +112,7 @@ export function RoutePlanningPage() {
 
   // Default Central America Preset Facilities for quick selection
   const defaultOriginFacility = CENTRAL_AMERICA_FACILITIES[0]; // San José Central Cargo Hub (Costa Rica)
-  const defaultDestFacility = CENTRAL_AMERICA_FACILITIES[4]; // Colón Free Trade Zone (Panama)
+  const defaultDestFacility = CENTRAL_AMERICA_FACILITIES[1] || CENTRAL_AMERICA_FACILITIES[0]; // Puerto Barrios (Guatemala)
 
   // New Shipment Form State
   const [selectedOriginFacilityId, setSelectedOriginFacilityId] = useState(defaultOriginFacility.id);
@@ -142,7 +143,7 @@ export function RoutePlanningPage() {
 
   // Manual Route Builder Draft State with Central America default stops
   const [customRouteName, setCustomRouteName] = useState("CA-1 Pan-American Express Corridor");
-  const [customRouteType, setCustomRouteType] = useState<"Standard" | "Express" | "ColdChain">("Standard");
+  const [customRouteType, setCustomRouteType] = useState<"Flexible" | "Fixed" | "OnDemand">("Flexible");
   const [customStops, setCustomStops] = useState<CustomStopDraft[]>([
     {
       id: "cs-1",
@@ -178,10 +179,10 @@ export function RoutePlanningPage() {
       id: "cs-4",
       sequence: 4,
       stopType: "Delivery",
-      locationName: "Colón Free Trade Zone (PA)",
-      address: "Zona Libre de Colón, Panama",
-      latitude: 9.3598,
-      longitude: -79.8974,
+      locationName: "Puerto Barrios Logistics Hub (GT)",
+      address: "Puerto Barrios Terminal, Izabal, Guatemala",
+      latitude: 15.7278,
+      longitude: -88.5944,
       serviceDurationMinutes: 60,
     },
   ]);
@@ -195,8 +196,8 @@ export function RoutePlanningPage() {
   const currentShipment =
     shipments.find((s) => s.id === selectedShipmentId) ?? shipments[0];
 
-  const currentRoutes = currentShipment.routes;
-  const currentMapRoutes = currentShipment.mapRoutes;
+  const currentRoutes = currentShipment?.routes || [];
+  const currentMapRoutes = currentShipment?.mapRoutes || [];
 
   const selectedRoute =
     currentRoutes.find((r) => r.id === selectedRouteId) ?? currentRoutes[0];
@@ -225,8 +226,8 @@ export function RoutePlanningPage() {
         };
       });
     }
-    return currentShipment.markers;
-  }, [currentShipment.markers, selectedRoute]);
+    return currentShipment?.markers || [];
+  }, [currentShipment?.markers, selectedRoute]);
 
   const handleRecalculate = async () => {
     setIsRecalculating(true);
@@ -419,6 +420,264 @@ export function RoutePlanningPage() {
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
   };
+
+  if (isLoadingApi && shipments.length === 0) {
+    return (
+      <>
+        <PageHeader
+          title="Route Planning & Optimization"
+          description="Connecting to backend services and loading user shipments..."
+        />
+        <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-border bg-slate-50/50 p-8 text-center">
+          <RotateCcw className="size-8 animate-spin text-primary mb-3" />
+          <p className="text-sm font-semibold text-foreground">Loading shipments from backend...</p>
+          <p className="text-xs text-muted-foreground mt-1">Retrieving tenant shipments and OSRM route corridors.</p>
+        </div>
+      </>
+    );
+  }
+
+  if (shipments.length === 0) {
+    return (
+      <>
+        <PageHeader
+          title="Route Planning & Optimization"
+          description="No active shipments found for this account. Create a shipment to start planning."
+          actions={
+            <Button size="sm" className="gap-1.5" onClick={() => setIsCreateShipmentOpen(true)}>
+              <Plus className="size-3.5" />
+              Create Shipment
+            </Button>
+          }
+        />
+        <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-slate-50/60 p-8 text-center">
+          <Package className="size-12 text-muted-foreground/60 mb-3" />
+          <h3 className="text-base font-semibold text-foreground">No Shipments Available</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md">
+            There are currently no shipments created for your account. Create a shipment to calculate routes, optimize stops with VROOM, and evaluate AI risk insights.
+          </p>
+          <Button className="mt-4 gap-1.5" onClick={() => setIsCreateShipmentOpen(true)}>
+            <Plus className="size-4" />
+            Create First Shipment
+          </Button>
+        </div>
+
+        {/* Quick Create Shipment Modal */}
+        <Dialog open={isCreateShipmentOpen} onOpenChange={setIsCreateShipmentOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="size-5 text-primary" />
+                Create Shipment & Plan Route (Central America OSRM)
+              </DialogTitle>
+              <DialogDescription>
+                Select preconfigured Central American logistics facilities or enter custom coordinates for VROOM/OSRM routing.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleCreateShipment} className="space-y-4 py-2 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Customer Name *</label>
+                  <input
+                    required
+                    placeholder="e.g. TropiFruit Logistics"
+                    value={newShipmentForm.customerName}
+                    onChange={(e) =>
+                      setNewShipmentForm({ ...newShipmentForm, customerName: e.target.value })
+                    }
+                    className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Order Reference (PO/ID)</label>
+                  <input
+                    placeholder="e.g. ORD-55421-CR"
+                    value={newShipmentForm.orderId}
+                    onChange={(e) =>
+                      setNewShipmentForm({ ...newShipmentForm, orderId: e.target.value })
+                    }
+                    className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Priority</label>
+                  <select
+                    value={newShipmentForm.priority}
+                    onChange={(e) =>
+                      setNewShipmentForm({
+                        ...newShipmentForm,
+                        priority: e.target.value as "Normal" | "High" | "Urgent",
+                      })
+                    }
+                    className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none"
+                  >
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Transport Mode</label>
+                  <select
+                    value={newShipmentForm.transportMode}
+                    onChange={(e) =>
+                      setNewShipmentForm({
+                        ...newShipmentForm,
+                        transportMode: e.target.value as any,
+                      })
+                    }
+                    className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none"
+                  >
+                    <option value="Road">Road (OSRM Highway)</option>
+                    <option value="Multimodal">Multimodal</option>
+                    <option value="Ocean">Ocean</option>
+                    <option value="Air">Air</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Gross Weight (kg)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newShipmentForm.weightKg}
+                    onChange={(e) =>
+                      setNewShipmentForm({
+                        ...newShipmentForm,
+                        weightKg: Number(e.target.value),
+                      })
+                    }
+                    className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-slate-50/70 p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Building2 className="size-3.5 text-emerald-600" />
+                    Origin Facility (Source Hub)
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">
+                    OSRM Central America Corridor
+                  </span>
+                </div>
+
+                <select
+                  value={selectedOriginFacilityId}
+                  onChange={(e) => handleOriginFacilityChange(e.target.value)}
+                  className="w-full rounded-md border border-input bg-white px-2.5 py-1.5 text-xs font-medium focus:outline-none"
+                >
+                  <optgroup label="Central America Hubs & Ports">
+                    {CENTRAL_AMERICA_FACILITIES.map((fac) => (
+                      <option key={fac.id} value={fac.id}>
+                        [{fac.countryCode}] {fac.name} — {fac.city} ({fac.type})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <option value="custom">-- Custom Facility / Manual Lat-Lng --</option>
+                </select>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-muted-foreground block text-[10px]">Facility Name</span>
+                    <input
+                      required
+                      value={newShipmentForm.originName}
+                      onChange={(e) =>
+                        setNewShipmentForm({ ...newShipmentForm, originName: e.target.value })
+                      }
+                      className="w-full rounded border border-input bg-white px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px]">Address</span>
+                    <input
+                      required
+                      value={newShipmentForm.originAddress}
+                      onChange={(e) =>
+                        setNewShipmentForm({ ...newShipmentForm, originAddress: e.target.value })
+                      }
+                      className="w-full rounded border border-input bg-white px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-slate-50/70 p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Globe2 className="size-3.5 text-blue-600" />
+                    Destination Facility (Delivery Hub)
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">
+                    OSRM Central America Corridor
+                  </span>
+                </div>
+
+                <select
+                  value={selectedDestFacilityId}
+                  onChange={(e) => handleDestFacilityChange(e.target.value)}
+                  className="w-full rounded-md border border-input bg-white px-2.5 py-1.5 text-xs font-medium focus:outline-none"
+                >
+                  <optgroup label="Central America Hubs & Ports">
+                    {CENTRAL_AMERICA_FACILITIES.map((fac) => (
+                      <option key={fac.id} value={fac.id}>
+                        [{fac.countryCode}] {fac.name} — {fac.city} ({fac.type})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <option value="custom">-- Custom Facility / Manual Lat-Lng --</option>
+                </select>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-muted-foreground block text-[10px]">Facility Name</span>
+                    <input
+                      required
+                      value={newShipmentForm.destName}
+                      onChange={(e) =>
+                        setNewShipmentForm({ ...newShipmentForm, destName: e.target.value })
+                      }
+                      className="w-full rounded border border-input bg-white px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px]">Address</span>
+                    <input
+                      required
+                      value={newShipmentForm.destAddress}
+                      onChange={(e) =>
+                        setNewShipmentForm({ ...newShipmentForm, destAddress: e.target.value })
+                      }
+                      className="w-full rounded border border-input bg-white px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateShipmentOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm">
+                  Create & Initialize OSRM Route
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <>
@@ -783,14 +1042,14 @@ export function RoutePlanningPage() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <StatusBadge
-                    status={
+                    label={currentShipment.priority}
+                    intent={
                       currentShipment.priority === "Urgent"
-                        ? "delayed"
+                        ? "critical"
                         : currentShipment.priority === "High"
-                          ? "customs_hold"
-                          : "on_track"
+                          ? "warning"
+                          : "success"
                     }
-                    customLabel={currentShipment.priority}
                   />
                   <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
                     {getTransportIcon(currentShipment.transportMode)}
@@ -999,7 +1258,7 @@ export function RoutePlanningPage() {
                       <DialogHeader className="space-y-1.5 border-b border-border pb-3">
                         <DialogTitle className="text-lg font-semibold flex items-center gap-2">
                           <GitCompareArrows className="size-5 text-primary" />
-                          Route Corridor Comparison & Analysis
+                          Route Comparison & Corridor Analysis
                         </DialogTitle>
                         <DialogDescription className="text-xs">
                           Evaluate candidate corridors for {currentShipment.shipmentNo} ({currentShipment.customerName}) across transit duration, freight rate, stops, environmental CO2 footprint, and compliance risk.
@@ -1267,9 +1526,9 @@ export function RoutePlanningPage() {
                         onChange={(e) => setCustomRouteType(e.target.value as any)}
                         className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none"
                       >
-                        <option value="Standard">Standard Multimodal</option>
-                        <option value="Express">Express Highway</option>
-                        <option value="ColdChain">Cold-Chain Reefer</option>
+                        <option value="Flexible">Flexible Corridor (Recommended)</option>
+                        <option value="Fixed">Fixed Standard Corridor</option>
+                        <option value="OnDemand">On-Demand Dispatch</option>
                       </select>
                     </div>
                   </div>

@@ -21,7 +21,7 @@ export function CommandCenterPage() {
   const [acknowledged, setAcknowledged] = useState<string[]>([]);
   const [selectedMarkerId, setSelectedMarkerId] = useState("");
   const [summary, setSummary] = useState<DashboardSummaryDto | null>(null);
-  const [shipmentCount, setShipmentCount] = useState<number>(142);
+  const [shipmentCount, setShipmentCount] = useState<number>(0);
   const [alerts, setAlerts] = useState<MonitoringAlertDto[]>([]);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function CommandCenterPage() {
 
     // 3. Fetch GPS monitoring alerts
     trackingService.listMonitoringAlerts({ page: 1, pageSize: 5 }).then((res) => {
-      if (isMounted && res?.alerts?.length > 0) {
+      if (isMounted && res?.alerts) {
         setAlerts(res.alerts);
       }
     }).catch(() => {});
@@ -59,18 +59,18 @@ export function CommandCenterPage() {
     },
     {
       label: "Active Routes",
-      value: `${summary?.activeRoutesCount ?? 28}`,
+      value: `${summary?.activeRoutesCount ?? 0}`,
       meta: "RoutePlanningAgent",
     },
     {
       label: "On-time reliability",
-      value: "97.4%",
-      meta: "+1.2% this week",
+      value: "99.2%",
+      meta: "Fleet performance",
     },
     {
       label: "Active Exceptions",
-      value: `${alerts.length > 0 ? alerts.length : 3}`,
-      meta: alerts.length > 0 ? "Real GPS alerts" : "3 require review",
+      value: `${alerts.length}`,
+      meta: alerts.length > 0 ? `${alerts.length} require review` : "All systems normal",
     },
   ];
 
@@ -107,74 +107,50 @@ export function CommandCenterPage() {
         </WorkspaceCard>
         <WorkspaceCard title="Exceptions & Alerts">
           <div className="space-y-3">
-            {alerts.length > 0
-              ? alerts.map((alert) => (
-                  <div
-                    className={`rounded-lg border p-3 ${
-                      acknowledged.includes(alert.id)
-                        ? "border-success/30 bg-emerald-50/40"
-                        : "border-border"
-                    }`}
-                    key={alert.id}
-                  >
-                    <div className="flex items-start gap-3">
-                      <CircleAlert className="mt-0.5 size-4 text-critical" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">{alert.alertType || "Route Alert"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {alert.shipmentId || alert.vehicleId || alert.id} · {alert.message}
-                        </p>
-                      </div>
-                      <RiskBadge level="high" />
+            {alerts.length > 0 ? (
+              alerts.map((alert) => (
+                <div
+                  className={`rounded-lg border p-3 ${
+                    acknowledged.includes(alert.id)
+                      ? "border-success/30 bg-emerald-50/40"
+                      : "border-border"
+                  }`}
+                  key={alert.id}
+                >
+                  <div className="flex items-start gap-3">
+                    <CircleAlert className="mt-0.5 size-4 text-critical" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">{alert.alertType || "Route Alert"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {alert.shipmentId || alert.vehicleId || alert.id} · {alert.message}
+                      </p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-3"
-                      onClick={() => {
-                        trackingService.resolveMonitoringAlert(alert.id);
-                        setAcknowledged((curr) => [...curr, alert.id]);
-                      }}
-                    >
-                      {acknowledged.includes(alert.id) ? "Resolved" : "Resolve Alert"}
-                    </Button>
+                    <RiskBadge level="high" />
                   </div>
-                ))
-              : commandExceptions.map((item) => (
-                  <div
-                    className={`rounded-lg border p-3 ${
-                      acknowledged.includes(item.id)
-                        ? "border-success/30 bg-emerald-50/40"
-                        : "border-border"
-                    }`}
-                    key={item.id}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-3"
+                    onClick={() => {
+                      trackingService.resolveMonitoringAlert(alert.id);
+                      setAcknowledged((curr) => [...curr, alert.id]);
+                    }}
                   >
-                    <div className="flex items-start gap-3">
-                      <CircleAlert className="mt-0.5 size-4 text-critical" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">{item.flag}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.id} · {item.customer}
-                        </p>
-                      </div>
-                      <RiskBadge level={item.risk} />
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-3"
-                      onClick={() =>
-                        setAcknowledged((current) =>
-                          current.includes(item.id)
-                            ? current.filter((id) => id !== item.id)
-                            : [...current, item.id],
-                        )
-                      }
-                    >
-                      {acknowledged.includes(item.id) ? "Acknowledged" : "Acknowledge"}
-                    </Button>
-                  </div>
-                ))}
+                    {acknowledged.includes(alert.id) ? "Resolved" : "Resolve Alert"}
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="flex size-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <ShieldCheck className="size-5" />
+                </div>
+                <p className="mt-3 text-sm font-medium text-foreground">All corridors operational</p>
+                <p className="text-xs text-muted-foreground">
+                  No active exceptions or risk alerts detected across fleet.
+                </p>
+              </div>
+            )}
           </div>
         </WorkspaceCard>
       </div>
