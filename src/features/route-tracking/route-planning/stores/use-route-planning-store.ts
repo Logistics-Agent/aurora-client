@@ -118,6 +118,9 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
 
   acceptRoute: (acceptedRouteId) => {
     const { shipments, selectedShipmentId } = get();
+    const currentShipment = shipments.find((s) => s.id === selectedShipmentId);
+    const assignedRoute = currentShipment?.routes.find((r) => r.id === acceptedRouteId);
+
     const updated = shipments.map((s) => {
       if (s.id === selectedShipmentId) {
         return {
@@ -129,6 +132,26 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
       return s;
     });
     set({ acceptedRouteId, shipments: updated });
+
+    // Sync to localStorage for immediate cross-page consistency with ShipmentDetail
+    try {
+      if (selectedShipmentId) {
+        localStorage.setItem(`shipment_assigned_route_${selectedShipmentId}`, acceptedRouteId);
+        if (currentShipment?.shipmentNo) {
+          localStorage.setItem(`shipment_assigned_route_${currentShipment.shipmentNo}`, acceptedRouteId);
+        }
+        if (assignedRoute) {
+          localStorage.setItem(`shipment_route_data_${selectedShipmentId}`, JSON.stringify(assignedRoute));
+        }
+      }
+    } catch {
+      // Ignored
+    }
+
+    toast.success("Đã phê duyệt và khóa lộ trình vận chuyển", {
+      description: `Lộ trình "${assignedRoute?.name || acceptedRouteId}" đã được gán cố định cho lô hàng.`,
+      duration: 4000,
+    });
 
     // Fire API call asynchronously to Staff.Bff if it's a persisted route
     routePlanningApiService
@@ -513,9 +536,19 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
           : [];
 
       if (rawShipments.length > 0) {
-        const mappedShipments: ShipmentPlanningItem[] = rawShipments.map((shp: any) =>
-          mapBackendShipmentToPlanningItem(shp, rawRoutes),
-        );
+        const mappedShipments: ShipmentPlanningItem[] = rawShipments.map((shp: any) => {
+          const item = mapBackendShipmentToPlanningItem(shp, rawRoutes);
+          const savedRouteId =
+            typeof window !== "undefined"
+              ? localStorage.getItem(`shipment_assigned_route_${item.id}`) ||
+                localStorage.getItem(`shipment_assigned_route_${shp.id}`) ||
+                localStorage.getItem(`shipment_assigned_route_${shp.shipmentNo}`)
+              : null;
+          if (savedRouteId && !item.assignedRouteId) {
+            item.assignedRouteId = savedRouteId;
+          }
+          return item;
+        });
 
         const currentSelectedId = get().selectedShipmentId;
         const selectedShipment =
