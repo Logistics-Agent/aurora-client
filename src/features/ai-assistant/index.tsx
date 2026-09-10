@@ -1,72 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import {
-  AlertTriangle,
-  BookOpen,
-  Bot,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  FileText,
-  Info,
-  Layers,
-  Scale,
-  Send,
-  ShieldAlert,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
-import { EmptyState, WorkspaceCard } from "@/components/common";
-import { PageHeader } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useAssistantQuery } from "@/hooks/mutations/assistant/use-assistant-query";
-import type {
-  AssistantQueryResponse,
-  AssistantSearchMode,
-} from "@/dto/assistant/assistant.dto";
+import type { FormEvent } from "react";
 
-const SAMPLE_PROMPTS = [
-  "What are the customs documentation requirements for temperature-controlled seafood to the EU?",
-  "Check cold chain temperature excursion standard operating procedures for pharmaceuticals.",
-  "What are the dangerous goods (DG) Class 3 storage and segregation rules?",
-  "Standard procedures for container detention and demurrage disputes at Cat Lai Port.",
-];
+import { PageHeader } from "@/components/layout";
+import { getApiErrorMessage } from "@/lib/api-error";
+
+import { AssistantAccessCard } from "./components/assistant-access-card";
+import { AssistantAnswer } from "./components/assistant-answer";
+import { AssistantComposer } from "./components/assistant-composer";
+import { useAssistantWorkspace } from "./hooks/use-assistant-workspace";
 
 export function AiAssistantPage() {
-  const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<AssistantSearchMode>("ALL");
-  const [jurisdictionCode, setJurisdictionCode] = useState("");
-  const [showCitations, setShowCitations] = useState(true);
-  const [reviewRequested, setReviewRequested] = useState(false);
-  const [activeTab, setActiveTab] = useState<"regulatory" | "knowledge">("regulatory");
-
-  const assistantMutation = useAssistantQuery();
-  const result: AssistantQueryResponse | undefined = assistantMutation.data;
-
-  const handleAsk = (textToAsk?: string) => {
-    const q = (textToAsk ?? query).trim();
-    if (!q) return;
-
-    if (textToAsk) {
-      setQuery(textToAsk);
-    }
-    setReviewRequested(false);
-    assistantMutation.mutate({
-      query: q,
-      mode,
-      jurisdictionCode: jurisdictionCode || undefined,
-      topK: 10,
-      minimumScore: 0.4,
-    });
+  const { question, setQuestion, askQuestion, answer, error, isPending } = useAssistantWorkspace();
+  const ask = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await askQuestion();
   };
 
   return (
     <div className="space-y-6 pb-12">
       <PageHeader
         title="AI Assistant"
+<<<<<<< HEAD
         description="Grounded logistics & compliance intelligence powered by official regulations and tenant SOP evidence."
       />
 
@@ -550,5 +505,23 @@ export function AiAssistantPage() {
         </WorkspaceCard>
       )}
     </div>
+=======
+        description="Ask grounded questions about permitted operational and compliance context."
+      />
+      <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
+        <div className="space-y-4">
+          <AssistantComposer
+            question={question}
+            isPending={isPending}
+            errorMessage={error ? getApiErrorMessage(error) : undefined}
+            onQuestionChange={setQuestion}
+            onSubmit={ask}
+          />
+          {answer && <AssistantAnswer response={answer} />}
+        </div>
+        <AssistantAccessCard />
+      </div>
+    </>
+>>>>>>> f64c331b35ec021bf1625e19240479d7475ec0bd
   );
 }

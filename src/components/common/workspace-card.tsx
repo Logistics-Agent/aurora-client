@@ -4,16 +4,23 @@ export function WorkspaceCard({
   title,
   children,
   className = "",
+  action,
 }: {
   title?: string;
   children: ReactNode;
   className?: string;
+  action?: ReactNode;
 }) {
   return (
     <section
       className={`rounded-xl border border-border bg-card p-4 shadow-[0_2px_8px_rgba(16,32,51,0.04)] sm:p-5 ${className}`}
     >
-      {title && <h2 className="mb-4 font-semibold">{title}</h2>}
+      {(title || action) && (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          {title && <h2 className="font-semibold">{title}</h2>}
+          {action}
+        </div>
+      )}
       {children}
     </section>
   );

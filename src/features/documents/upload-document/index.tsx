@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/layout";
+
 import { DocumentReview } from "../components/document-review";
 
 export function UploadDocumentPage() {
@@ -6,7 +7,7 @@ export function UploadDocumentPage() {
     <>
       <PageHeader
         title="Upload Document"
-        description="Select a local fixture before backend upload integration."
+        description="Submit an object-storage reference to the OCR service and track its processing status."
       />
       <DocumentReview showUpload />
     </>

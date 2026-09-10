@@ -1,5 +1,29 @@
-
 export const CONTROLLERS = {
+  documents: {
+    shipmentDocuments: "api/v1/documents/shipment-documents",
+    shipmentDocument: (id: string) =>
+      `api/v1/documents/shipment-documents/${encodeURIComponent(id)}`,
+    shipmentDocumentReview: (id: string) =>
+      `api/v1/documents/shipment-documents/${encodeURIComponent(id)}/review`,
+    shipmentDocumentSubmit: "api/v1/documents/shipment",
+  },
+  compliance: {
+    evaluations: "api/v1/compliance/evaluations",
+    evaluation: (id: string) => `api/v1/compliance/evaluations/${encodeURIComponent(id)}`,
+    copilotAsk: "api/v1/compliance/copilot/ask",
+  },
+  corpus: {
+    regulatory: "api/v1/documents/regulatory",
+    regulatoryQuery: "api/v1/documents/regulatory/query",
+    knowledge: "api/v1/documents/knowledge",
+    knowledgeQuery: "api/v1/documents/knowledge/query",
+    general: "api/v1/documents/general",
+    promoteGeneral: (id: string) =>
+      `api/v1/documents/general-documents/${encodeURIComponent(id)}/promote-to-knowledge`,
+  },
+  assistant: {
+    query: "api/v1/assistant/query",
+  },
   notifications: "api/v1/notifications",
   notificationUnreadCount: "api/v1/notifications/unread-count",
   notificationDevices: "api/v1/notifications/devices",

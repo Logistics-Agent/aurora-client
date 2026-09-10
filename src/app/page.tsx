@@ -1,15 +1,8 @@
+import { ArrowRight, FileText, Globe2, LayoutDashboard, Mail, Map, Truck } from "lucide-react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  FileText,
-  Globe2,
-  LayoutDashboard,
-  Mail,
-  Map,
-  Truck,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+
 import { HomeEarth } from "@/components/common/home-earth";
+import { Button } from "@/components/ui/button";
 
 const workspaceCards = [
   {
@@ -68,6 +61,7 @@ const workspaceCards = [
     links: [
       { label: "Compliance Center", href: "/compliance" },
       { label: "All Documents", href: "/documents" },
+      { label: "Regulatory Corpus", href: "/corpus" },
     ],
   },
 ];
@@ -82,10 +76,16 @@ export default function Home() {
             AURORA
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="rounded-lg px-3 py-2 text-xs font-semibold text-[#627489] transition-colors hover:bg-[#cad6e1]/50 hover:text-[#172b3e] dark:text-[#9aabbd] dark:hover:bg-[#344354] dark:hover:text-[#eaf0f7]">
+            <Link
+              href="/login"
+              className="rounded-lg px-3 py-2 text-xs font-semibold text-[#627489] transition-colors hover:bg-[#cad6e1]/50 hover:text-[#172b3e] dark:text-[#9aabbd] dark:hover:bg-[#344354] dark:hover:text-[#eaf0f7]"
+            >
               Sign in
             </Link>
-            <Button asChild className="rounded-lg bg-[#2f659e] text-white shadow-none hover:bg-[#3c77b3]">
+            <Button
+              asChild
+              className="rounded-lg bg-[#2f659e] text-white shadow-none hover:bg-[#3c77b3]"
+            >
               <Link href="/overview" className="gap-2">
                 Open workspace <ArrowRight className="size-4" />
               </Link>
@@ -94,25 +94,33 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="border-b border-[#cad6e1]/70 bg-[radial-gradient(ellipse_at_78%_44%,#d6e1ec_0,#edf2f7_43%,#f8fafc_78%)] px-6 py-20 dark:border-[#344354] dark:bg-[radial-gradient(ellipse_at_78%_44%,#192b3d_0,#0b1521_45%,#080f18_80%)] lg:px-10 lg:py-28">
+      <section className="border-b border-[#cad6e1]/70 bg-[radial-gradient(ellipse_at_78%_44%,#d6e1ec_0,#edf2f7_43%,#f8fafc_78%)] px-6 py-20 lg:px-10 lg:py-28 dark:border-[#344354] dark:bg-[radial-gradient(ellipse_at_78%_44%,#192b3d_0,#0b1521_45%,#080f18_80%)]">
         <div className="mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)] lg:gap-4">
           <div className="max-w-2xl">
             <p className="mb-5 text-[10px] font-semibold tracking-[0.24em] text-[#627489] dark:text-[#9aabbd]">
               LOGISTICS AI CONTROL TOWER
             </p>
-            <h1 className="max-w-xl text-4xl font-medium leading-[1.08] tracking-[-0.045em] text-[#172b3e] dark:text-[#eaf0f7] sm:text-6xl">
+            <h1 className="max-w-xl text-4xl leading-[1.08] font-medium tracking-[-0.045em] text-[#172b3e] sm:text-6xl dark:text-[#eaf0f7]">
               One view of every moving part.
             </h1>
-            <p className="mt-6 max-w-xl text-sm leading-8 text-[#627489] dark:text-[#9aabbd] sm:text-base">
-              Aurora connects operations, communications, route planning, and customer visibility in one calm control tower.
+            <p className="mt-6 max-w-xl text-sm leading-8 text-[#627489] sm:text-base dark:text-[#9aabbd]">
+              Aurora connects operations, communications, route planning, and customer visibility in
+              one calm control tower.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild className="h-11 rounded-lg bg-[#2f659e] px-5 text-white shadow-none hover:bg-[#3c77b3]">
+              <Button
+                asChild
+                className="h-11 rounded-lg bg-[#2f659e] px-5 text-white shadow-none hover:bg-[#3c77b3]"
+              >
                 <Link href="/overview" className="gap-2">
                   <LayoutDashboard className="size-4" /> Open operations
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-11 rounded-lg border-[#cad6e1] bg-transparent px-5 text-[#172b3e] hover:bg-[#cad6e1]/40 dark:border-[#344354] dark:text-[#eaf0f7] dark:hover:bg-[#344354]">
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-lg border-[#cad6e1] bg-transparent px-5 text-[#172b3e] hover:bg-[#cad6e1]/40 dark:border-[#344354] dark:text-[#eaf0f7] dark:hover:bg-[#344354]"
+              >
                 <Link href="/portal" className="gap-2">
                   <Truck className="size-4" /> Customer portal
                 </Link>
@@ -128,15 +136,24 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-6 py-12 lg:px-10 lg:py-16">
         <div className="mb-7 flex items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] font-semibold tracking-[0.2em] text-[#627489] dark:text-[#9aabbd]">WORKSPACES</p>
-            <h2 className="mt-2 text-xl font-medium tracking-tight text-[#172b3e] dark:text-[#eaf0f7]">Choose an operational entry point</h2>
+            <p className="text-[10px] font-semibold tracking-[0.2em] text-[#627489] dark:text-[#9aabbd]">
+              WORKSPACES
+            </p>
+            <h2 className="mt-2 text-xl font-medium tracking-tight text-[#172b3e] dark:text-[#eaf0f7]">
+              Choose an operational entry point
+            </h2>
           </div>
-          <span className="hidden text-xs text-[#627489] dark:text-[#9aabbd] sm:block">{workspaceCards.length} connected areas</span>
+          <span className="hidden text-xs text-[#627489] sm:block dark:text-[#9aabbd]">
+            {workspaceCards.length} connected areas
+          </span>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {workspaceCards.map(({ title, badge, description, href, icon: Icon, links }) => (
-            <article key={href} className="group flex min-h-52 flex-col justify-between rounded-xl border border-[#cad6e1] bg-white/70 p-5 shadow-[0_10px_30px_rgba(23,43,62,0.04)] transition-colors hover:border-[#5b95d2] dark:border-[#344354] dark:bg-[#101c2a]/80 dark:shadow-none">
+            <article
+              key={href}
+              className="group flex min-h-52 flex-col justify-between rounded-xl border border-[#cad6e1] bg-white/70 p-5 shadow-[0_10px_30px_rgba(23,43,62,0.04)] transition-colors hover:border-[#5b95d2] dark:border-[#344354] dark:bg-[#101c2a]/80 dark:shadow-none"
+            >
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="grid size-10 place-items-center rounded-lg bg-[#edf2f7] text-[#2f659e] transition-colors group-hover:bg-[#2f659e] group-hover:text-white dark:bg-[#192b3d] dark:text-[#9aabbd] dark:group-hover:bg-[#3c77b3] dark:group-hover:text-white">
@@ -147,15 +164,25 @@ export default function Home() {
                   </span>
                 </div>
                 <h3 className="mt-5 text-sm font-semibold text-[#172b3e] dark:text-[#eaf0f7]">
-                  <Link href={href} className="inline-flex items-center gap-1.5 hover:text-[#2f659e] dark:hover:text-[#9aabbd]">
-                    {title} <ArrowRight className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+                  <Link
+                    href={href}
+                    className="inline-flex items-center gap-1.5 hover:text-[#2f659e] dark:hover:text-[#9aabbd]"
+                  >
+                    {title}{" "}
+                    <ArrowRight className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
                   </Link>
                 </h3>
-                <p className="mt-2 text-xs leading-6 text-[#627489] dark:text-[#9aabbd]">{description}</p>
+                <p className="mt-2 text-xs leading-6 text-[#627489] dark:text-[#9aabbd]">
+                  {description}
+                </p>
               </div>
               <div className="mt-5 flex flex-wrap gap-1.5 border-t border-[#cad6e1]/70 pt-3 dark:border-[#344354]">
                 {links.map((link) => (
-                  <Link key={link.href} href={link.href} className="rounded-md bg-[#edf2f7] px-2 py-1 text-[10px] font-medium text-[#627489] transition-colors hover:bg-[#d6e1ec] hover:text-[#2f659e] dark:bg-[#192b3d] dark:text-[#9aabbd] dark:hover:bg-[#344354] dark:hover:text-[#eaf0f7]">
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="rounded-md bg-[#edf2f7] px-2 py-1 text-[10px] font-medium text-[#627489] transition-colors hover:bg-[#d6e1ec] hover:text-[#2f659e] dark:bg-[#192b3d] dark:text-[#9aabbd] dark:hover:bg-[#344354] dark:hover:text-[#eaf0f7]"
+                  >
                     {link.label}
                   </Link>
                 ))}
@@ -165,7 +192,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-[#cad6e1]/70 px-6 py-6 text-center text-[10px] tracking-wide text-[#627489] dark:border-[#344354] dark:text-[#9aabbd] lg:px-10">
+      <footer className="border-t border-[#cad6e1]/70 px-6 py-6 text-center text-[10px] tracking-wide text-[#627489] lg:px-10 dark:border-[#344354] dark:text-[#9aabbd]">
         Aurora Logistics AI Control Tower · Operational clarity, in motion.
       </footer>
     </main>

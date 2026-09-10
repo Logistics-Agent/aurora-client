@@ -1,4 +1,12 @@
+import { CONTROLLERS } from "@/configs/api";
+import {
+  type ComplianceEvaluation,
+  type GroundedAnswer,
+  parseComplianceEvaluationDto,
+  parseGroundedAnswerDto,
+} from "@/dto/compliance/compliance.dto";
 import { api } from "@/lib/api";
+import { ApiError } from "@/lib/api-error";
 
 export type ComplianceEvaluationRequest = {
   idempotencyKey?: string;
@@ -28,20 +36,7 @@ export type ComplianceEvaluationRequest = {
   }>;
 };
 
-export type ComplianceEvaluationResponse = {
-  evaluationId: string;
-  status: string;
-  verdict: "PASSED" | "FLAGGED" | "BLOCKED" | "REVIEW_REQUIRED";
-  summary: string;
-  findings: Array<{
-    findingId: string;
-    ruleId: string;
-    severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
-    message: string;
-    remediationAction?: string;
-  }>;
-  evaluatedAt?: string;
-};
+export type ComplianceEvaluationResponse = ComplianceEvaluation;
 
 export type AskCopilotRequest = {
   query: string;
@@ -52,34 +47,36 @@ export type AskCopilotRequest = {
   minimumRelevanceScore?: number;
 };
 
-export type AskCopilotResponse = {
-  answer: string;
-  confidence: number;
-  citations: Array<{
-    sourceDocument: string;
-    articleNumber: string;
-    snippet: string;
-    relevanceScore: number;
-  }>;
-};
+export type AskCopilotResponse = GroundedAnswer;
+
+function parseResponse<T>(response: unknown, parser: (value: unknown) => T): T {
+  try {
+    return parser(response);
+  } catch (error) {
+    throw new ApiError({
+      message: "Compliance service returned an invalid response.",
+      code: "SERVER",
+      details: error,
+      status: 500,
+    });
+  }
+}
 
 export const complianceService = {
   evaluateCompliance: async (
     payload: ComplianceEvaluationRequest,
   ): Promise<ComplianceEvaluationResponse> => {
-    return api.post("/api/v1/compliance/evaluations", payload);
+    const response = await api.post<unknown>(CONTROLLERS.compliance.evaluations, payload);
+    return parseResponse(response, parseComplianceEvaluationDto);
   },
 
-  getComplianceEvaluation: async (
-    id: string,
-  ): Promise<ComplianceEvaluationResponse> => {
-    return api.get(`/api/v1/compliance/evaluations/${id}`);
+  getComplianceEvaluation: async (id: string): Promise<ComplianceEvaluationResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.compliance.evaluation(id));
+    return parseResponse(response, parseComplianceEvaluationDto);
   },
 
-  askComplianceCopilot: async (
-    payload: AskCopilotRequest,
-  ): Promise<AskCopilotResponse> => {
-    return api.post("/api/v1/compliance/copilot/ask", payload);
+  askComplianceCopilot: async (payload: AskCopilotRequest): Promise<AskCopilotResponse> => {
+    const response = await api.post<unknown>(CONTROLLERS.compliance.copilotAsk, payload);
+    return parseResponse(response, parseGroundedAnswerDto);
   },
 };
-

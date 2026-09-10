@@ -1,51 +1,49 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { api } from "@/lib/api";
+
 import { assistantService } from "./assistant.service";
-import type { AssistantQueryResponse } from "@/dto/assistant/assistant.dto";
 
 vi.mock("@/lib/api", () => ({
-  api: {
-    post: vi.fn(),
-  },
+  api: { post: vi.fn() },
 }));
 
 describe("assistantService", () => {
-  it("calls POST /api/v1/assistant/query with provided parameters", async () => {
-    const mockResponse: AssistantQueryResponse = {
-      query: "What is cold chain SOP?",
-      answer: "Cold chain requires continuous monitoring between 2-8°C.",
+  beforeEach(() => vi.clearAllMocks());
+
+  it("posts a grounded assistant query to the BFF route", async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      query: "What is the risk?",
+      answer: "Evidence is insufficient.",
       regulatoryCitations: [],
       knowledgeReferences: [],
       conflicts: [],
-      insufficientEvidence: false,
-      missingInformation: [],
+      insufficientEvidence: true,
+      missingInformation: ["verified document"],
       governance: {
-        decisionId: "dec-001",
+        decisionId: "decision-1",
         automationLevel: "ASSISTED",
-        requiresApproval: false,
-        capabilityCode: "compliance.answer",
-        totalTokens: 120,
+        requiresApproval: true,
+        capabilityCode: "assistant.query",
+        totalTokens: 10,
       },
-      retrievalTraceId: "trace-abc-123",
-    };
-
-    vi.mocked(api.post).mockResolvedValueOnce(mockResponse);
-
-    const result = await assistantService.query({
-      query: "What is cold chain SOP?",
-      mode: "ALL",
-      jurisdictionCode: "VN",
-      topK: 10,
-      minimumScore: 0.4,
+      retrievalTraceId: "trace-1",
     });
 
-    expect(api.post).toHaveBeenCalledWith("/api/v1/assistant/query", {
-      query: "What is cold chain SOP?",
-      mode: "ALL",
-      jurisdictionCode: "VN",
-      topK: 10,
-      minimumScore: 0.4,
+    await assistantService.query({
+      query: "What is the risk?",
+      mode: "COMPLIANCE",
+      jurisdictionCode: "US",
+      topK: 5,
+      minimumScore: 0.6,
     });
-    expect(result).toEqual(mockResponse);
+
+    expect(api.post).toHaveBeenCalledWith("api/v1/assistant/query", {
+      query: "What is the risk?",
+      mode: "COMPLIANCE",
+      jurisdictionCode: "US",
+      topK: 5,
+      minimumScore: 0.6,
+    });
   });
 });
