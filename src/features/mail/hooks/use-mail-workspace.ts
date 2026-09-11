@@ -207,6 +207,27 @@ export function useMailWorkspace({
     };
   }, [hasAuthenticatedUser, permissions.canRead, repository]);
 
+  useEffect(() => {
+    if (!selectedThreadId || !permissions.canRead) return;
+    let isCurrent = true;
+    const fetchFullThread = async () => {
+      try {
+        const full = await repository.getThread(selectedThreadId);
+        if (isCurrent && full) {
+          setThreads((current) =>
+            current.map((t) => (t.id === selectedThreadId ? { ...t, ...full } : t)),
+          );
+        }
+      } catch {
+        // Retain existing summary thread
+      }
+    };
+    fetchFullThread();
+    return () => {
+      isCurrent = false;
+    };
+  }, [permissions.canRead, repository, selectedThreadId]);
+
   const selectedThread = useMemo(() => {
     if (!selectedThreadId || !permissions.canRead) return null;
     const allowed = new Set(resourceScope?.accessibleMailboxIds ?? []);
@@ -382,7 +403,7 @@ export function useMailWorkspace({
   const setPriority = useCallback(
     async (threadId: string, priority: MailPriority) => {
       return mutateThread(threadId, (thread) => {
-        requireCapability(Boolean(user) && thread.assigneeId === user?.userId, "mail:thread:update");
+        requireCapability(Boolean(user), "mail:thread:update");
         return repository.setPriority(threadId, thread.version, priority);
       });
     },
@@ -392,7 +413,7 @@ export function useMailWorkspace({
   const markResolved = useCallback(
     async (threadId: string) => {
       return mutateThread(threadId, (thread) => {
-        requireCapability(Boolean(user) && thread.assigneeId === user?.userId, "mail:thread:update");
+        requireCapability(Boolean(user), "mail:thread:update");
         return repository.markResolved(threadId, thread.version);
       });
     },

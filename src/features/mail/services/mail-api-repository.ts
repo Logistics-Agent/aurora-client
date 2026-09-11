@@ -296,17 +296,33 @@ export function createMailApiRepository(): MailMockRepository {
       const existing = localCache.find((t) => t.id === threadId);
       if (!existing) throw new Error(`Thread ${threadId} not found.`);
 
+      const bodyHtml = input.bodyHtml || textToHtml(input.bodyText);
+      const attachmentsPayload = input.attachments?.map((att) => ({
+        filename: att.fileName,
+        contentType: att.contentType || "application/octet-stream",
+        contentBase64: att.contentBase64 || "",
+      }));
+
       try {
         await mailService.submitOutboundMessage({
           senderAddress: input.senderAddress,
           recipientAddresses: existing.participants.map((p) => p.email),
-          subject: `Re: ${existing.subject}`,
+          subject: existing.subject.startsWith("Re:") ? existing.subject : `Re: ${existing.subject}`,
           bodyText: input.bodyText,
+          bodyHtml,
+          attachments: attachmentsPayload,
           threadId,
         });
       } catch {
         // Best-effort remote call
       }
+
+      const mappedAttachments = (input.attachments || []).map((att, idx) => ({
+        id: att.id || `att-${Date.now()}-${idx}`,
+        fileName: att.fileName,
+        contentType: att.contentType,
+        sizeBytes: att.sizeBytes,
+      }));
 
       const newMessage: MailMessage = {
         id: `msg-out-${Date.now()}`,
@@ -315,7 +331,7 @@ export function createMailApiRepository(): MailMockRepository {
         authorName: input.authorName,
         senderAddress: input.senderAddress,
         bodyText: input.bodyText,
-        attachments: [],
+        attachments: mappedAttachments,
         sentAt: new Date().toISOString(),
         deliveryStatus: "delivered",
       };
@@ -333,4 +349,16 @@ export function createMailApiRepository(): MailMockRepository {
   };
 }
 
+function textToHtml(text: string): string {
+  if (!text) return "<p></p>";
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+  return `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333333; white-space: pre-wrap;">${escaped.replace(/\n/g, "<br/>")}</div>`;
+}
+
 export const defaultMailApiRepository = createMailApiRepository();
+

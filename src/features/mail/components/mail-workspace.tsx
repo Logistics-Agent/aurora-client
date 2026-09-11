@@ -8,8 +8,7 @@ import { useMailWorkspace } from "../hooks/use-mail-workspace";
 import type { MailMockRepository } from "../mock/mail-repository";
 import { mailService } from "@/api/services/mail.service";
 import type { MailAssigneeOption } from "../dialogs/types";
-import { mailMailboxFixtures } from "../mock/fixtures";
-import type { MailListFilters, MailResourceScope } from "../types";
+import type { MailListFilters, MailMailbox, MailResourceScope } from "../types";
 import { MailThreadPanel } from "../thread";
 import { MailAccessState } from "./mail-access-state";
 
@@ -37,6 +36,7 @@ export function MailWorkspace({
   const [viewportMode, setViewportMode] = useState<ViewportMode>(readViewportMode);
   const [mutationStatus, setMutationStatus] = useState<string | null>(null);
   const [remoteAssignees, setRemoteAssignees] = useState<MailAssigneeOption[]>([]);
+  const [domainMailboxes, setDomainMailboxes] = useState<MailMailbox[]>([]);
 
   const workspace = useMailWorkspace({
     user,
@@ -57,6 +57,12 @@ export function MailWorkspace({
             name: `${mb.fullAddress} (${mb.localPart || "Domain Mailbox"})`,
           }));
 
+          const mailboxesList: MailMailbox[] = response.mailboxes.map((mb) => ({
+            id: mb.mailboxId,
+            displayName: mb.localPart ? (mb.localPart.charAt(0).toUpperCase() + mb.localPart.slice(1)) : mb.fullAddress.split("@")[0],
+            senderAddress: mb.fullAddress,
+          }));
+
           if (user?.userId && !list.some((m) => m.userId === user.userId)) {
             list.unshift({
               userId: user.userId,
@@ -64,6 +70,7 @@ export function MailWorkspace({
             });
           }
           setRemoteAssignees(list);
+          setDomainMailboxes(mailboxesList);
         }
       } catch {
         // Silent fallback to domain defaults
@@ -75,13 +82,17 @@ export function MailWorkspace({
     };
   }, [user]);
 
-  const scopedMailboxes = useMemo(() => {
+  const scopedMailboxes = useMemo<readonly MailMailbox[]>(() => {
+    const baseList = domainMailboxes.length > 0 ? domainMailboxes : [
+      { id: "01a08e7e-b561-791e-ac90-a534ac284e2c", displayName: "Operations", senderAddress: "ops@e-verland.site" },
+      { id: "01a08e7e-b561-791e-ac90-a534ac284e2d", displayName: "Customer Support", senderAddress: "support@e-verland.site" },
+    ];
     const allowed = new Set(resourceScope?.accessibleMailboxIds ?? []);
     if (allowed.size === 0 || allowed.has("*")) {
-      return mailMailboxFixtures;
+      return baseList;
     }
-    return mailMailboxFixtures.filter((mailbox) => allowed.has(mailbox.id));
-  }, [resourceScope?.accessibleMailboxIds]);
+    return baseList.filter((mailbox) => allowed.has(mailbox.id));
+  }, [domainMailboxes, resourceScope?.accessibleMailboxIds]);
 
   const assignees = useMemo<readonly MailAssigneeOption[]>(() => {
     if (remoteAssignees.length > 0) return remoteAssignees;
@@ -133,18 +144,24 @@ export function MailWorkspace({
       label: string,
       operation: () => Promise<T>,
     ): Promise<T> {
-      setMutationStatus(null);
       try {
         const result = await operation();
-        setMutationStatus(`${label}.`);
+        setMutationStatus(`${label}`);
+        setTimeout(() => {
+          setMutationStatus((prev) => (prev === label ? null : prev));
+        }, 4000);
         return result;
       } catch (error) {
-        setMutationStatus(`${label} failed.`);
+        setMutationStatus(`${label} failed`);
+        setTimeout(() => {
+          setMutationStatus((prev) => (prev === `${label} failed` ? null : prev));
+        }, 5000);
         throw error;
       }
     },
     [],
   );
+
 
   const selectedThreadId = workspace.selectedThread?.id ?? routeThreadId;
   const showQueueNavigation = viewportMode === "desktop"
@@ -270,24 +287,49 @@ export function MailWorkspace({
                 assignees={assignees}
                 error={workspace.error}
                 onClaim={workspace.selectedThread ? () => runMutation("Thread claimed", () => workspace.claimThread(workspace.selectedThread!.id).then(() => undefined)) : undefined}
-                onPriorityChange={workspace.selectedThread ? (priority) => runMutation("Priority updated", () => workspace.setPriority(workspace.selectedThread!.id, priority).then(() => undefined)) : undefined}
-                onResolve={workspace.selectedThread ? () => runMutation("Thread resolved", () => workspace.markResolved(workspace.selectedThread!.id).then(() => undefined)) : undefined}
-                onReassign={workspace.selectedThread ? (targetUserId, reason) => runMutation("Thread reassigned", () => workspace.reassignThread(workspace.selectedThread!.id, targetUserId, reason).then(() => undefined)) : undefined}
-                onUnassign={workspace.selectedThread ? (reason) => runMutation("Thread released", () => workspace.unassignThread(workspace.selectedThread!.id, reason).then(() => undefined)) : undefined}
+                onPriorityChange={workspace.selectedThread ? (priority) => runMutation(`Priority updated to ${priority.toUpperCase()}`, () => workspace.setPriority(workspace.selectedThread!.id, priority).then(() => undefined)) : undefined}
+                onResolve={workspace.selectedThread ? () => runMutation("Thread marked as resolved", () => workspace.markResolved(workspace.selectedThread!.id).then(() => undefined)) : undefined}
+                onReassign={workspace.selectedThread ? (targetUserId, reason) => runMutation("Thread reassigned successfully", () => workspace.reassignThread(workspace.selectedThread!.id, targetUserId, reason).then(() => undefined)) : undefined}
+                onUnassign={workspace.selectedThread ? (reason) => runMutation("Thread released to unassigned queue", () => workspace.unassignThread(workspace.selectedThread!.id, reason).then(() => undefined)) : undefined}
                 composerMailboxes={scopedMailboxes}
                 canCreateDraft={workspace.selectedThreadPermissions.canCreateDraft}
                 canSend={workspace.selectedThreadPermissions.canSend}
-                onSaveDraft={workspace.selectedThread ? (body) => runMutation("Draft saved", () => workspace.saveDraft(workspace.selectedThread!.id, body).then(() => undefined)) : undefined}
-                onSendMessage={workspace.selectedThread ? (message) => runMutation("Outbound message sent", () => workspace.sendMessage(workspace.selectedThread!.id, message).then(() => undefined)) : undefined}
+                onSaveDraft={workspace.selectedThread ? (body) => runMutation("Draft saved successfully", () => workspace.saveDraft(workspace.selectedThread!.id, body).then(() => undefined)) : undefined}
+                onSendMessage={workspace.selectedThread ? (message) => runMutation("Outbound email sent", () => workspace.sendMessage(workspace.selectedThread!.id, message).then(() => undefined)) : undefined}
               />
             </div>
           ) : null}
         </div>
-        <p role="status" aria-live="polite" className="min-h-5 text-sm text-muted-foreground">
-          {mutationStatus}
-        </p>
+
+        {mutationStatus && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-xl border backdrop-blur-md text-xs font-semibold transition-all ${
+              mutationStatus.includes("failed")
+                ? "bg-rose-50/95 text-rose-900 border-rose-200"
+                : "bg-slate-900/95 text-white border-slate-700"
+            }`}
+          >
+            <span
+              className={`size-2 rounded-full ${
+                mutationStatus.includes("failed") ? "bg-rose-500 animate-pulse" : "bg-emerald-400"
+              }`}
+            />
+            <span>{mutationStatus}</span>
+            <button
+              type="button"
+              onClick={() => setMutationStatus(null)}
+              className="ml-2 opacity-60 hover:opacity-100 text-xs"
+              aria-label="Dismiss notification"
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
     </MailAccessState>
+
   );
 }
 
