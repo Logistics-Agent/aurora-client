@@ -37,6 +37,19 @@ export type ShipmentMilestoneDto = {
   longitude?: number;
 };
 
+export type ShipmentDocumentDto = {
+  id?: string;
+  shipmentId?: string;
+  fileName: string;
+  documentType: string;
+  storageUrl?: string;
+  uploadedBy?: string;
+  uploadedAt?: string;
+  ocrStatus?: string;
+  ocrConfidence?: number;
+  extractedDataJson?: string;
+};
+
 export type ShipmentDto = {
   id: string;
   tenantId?: string;
@@ -58,6 +71,7 @@ export type ShipmentDto = {
   notes?: string;
   cargoItems?: CargoItemDto[];
   locations?: ShipmentLocationDto[];
+  documents?: ShipmentDocumentDto[];
   milestones?: ShipmentMilestoneDto[];
   estimatedEta?: string;
   riskLevel?: "low" | "medium" | "high";
@@ -181,5 +195,23 @@ export const shipmentService = {
 
   getTimeline: async (id: string): Promise<{ shipmentId: string; items: any[] }> => {
     return api.get<{ shipmentId: string; items: any[] }>(`/api/v1/shipments/${id}/timeline`);
+  },
+
+  attachDocument: async (
+    id: string,
+    doc: {
+      fileName: string;
+      documentType: string;
+      storageUrl?: string;
+      ocrStatus?: string;
+      ocrConfidence?: number;
+      extractedDataJson?: string;
+    },
+  ): Promise<ShipmentDto> => {
+    return api.post<ShipmentDto>(`/api/v1/shipments/${id}/documents`, doc);
+  },
+
+  removeDocument: async (id: string, documentId: string): Promise<ShipmentDto> => {
+    return api.delete<ShipmentDto>(`/api/v1/shipments/${id}/documents/${documentId}`);
   },
 };

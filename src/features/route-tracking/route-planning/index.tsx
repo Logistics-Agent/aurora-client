@@ -11,6 +11,7 @@ import {
   Edit,
   GitCompareArrows,
   Globe2,
+  Lock,
   Navigation,
   Package,
   Plane,
@@ -1401,7 +1402,47 @@ export function RoutePlanningPage() {
                   {(() => {
                     const isSelectedRouteAccepted = selectedRoute?.id === acceptedRouteId;
                     const hasLockedRoute = Boolean(acceptedRouteId);
-                    const isTerminal = currentShipment.status === "Delivered" || currentShipment.status === "Completed" || currentShipment.status === "Cancelled";
+                    const lockedStatuses = [
+                      "Submitted",
+                      "Confirmed",
+                      "PickedUp",
+                      "InTransit",
+                      "CustomsProcessing",
+                      "Delivered",
+                      "Completed",
+                    ];
+                    const isStatusLocked = lockedStatuses.includes(currentShipment.status);
+                    const isTerminal =
+                      currentShipment.status === "Delivered" ||
+                      currentShipment.status === "Completed" ||
+                      currentShipment.status === "Cancelled";
+
+                    if (isStatusLocked) {
+                      if (isSelectedRouteAccepted) {
+                        return (
+                          <Button
+                            type="button"
+                            disabled
+                            className="bg-emerald-700 text-white cursor-default gap-1.5 shadow-2xs"
+                          >
+                            <Lock className="size-4" />
+                            Route Locked & Bound ({selectedRoute?.name.split("·")[0].trim() ?? "route"})
+                          </Button>
+                        );
+                      }
+
+                      return (
+                        <Button
+                          type="button"
+                          disabled
+                          className="bg-slate-200 text-slate-500 cursor-not-allowed gap-1.5"
+                          title={`Vận đơn đang ở trạng thái "${currentShipment.status}". Lộ trình đã bị khóa không thể gán lại.`}
+                        >
+                          <Lock className="size-4" />
+                          Locked (Status: {currentShipment.status})
+                        </Button>
+                      );
+                    }
 
                     if (isSelectedRouteAccepted) {
                       return (
@@ -1411,7 +1452,7 @@ export function RoutePlanningPage() {
                           className="bg-emerald-600 hover:bg-emerald-600 text-white cursor-default gap-1.5"
                         >
                           <Check className="size-4" />
-                          Route Accepted & Locked ({selectedRoute?.name.split("·")[0].trim() ?? "route"})
+                          Route Accepted ({selectedRoute?.name.split("·")[0].trim() ?? "route"})
                         </Button>
                       );
                     }
@@ -1423,7 +1464,7 @@ export function RoutePlanningPage() {
                           disabled={!selectedRoute || calculationState === "failed" || isTerminal}
                           onClick={() => selectedRoute && acceptRoute(selectedRoute.id)}
                           className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-2xs"
-                          title={isTerminal ? "Shipment đã hoàn tất/giao hàng, không thể thay đổi lộ trình" : "Thay đổi và gán lại lộ trình mới cho lô hàng"}
+                          title="Thay đổi và gán lại lộ trình mới cho lô hàng"
                         >
                           <RotateCcw className="size-4" />
                           Reassign to {selectedRoute?.name.split("·")[0].trim() ?? "route"}

@@ -39,7 +39,7 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Created: ["Submitted", "Cancelled"],
   Draft: ["Submitted", "Cancelled"],
   Submitted: ["Planning", "Cancelled"],
-  Planning: ["Negotiating", "Cancelled"],
+  Planning: ["Confirmed", "Negotiating", "Cancelled"],
   Negotiating: ["Confirmed", "Cancelled"],
   Confirmed: ["PickedUp", "Cancelled"],
   PickedUp: ["InTransit", "Cancelled"],
@@ -170,22 +170,32 @@ export function UpdateShipmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Edit className="size-5 text-primary" />
-            Cập nhật Vận đơn: {shipment.shipmentNo || shipment.id}
-          </DialogTitle>
-          <DialogDescription>
-            Chỉnh sửa thông tin vận chuyển, tuyến giao hàng và quy trình trạng thái workflow.
-          </DialogDescription>
+      <DialogContent className="sm:max-w-2xl lg:max-w-3xl max-h-[92vh] overflow-y-auto p-6">
+        <DialogHeader className="pb-2 border-b border-border/80">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <DialogTitle className="flex items-center gap-2.5 text-lg font-bold text-foreground">
+                <Edit className="size-5 text-primary" />
+                Cập nhật Vận đơn: {shipment.shipmentNo || shipment.id}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Chỉnh sửa thông tin vận chuyển, tuyến giao hàng và quy trình trạng thái workflow.
+              </DialogDescription>
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <span className="text-[11px] uppercase font-semibold text-muted-foreground tracking-wider">Trạng thái</span>
+              <span className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200 shadow-xs">
+                ● {shipment.status || "Draft"}
+              </span>
+            </div>
+          </div>
         </DialogHeader>
 
         {/* Tab switcher */}
-        <div className="flex border-b border-border text-xs">
+        <div className="flex border-b border-border text-sm pt-1">
           <button
             type="button"
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            className={`px-5 py-2.5 font-medium border-b-2 transition-colors ${
               activeSubTab === "general"
                 ? "border-primary text-primary font-semibold"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -196,69 +206,72 @@ export function UpdateShipmentDialog({
           </button>
           <button
             type="button"
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            className={`px-5 py-2.5 font-medium border-b-2 transition-colors flex items-center gap-2 ${
               activeSubTab === "status"
                 ? "border-primary text-primary font-semibold"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setActiveSubTab("status")}
           >
-            Quy trình & Trạng thái Workflow
+            <span>Quy trình & Trạng thái Workflow</span>
+            <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+              {shipment.status || "Draft"}
+            </span>
           </button>
         </div>
 
         {activeSubTab === "general" && (
-          <form onSubmit={handleUpdateGeneral} className="space-y-4 py-2 text-xs">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Tên Khách hàng / Doanh nghiệp *</label>
+          <form onSubmit={handleUpdateGeneral} className="space-y-4 py-3 text-sm">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="font-semibold text-foreground text-xs">Tên Khách hàng / Doanh nghiệp *</label>
                 <input
                   required
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Mã đơn hàng / PO</label>
+              <div className="space-y-1.5">
+                <label className="font-semibold text-foreground text-xs">Mã đơn hàng / PO</label>
                 <input
                   disabled
                   value={shipment.orderId || "ORD-N/A"}
-                  className="w-full rounded-md border border-input bg-muted/60 px-2.5 py-1.5 text-xs text-muted-foreground cursor-not-allowed"
+                  className="w-full rounded-lg border border-input bg-muted/60 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-semibold text-foreground">Địa chỉ nhận hàng (Destination) *</label>
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground text-xs">Địa chỉ nhận hàng (Destination) *</label>
               <input
                 required
                 value={destinationAddress}
                 onChange={(e) => setDestinationAddress(e.target.value)}
                 placeholder="Ví dụ: Puerto Barrios Terminal, Izabal, Guatemala"
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Mức độ ưu tiên (Priority)</label>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="font-semibold text-foreground text-xs">Mức độ ưu tiên (Priority)</label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as any)}
-                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none"
                 >
                   <option value="Normal">Normal (Bình thường)</option>
                   <option value="High">High (Ưu tiên cao)</option>
                   <option value="Urgent">Urgent (Khẩn cấp)</option>
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="font-semibold text-foreground">Phương thức vận chuyển</label>
+              <div className="space-y-1.5">
+                <label className="font-semibold text-foreground text-xs">Phương thức vận chuyển</label>
                 <select
                   value={transportMode}
                   onChange={(e) => setTransportMode(e.target.value as any)}
-                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none"
                 >
                   <option value="Road">Road (Đường bộ - OSRM Highway)</option>
                   <option value="Multimodal">Multimodal (Đa phương thức)</option>
@@ -268,35 +281,34 @@ export function UpdateShipmentDialog({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-semibold text-foreground">Ghi chú vận chuyển (Notes)</label>
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground text-xs">Ghi chú vận chuyển (Notes)</label>
               <textarea
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ghi chú thêm về yêu cầu nhiệt độ Reefer, chỉ dẫn giao nhận..."
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none"
               />
             </div>
 
-            <DialogFooter className="pt-3 border-t border-border">
+            <DialogFooter className="pt-4 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={() => onOpenChange(false)}
               >
                 Hủy
               </Button>
-              <Button type="submit" size="sm" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    <RotateCcw className="size-3.5 animate-spin mr-1.5" />
+                    <RotateCcw className="size-4 animate-spin mr-2" />
                     Đang lưu...
                   </>
                 ) : (
                   <>
-                    <Check className="size-3.5 mr-1.5" />
+                    <Check className="size-4 mr-2" />
                     Lưu thay đổi
                   </>
                 )}
@@ -306,32 +318,44 @@ export function UpdateShipmentDialog({
         )}
 
         {activeSubTab === "status" && (
-          <div className="space-y-4 py-2 text-xs">
-            <div className="rounded-lg border border-border bg-slate-50/70 p-3 space-y-2">
+          <div className="space-y-5 py-3 text-sm">
+            <div className="rounded-xl border border-blue-200/90 bg-gradient-to-r from-blue-50/90 via-slate-50 to-indigo-50/70 p-5 space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Trạng thái hiện tại:</span>
-                <span className="font-semibold text-foreground bg-white px-2 py-0.5 rounded border">
-                  {shipment.status}
-                </span>
+                <div>
+                  <span className="text-xs font-semibold text-slate-500 block uppercase tracking-wider">TRẠNG THÁI HIỆN TẠI</span>
+                  <div className="flex items-center gap-2.5 mt-1">
+                    <span className="relative flex h-3.5 w-3.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-600"></span>
+                    </span>
+                    <span className="text-xl font-bold text-slate-900 tracking-tight">
+                      {shipment.status || "Draft"}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-400 font-medium block">SHIPMENT NO</span>
+                  <span className="font-mono text-sm font-bold text-slate-700">{shipment.shipmentNo || shipment.id}</span>
+                </div>
               </div>
-              <div className="text-[11px] text-slate-600">
+              <div className="text-xs text-slate-600 pt-3 border-t border-blue-100 flex items-center justify-between">
                 <span className="font-medium text-slate-700">Bước chuyển hợp lệ tiếp theo: </span>
                 {allowedNext.length > 0 ? (
-                  <span className="font-mono text-primary">{allowedNext.join(" ➔ ")}</span>
+                  <span className="font-mono font-semibold text-primary">{allowedNext.join(" ➔ ")}</span>
                 ) : (
-                  <span className="text-amber-700">Trạng thái cuối (Đã đóng / Hủy)</span>
+                  <span className="text-amber-700 font-medium">Trạng thái cuối (Đã hoàn thành / Hủy)</span>
                 )}
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="font-semibold text-foreground block">
+            <div className="space-y-2">
+              <label className="font-semibold text-foreground text-xs block">
                 Chuyển trạng thái quy trình:
               </label>
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full rounded-md border border-input bg-white px-2.5 py-2 text-xs font-medium focus:outline-none"
+                className="w-full rounded-lg border border-input bg-white px-3 py-2.5 text-sm font-medium focus:outline-none shadow-xs"
               >
                 {allowedNext.map((st) => (
                   <option key={st} value={st}>

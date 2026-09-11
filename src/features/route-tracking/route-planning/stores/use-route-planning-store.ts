@@ -119,6 +119,26 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
   acceptRoute: (acceptedRouteId) => {
     const { shipments, selectedShipmentId } = get();
     const currentShipment = shipments.find((s) => s.id === selectedShipmentId);
+
+    if (currentShipment) {
+      const lockedStatuses = [
+        "Submitted",
+        "Confirmed",
+        "PickedUp",
+        "InTransit",
+        "CustomsProcessing",
+        "Delivered",
+        "Completed",
+      ];
+      if (lockedStatuses.includes(currentShipment.status)) {
+        toast.warning("Lộ trình đã bị khóa cố định", {
+          description: `Vận đơn đang ở trạng thái "${currentShipment.status}". Không được phép thay đổi hoặc gán lại lộ trình mới.`,
+          duration: 5000,
+        });
+        return;
+      }
+    }
+
     const assignedRoute = currentShipment?.routes.find((r) => r.id === acceptedRouteId);
 
     const updated = shipments.map((s) => {
@@ -126,7 +146,6 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
         return {
           ...s,
           assignedRouteId: acceptedRouteId,
-          status: "Draft" as const,
         };
       }
       return s;
