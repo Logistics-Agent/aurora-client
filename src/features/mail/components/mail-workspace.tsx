@@ -6,7 +6,9 @@ import type { UserProfile } from "@/types/auth.types";
 import { MailInbox } from "../inbox";
 import { useMailWorkspace } from "../hooks/use-mail-workspace";
 import type { MailMockRepository } from "../mock/mail-repository";
-import { mailMailboxFixtures, mailPersonaFixtures } from "../mock/fixtures";
+import { mailService } from "@/api/services/mail.service";
+import type { MailAssigneeOption } from "../dialogs/types";
+import { mailMailboxFixtures } from "../mock/fixtures";
 import type { MailListFilters, MailResourceScope } from "../types";
 import { MailThreadPanel } from "../thread";
 import { MailAccessState } from "./mail-access-state";
@@ -34,6 +36,8 @@ export function MailWorkspace({
   const [queueExpanded, setQueueExpanded] = useState(false);
   const [viewportMode, setViewportMode] = useState<ViewportMode>(readViewportMode);
   const [mutationStatus, setMutationStatus] = useState<string | null>(null);
+  const [remoteAssignees, setRemoteAssignees] = useState<MailAssigneeOption[]>([]);
+
   const workspace = useMailWorkspace({
     user,
     resourceScope,
@@ -41,17 +45,59 @@ export function MailWorkspace({
     repository,
   });
   const { selectThread } = workspace;
-  const scopedMailboxes = useMemo(
-    () =>
-      mailMailboxFixtures.filter((mailbox) =>
-        (resourceScope?.accessibleMailboxIds ?? []).includes(mailbox.id),
-      ),
-    [resourceScope?.accessibleMailboxIds],
-  );
-  const assignees = useMemo(
-    () => mailPersonaFixtures.map(({ userId, name }) => ({ userId, name })),
-    [],
-  );
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDomainAssignees() {
+      try {
+        const response = await mailService.listMailboxes();
+        if (isMounted && response?.mailboxes && response.mailboxes.length > 0) {
+          const list: MailAssigneeOption[] = response.mailboxes.map((mb) => ({
+            userId: mb.userId || mb.mailboxId,
+            name: `${mb.fullAddress} (${mb.localPart || "Domain Mailbox"})`,
+          }));
+
+          if (user?.userId && !list.some((m) => m.userId === user.userId)) {
+            list.unshift({
+              userId: user.userId,
+              name: `${user.name || user.email || "Current User"} (You)`,
+            });
+          }
+          setRemoteAssignees(list);
+        }
+      } catch {
+        // Silent fallback to domain defaults
+      }
+    }
+    loadDomainAssignees();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const scopedMailboxes = useMemo(() => {
+    const allowed = new Set(resourceScope?.accessibleMailboxIds ?? []);
+    if (allowed.size === 0 || allowed.has("*")) {
+      return mailMailboxFixtures;
+    }
+    return mailMailboxFixtures.filter((mailbox) => allowed.has(mailbox.id));
+  }, [resourceScope?.accessibleMailboxIds]);
+
+  const assignees = useMemo<readonly MailAssigneeOption[]>(() => {
+    if (remoteAssignees.length > 0) return remoteAssignees;
+    const defaults: MailAssigneeOption[] = [];
+    if (user?.userId) {
+      defaults.push({
+        userId: user.userId,
+        name: `${user.name || user.email || "Staff Member"} (You)`,
+      });
+    }
+    defaults.push(
+      { userId: "01a08e7e-b561-791e-ac90-a534ac284e2c", name: "ops@e-verland.site (Operations Staff)" },
+      { userId: "01a08e7e-b561-791e-ac90-a534ac284e2d", name: "support@e-verland.site (Support Manager)" },
+    );
+    return defaults;
+  }, [remoteAssignees, user]);
 
   useEffect(() => {
     const updateViewport = () => setViewportMode(readViewportMode());

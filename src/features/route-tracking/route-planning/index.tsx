@@ -1411,11 +1411,12 @@ export function RoutePlanningPage() {
                       "Delivered",
                       "Completed",
                     ];
-                    const isStatusLocked = lockedStatuses.includes(currentShipment.status);
+                    const isStatusLocked = (lockedStatuses as readonly string[]).includes(currentShipment.status);
+                    const statusStr = currentShipment.status as string;
                     const isTerminal =
-                      currentShipment.status === "Delivered" ||
-                      currentShipment.status === "Completed" ||
-                      currentShipment.status === "Cancelled";
+                      statusStr === "Delivered" ||
+                      statusStr === "Completed" ||
+                      statusStr === "Cancelled";
 
                     if (isStatusLocked) {
                       if (isSelectedRouteAccepted) {

@@ -133,6 +133,59 @@ export const mailService = {
     return api.get<ThreadDetailApiResponse>(`/api/v1/mail/threads/${id}`);
   },
 
+  listMailboxes: async (params?: {
+    domainId?: string;
+    pageSize?: number;
+    pageToken?: string;
+  }): Promise<{ mailboxes: Array<{ mailboxId: string; fullAddress: string; domainId?: string; localPart?: string; userId?: string }>; nextPageToken?: string }> => {
+    const cacheKey = `aurora_mailboxes_cache_${params?.domainId || "all"}_${params?.pageSize || 100}`;
+    if (typeof window !== "undefined" && !params?.pageToken) {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const isExpired = Date.now() - (parsed.timestamp || 0) > 10 * 60 * 1000; // 10 minutes TTL
+          if (!isExpired && parsed.data?.mailboxes) {
+            return parsed.data;
+          }
+        }
+      } catch {
+        // Fallback to API on localStorage read error
+      }
+    }
+
+    const response = await api.get<{
+      mailboxes: Array<{
+        mailboxId: string;
+        fullAddress: string;
+        domainId?: string;
+        localPart?: string;
+        userId?: string;
+      }>;
+      nextPageToken?: string;
+    }>("/api/v1/mail/mailboxes", { params });
+
+    if (typeof window !== "undefined" && !params?.pageToken && response?.mailboxes?.length > 0) {
+      try {
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({ timestamp: Date.now(), data: response }),
+        );
+      } catch {
+        // Ignore localStorage quota errors
+      }
+    }
+
+    return response;
+  },
+
+  listDomains: async (params?: {
+    pageSize?: number;
+    pageToken?: string;
+  }): Promise<{ domains: Array<{ domainId: string; domainName: string; status: string }>; nextPageToken?: string }> => {
+    return api.get("/api/v1/mail/domains", { params });
+  },
+
   claimThread: async (id: string): Promise<{
     success: boolean;
     threadId: string;

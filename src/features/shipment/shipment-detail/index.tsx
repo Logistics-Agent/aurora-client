@@ -16,7 +16,6 @@ import { PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import {
   Route as RouteIcon,
-  ShieldCheck,
   Edit,
   ExternalLink,
   Plus,
@@ -31,6 +30,12 @@ import {
   CheckCircle2,
   MapPin,
   Truck,
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  Scale,
+  Copy,
+  CheckCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { toApiError } from "@/lib/api-error";
@@ -43,6 +48,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { shipmentService, type ShipmentDto, type ShipmentDocumentDto } from "@/api/services/shipment.service";
+import { complianceService, type ComplianceEvaluationResponse } from "@/api/services/compliance.service";
 import { trackingService, type CurrentLocationDto } from "@/api/services/tracking.service";
 import { ShipmentNotificationSubscription } from "./components/shipment-notification-subscription";
 import { UpdateShipmentDialog } from "../components/update-shipment-dialog";
@@ -55,6 +61,7 @@ const DETAIL_TABS = [
   "cargo",
   "documents",
   "timeline",
+  "compliance",
 ] as const;
 type DetailTab = (typeof DETAIL_TABS)[number];
 
@@ -192,6 +199,104 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
     }
   };
 
+  // Compliance Evaluation State & Actions
+  const [complianceEvaluation, setComplianceEvaluation] = useState<ComplianceEvaluationResponse | null>(null);
+  const [isEvaluatingCompliance, setIsEvaluatingCompliance] = useState(false);
+  const [copiedEvaluationId, setCopiedEvaluationId] = useState(false);
+
+  const handleEvaluateCompliance = async () => {
+    setIsEvaluatingCompliance(true);
+    try {
+      const originCountry = (shipment?.originCountry || "VN").trim().substring(0, 2).toUpperCase() || "VN";
+      const destCountry = (shipment?.destinationCountry || "US").trim().substring(0, 2).toUpperCase() || "US";
+
+      const cargoItems = (shipment?.cargoItems && shipment.cargoItems.length > 0)
+        ? shipment.cargoItems.map((c) => ({
+            name: c.name || "Standard Freight",
+            hsCode: c.hsCode || "8507.60.00",
+            quantity: Number(c.quantity) || 1,
+            unit: c.unit || "PACKAGE",
+            weightKg: Number(c.weightKg) || 500,
+            volumeM3: Number(c.volumeM3) || 2.5,
+            isDangerousGoods: Boolean(c.isDangerousGoods ?? true),
+            dangerousGoodsCode: "UN3480",
+            packageType: c.packageType || "Fiberboard Box",
+          }))
+        : [
+            {
+              name: "Lithium-Ion Battery Freight",
+              hsCode: "8507.60.00",
+              quantity: 1,
+              unit: "PACKAGE",
+              weightKg: 500,
+              volumeM3: 2.5,
+              isDangerousGoods: true,
+              dangerousGoodsCode: "UN3480",
+              packageType: "Fiberboard Box (4G)",
+            },
+          ];
+
+      const isGuid = (val?: string): boolean =>
+        typeof val === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+      const externalShipmentGuid = isGuid(shipment?.id)
+        ? shipment!.id
+        : isGuid(shipmentId)
+          ? shipmentId
+          : crypto.randomUUID();
+
+      const documentSnapshots = (shipment?.documents || []).map((d) => ({
+        externalDocumentId: isGuid(d.id) ? d.id! : crypto.randomUUID(),
+        documentType: d.documentType || "Invoice",
+        normalizedJson: d.extractedDataJson || "{}",
+        extractionConfidence: d.ocrConfidence || 0.95,
+        needsReview: false,
+      }));
+
+      const payload = {
+        idempotencyKey: `eval-${externalShipmentGuid}-${Date.now()}`,
+        externalShipmentId: externalShipmentGuid,
+        originCountryCode: originCountry,
+        destinationCountryCode: destCountry,
+        transportMode: (shipment?.transportMode || "ROAD").toUpperCase(),
+        jurisdictionCodes: [originCountry, destCountry, "GLOBAL"],
+        cargo: cargoItems,
+        documents: documentSnapshots,
+      };
+
+      const result = await complianceService.evaluateCompliance(payload);
+      setComplianceEvaluation(result);
+      setTab("compliance");
+
+      if (result.status === "COMPLETED" || result.riskLevel === "LOW") {
+        toast.success("Đánh giá tuân thủ hoàn tất", {
+          description: `Mã đánh giá: ${result.evaluationId}. Rủi ro: ${result.riskLevel}.`,
+          duration: 5000,
+        });
+      } else {
+        toast.warning(`Đánh giá tuân thủ: ${result.riskLevel} Risk`, {
+          description: `Phát hiện ${result.findings.length} điểm cần kiểm tra tuân thủ. Mã: ${result.evaluationId}`,
+          duration: 6000,
+        });
+      }
+    } catch (err) {
+      const apiErr = toApiError(err);
+      toast.error("Kiểm tra tuân thủ thất bại", {
+        description: apiErr.message || "Không thể kết nối tới Compliance Engine.",
+      });
+    } finally {
+      setIsEvaluatingCompliance(false);
+    }
+  };
+
+  const copyEvaluationId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedEvaluationId(true);
+    toast.success("Đã sao chép Evaluation ID");
+    setTimeout(() => setCopiedEvaluationId(false), 2000);
+  };
+
   useEffect(() => {
     loadShipmentData();
   }, [shipmentId]);
@@ -311,6 +416,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
           id: "tracking-current",
           position: { latitude: currentGps.latitude, longitude: currentGps.longitude },
           label: "Live Vehicle Position",
+          detail: `Tốc độ: ${Math.round(currentGps.speedKph ?? 0)} km/h`,
           tone: "current" as const,
         },
         ...baseMarkers.filter((m) => m.id !== "tracking-current"),
@@ -372,6 +478,27 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
             <StatusBadge label={status} intent="info" />
             <RiskBadge level={shipment?.riskLevel ?? (activeRoute?.risk.toLowerCase() as any) ?? "low"} />
             
+            {/* Compliance Evaluation Action */}
+            <Button
+              size="sm"
+              variant="default"
+              className="gap-1.5 text-xs shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              onClick={handleEvaluateCompliance}
+              disabled={isEvaluatingCompliance}
+            >
+              {isEvaluatingCompliance ? (
+                <>
+                  <RotateCcw className="size-3.5 animate-spin" />
+                  Evaluating...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="size-3.5" />
+                  Check Compliance
+                </>
+              )}
+            </Button>
+
             {/* Update Shipment Flow Action */}
             <Button
               size="sm"
@@ -884,14 +1011,217 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                     <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/70">
                       <span>Tọa độ GPS: <strong className="font-mono text-slate-700">{currentGps.latitude.toFixed(4)}, {currentGps.longitude.toFixed(4)}</strong></span>
                       <span>·</span>
-                      <span>Vận tốc: <strong className="text-slate-700">{Math.round(currentGps.speedKph)} km/h</strong></span>
+                      <span>Vận tốc: <strong className="text-slate-700">{Math.round(currentGps.speedKph ?? 0)} km/h</strong></span>
                       <span>·</span>
-                      <span>Hướng di chuyển: <strong className="text-slate-700">{Math.round(currentGps.headingDegrees)}°</strong></span>
+                      <span>Hướng di chuyển: <strong className="text-slate-700">{Math.round(currentGps.headingDegrees ?? 0)}°</strong></span>
                     </div>
                   )}
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* COMPLIANCE TAB */}
+        {tab === "compliance" && (
+          <div className="mt-5 space-y-5">
+            {!complianceEvaluation ? (
+              <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center bg-slate-50/50">
+                <ShieldAlert className="size-10 text-slate-400 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-slate-800">Chưa có kết quả kiểm tra tuân thủ</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+                  Bấm nút bên dưới để gửi hàng hóa, mã HS và chứng từ của lô hàng đến bộ máy kiểm định hải quan và pháp lý thương mại.
+                </p>
+                <Button
+                  onClick={handleEvaluateCompliance}
+                  disabled={isEvaluatingCompliance}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 text-xs font-semibold"
+                >
+                  {isEvaluatingCompliance ? (
+                    <>
+                      <RotateCcw className="size-4 animate-spin" />
+                      Đang đánh giá pháp lý & Hải quan...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="size-4" />
+                      Thực hiện kiểm tra tuân thủ (Evaluate Compliance)
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {/* Result Status Banner */}
+                <div
+                  className={`rounded-xl border p-5 ${
+                    complianceEvaluation.status === "COMPLIANT"
+                      ? "bg-emerald-50/90 border-emerald-200 text-emerald-950"
+                      : complianceEvaluation.status === "FLAGGED"
+                        ? "bg-amber-50/90 border-amber-200 text-amber-950"
+                        : "bg-red-50/90 border-red-200 text-red-950"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      {complianceEvaluation.status === "COMPLIANT" ? (
+                        <div className="size-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                          <CheckCircle2 className="size-6" />
+                        </div>
+                      ) : complianceEvaluation.status === "FLAGGED" ? (
+                        <div className="size-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700">
+                          <AlertTriangle className="size-6" />
+                        </div>
+                      ) : (
+                        <div className="size-10 rounded-full bg-red-100 flex items-center justify-center text-red-700">
+                          <ShieldAlert className="size-6" />
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider">Trạng thái tuân thủ:</span>
+                          <span
+                            className={`font-black text-sm px-2.5 py-0.5 rounded-md ${
+                              complianceEvaluation.status === "COMPLIANT"
+                                ? "bg-emerald-200/80 text-emerald-900"
+                                : complianceEvaluation.status === "FLAGGED"
+                                  ? "bg-amber-200/80 text-amber-900"
+                                  : "bg-red-200/80 text-red-900"
+                            }`}
+                          >
+                            {complianceEvaluation.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          {complianceEvaluation.status === "COMPLIANT"
+                            ? "Lô hàng đáp ứng đầy đủ điều kiện pháp lý, chứng từ và quy định hải quan hiện hành."
+                            : complianceEvaluation.status === "FLAGGED"
+                              ? `Phát hiện ${complianceEvaluation.findings.length} điểm cần lưu ý hoặc giải trình bổ sung.`
+                              : `Phát hiện ${complianceEvaluation.findings.length} điểm vi phạm quy định pháp lý.`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleEvaluateCompliance}
+                        disabled={isEvaluatingCompliance}
+                        className="bg-white hover:bg-slate-50 text-xs gap-1.5"
+                      >
+                        <RotateCcw className={`size-3.5 ${isEvaluatingCompliance ? "animate-spin" : ""}`} />
+                        Đánh giá lại
+                      </Button>
+                      <Link
+                        href={`/compliance?id=${complianceEvaluation.evaluationId}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-xs"
+                      >
+                        <Scale className="size-3.5" />
+                        Mở trong Compliance Center
+                        <ExternalLink className="size-3" />
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Evaluation ID Bar */}
+                  <div className="mt-4 pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-600">Evaluation ID:</span>
+                      <code className="bg-white/90 px-2 py-0.5 rounded-md font-mono text-slate-800 border border-slate-200">
+                        {complianceEvaluation.evaluationId}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => copyEvaluationId(complianceEvaluation.evaluationId)}
+                        className="p-1 rounded hover:bg-white/80 text-slate-500 hover:text-slate-800 transition-colors"
+                        title="Sao chép Evaluation ID"
+                      >
+                        {copiedEvaluationId ? <CheckCheck className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+                      </button>
+                    </div>
+                    <span className="text-slate-500 text-[11px]">
+                      Kiểm định lúc: {new Date(complianceEvaluation.completedAt || complianceEvaluation.requestedAt).toLocaleString("vi-VN")}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Findings List */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Scale className="size-4 text-primary" />
+                    Chi tiết các điểm đánh giá ({complianceEvaluation.findings.length})
+                  </h4>
+
+                  {complianceEvaluation.findings.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 text-xs text-emerald-800">
+                      Không phát hiện vi phạm nào. Tất cả điều kiện vận chuyển đều phù hợp với quy định.
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {complianceEvaluation.findings.map((f, idx) => (
+                        <div
+                          key={f.findingId || idx}
+                          className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2 hover:border-slate-300 transition-colors"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
+                                  f.severity === "CRITICAL" || f.severity === "HIGH"
+                                    ? "bg-red-100 text-red-800 border border-red-200"
+                                    : f.severity === "MEDIUM"
+                                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                      : "bg-blue-100 text-blue-800 border border-blue-200"
+                                }`}
+                              >
+                                {f.severity || f.type}
+                              </span>
+                              <span className="font-bold text-sm text-slate-900">{f.title || f.category}</span>
+                            </div>
+                            <span className="text-xs text-slate-500 font-medium">{f.category}</span>
+                          </div>
+
+                          <p className="text-xs text-slate-700 leading-relaxed font-medium">{f.description}</p>
+
+                          {f.citations && f.citations.length > 0 && (
+                            <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-2 items-center text-[11px] text-slate-500">
+                              <span className="font-semibold text-slate-600">Trích dẫn căn cứ:</span>
+                              {f.citations.map((c, cIdx) => (
+                                <span
+                                  key={cIdx}
+                                  className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200/80 font-mono text-[10px]"
+                                  title={c.excerpt || c.canonicalSourceUri}
+                                >
+                                  {c.authority ? `[${c.authority}] ` : ""}{c.title} {c.sectionLabel ? `(${c.sectionLabel})` : ""}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Assistant Quick Link */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border border-indigo-200/80 flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-indigo-950">Cần tư vấn sâu hơn về quy định của lô hàng này?</span>
+                    <p className="text-[11px] text-indigo-800">
+                      Hỏi Trợ lý AI để đối chiếu chi tiết hàng hóa với các Thông tư hải quan và SOP công ty.
+                    </p>
+                  </div>
+                  <Link
+                    href={`/assistant`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
+                  >
+                    Hỏi AI Assistant
+                    <ExternalLink className="size-3" />
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </WorkspaceCard>
