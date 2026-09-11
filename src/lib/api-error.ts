@@ -52,13 +52,23 @@ const FALLBACK_MESSAGES: Record<number, string> = {
   500: "Something went wrong. Please try again later.",
 };
 
+function cleanErrorMessage(raw: string): string {
+  const trimmed = raw.trim();
+  // Match Detail="..." or Detail='...' inside gRPC Status(...) or standalone
+  const detailMatch = trimmed.match(/Detail\s*=\s*["']([^"']+)["']/i);
+  if (detailMatch && detailMatch[1]) {
+    return detailMatch[1].trim();
+  }
+  return trimmed;
+}
+
 function normalizeMessage(message: ErrorEnvelope["message"] | string, status: number) {
   if (Array.isArray(message)) {
-    return message.join(", ");
+    return message.map(cleanErrorMessage).join(", ");
   }
 
   if (typeof message === "string" && message.trim()) {
-    return message;
+    return cleanErrorMessage(message);
   }
 
   return FALLBACK_MESSAGES[status] ?? "Request failed. Please try again.";

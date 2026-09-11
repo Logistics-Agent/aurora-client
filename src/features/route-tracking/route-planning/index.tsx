@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
   Building2,
   Check,
   Cpu,
+  Edit,
   GitCompareArrows,
   Globe2,
+  Lock,
   Navigation,
   Package,
   Plane,
@@ -39,6 +42,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { UpdateShipmentDialog } from "@/features/shipment/components/update-shipment-dialog";
+import type { ShipmentDto } from "@/api/services/shipment.service";
 import {
   CENTRAL_AMERICA_FACILITIES,
   routeAcceptanceFixture,
@@ -56,6 +61,7 @@ import type {
   RouteStopType,
 } from "./types";
 import { routePlanningApiService } from "@/api/services/route-planning.service";
+import { toast } from "sonner";
 
 export function RoutePlanningPage() {
   const shipments = useRoutePlanningStore((state) => state.shipments);
@@ -100,15 +106,27 @@ export function RoutePlanningPage() {
   const fetchLiveBackendData = useRoutePlanningStore(
     (state) => state.fetchLiveBackendData,
   );
+  const searchParams = useSearchParams();
+  const queryShipmentId = searchParams ? searchParams.get("shipmentId") : null;
 
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [isCreateShipmentOpen, setIsCreateShipmentOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [isUpdateShipmentOpen, setIsUpdateShipmentOpen] = useState(false);
 
   // Sync with live backend API on mount
   useEffect(() => {
     fetchLiveBackendData();
   }, [fetchLiveBackendData]);
+
+  useEffect(() => {
+    if (queryShipmentId && shipments.length > 0) {
+      const found = shipments.find((s) => s.id === queryShipmentId || s.shipmentNo === queryShipmentId);
+      if (found) {
+        selectShipment(found.id);
+      }
+    }
+  }, [queryShipmentId, shipments, selectShipment]);
 
   // Default Central America Preset Facilities for quick selection
   const defaultOriginFacility = CENTRAL_AMERICA_FACILITIES[0]; // San José Central Cargo Hub (Costa Rica)
@@ -201,7 +219,10 @@ export function RoutePlanningPage() {
 
   const selectedRoute =
     currentRoutes.find((r) => r.id === selectedRouteId) ?? currentRoutes[0];
-  const acceptedRoute = currentRoutes.find((r) => r.id === acceptedRouteId);
+  const acceptedRoute = currentRoutes.find((r) => r.id === acceptedRouteId || r.id === currentShipment?.assignedRouteId);
+  const isSelectedRouteAccepted = Boolean(
+    selectedRoute && (selectedRoute.id === acceptedRouteId || selectedRoute.id === currentShipment?.assignedRouteId)
+  );
 
   // Dynamically compute precise stop milestone markers for the active route
   const dynamicRouteMarkers = useMemo(() => {
@@ -239,9 +260,13 @@ export function RoutePlanningPage() {
           requestAiRecommendation(selectedRoute.id),
           optimizeRouteWithVroom(selectedRoute.id),
         ]);
+        toast.success("Đã hoàn tất tính toán lại lộ trình", {
+          description: "Các tuyến đường và khuyến nghị AI đã được đồng bộ.",
+          duration: 4000,
+        });
       }
     } catch {
-      // Handled
+      // Handled in store with toasts
     } finally {
       setIsRecalculating(false);
       setCalculationState("ready");
@@ -343,10 +368,16 @@ export function RoutePlanningPage() {
       setIsSolving(false);
       const approxDistance = Math.round(customStops.length * 240);
       const approxHours = Math.round(approxDistance / 55);
+      const dist = selectedRoute?.distanceKm ?? approxDistance;
+      const dur = Math.round((selectedRoute?.durationMinutes ?? approxHours * 60) / 60);
       setSolverResult({
-        distanceKm: selectedRoute?.distanceKm ?? approxDistance,
-        durationHours: Math.round((selectedRoute?.durationMinutes ?? approxHours * 60) / 60),
+        distanceKm: dist,
+        durationHours: dur,
         risk: selectedRoute?.risk ?? "Low",
+      });
+      toast.success("Đã chạy bộ giải VROOM/OSRM", {
+        description: `Khoảng cách: ${dist} km · Thời gian: ${dur}h · Rủi ro: ${selectedRoute?.risk ?? "Low"}`,
+        duration: 4000,
       });
     }
   };
@@ -386,7 +417,13 @@ export function RoutePlanningPage() {
       })),
     };
 
-    addCustomRouteToShipment(currentShipment.id, newRoute);
+    if (currentShipment) {
+      addCustomRouteToShipment(currentShipment.id, newRoute);
+      toast.success("Đã lưu tuyến đường tùy chỉnh", {
+        description: `Tuyến "${customRouteName}" đã được liên kết với lô hàng.`,
+        duration: 4000,
+      });
+    }
     selectRoute(routeId);
     setActiveTab("routes");
   };
@@ -1041,6 +1078,14 @@ export function RoutePlanningPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[11px] gap-1 shadow-2xs"
+                    onClick={() => setIsUpdateShipmentOpen(true)}
+                  >
+                    <Edit className="size-3" /> Edit Shipment
+                  </Button>
                   <StatusBadge
                     label={currentShipment.priority}
                     intent={
@@ -1354,14 +1399,91 @@ export function RoutePlanningPage() {
                     </DialogContent>
                   </Dialog>
 
-                  <Button
-                    type="button"
-                    disabled={!selectedRoute || calculationState === "failed"}
-                    onClick={() => selectedRoute && acceptRoute(selectedRoute.id)}
-                  >
-                    <Check className="size-4" />
-                    Accept & Assign {selectedRoute?.name.split("·")[0] ?? "route"}
-                  </Button>
+                  {(() => {
+                    const isSelectedRouteAccepted = selectedRoute?.id === acceptedRouteId;
+                    const hasLockedRoute = Boolean(acceptedRouteId);
+                    const lockedStatuses = [
+                      "Submitted",
+                      "Confirmed",
+                      "PickedUp",
+                      "InTransit",
+                      "CustomsProcessing",
+                      "Delivered",
+                      "Completed",
+                    ];
+                    const isStatusLocked = lockedStatuses.includes(currentShipment.status);
+                    const isTerminal =
+                      currentShipment.status === "Delivered" ||
+                      currentShipment.status === "Completed" ||
+                      currentShipment.status === "Cancelled";
+
+                    if (isStatusLocked) {
+                      if (isSelectedRouteAccepted) {
+                        return (
+                          <Button
+                            type="button"
+                            disabled
+                            className="bg-emerald-700 text-white cursor-default gap-1.5 shadow-2xs"
+                          >
+                            <Lock className="size-4" />
+                            Route Locked & Bound ({selectedRoute?.name.split("·")[0].trim() ?? "route"})
+                          </Button>
+                        );
+                      }
+
+                      return (
+                        <Button
+                          type="button"
+                          disabled
+                          className="bg-slate-200 text-slate-500 cursor-not-allowed gap-1.5"
+                          title={`Vận đơn đang ở trạng thái "${currentShipment.status}". Lộ trình đã bị khóa không thể gán lại.`}
+                        >
+                          <Lock className="size-4" />
+                          Locked (Status: {currentShipment.status})
+                        </Button>
+                      );
+                    }
+
+                    if (isSelectedRouteAccepted) {
+                      return (
+                        <Button
+                          type="button"
+                          disabled
+                          className="bg-emerald-600 hover:bg-emerald-600 text-white cursor-default gap-1.5"
+                        >
+                          <Check className="size-4" />
+                          Route Accepted ({selectedRoute?.name.split("·")[0].trim() ?? "route"})
+                        </Button>
+                      );
+                    }
+
+                    if (hasLockedRoute) {
+                      return (
+                        <Button
+                          type="button"
+                          disabled={!selectedRoute || calculationState === "failed" || isTerminal}
+                          onClick={() => selectedRoute && acceptRoute(selectedRoute.id)}
+                          className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-2xs"
+                          title="Thay đổi và gán lại lộ trình mới cho lô hàng"
+                        >
+                          <RotateCcw className="size-4" />
+                          Reassign to {selectedRoute?.name.split("·")[0].trim() ?? "route"}
+                        </Button>
+                      );
+                    }
+
+                    return (
+                      <Button
+                        type="button"
+                        disabled={!selectedRoute || calculationState === "failed"}
+                        onClick={() => selectedRoute && acceptRoute(selectedRoute.id)}
+                        className="gap-1.5"
+                      >
+                        <Check className="size-4" />
+                        Accept & Assign {selectedRoute?.name.split("·")[0].trim() ?? "route"}
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1711,6 +1833,38 @@ export function RoutePlanningPage() {
           )}
         </div>
       </div>
+
+      {/* Update Shipment Modal */}
+      <UpdateShipmentDialog
+        shipment={{
+          id: currentShipment.id,
+          shipmentNo: currentShipment.shipmentNo || currentShipment.id,
+          orderId: currentShipment.orderId,
+          customerName: currentShipment.customerName,
+          originAddress: currentShipment.origin.address,
+          destinationAddress: currentShipment.destination.address,
+          status: currentShipment.status || "Draft",
+          priority: (currentShipment.priority as any) || "Normal",
+          transportMode: (currentShipment.transportMode as any) || "Road",
+          assignedRouteId: currentShipment.assignedRouteId || acceptedRouteId,
+          cargoItems: [
+            {
+              name: currentShipment.cargo.commodity,
+              quantity: 1,
+              weightKg: currentShipment.cargo.weightKg,
+              volumeM3: currentShipment.cargo.volumeM3,
+              packageType: currentShipment.cargo.packageType,
+            },
+          ],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }}
+        open={isUpdateShipmentOpen}
+        onOpenChange={setIsUpdateShipmentOpen}
+        onUpdated={() => {
+          fetchLiveBackendData();
+        }}
+      />
     </>
   );
 }

@@ -11,6 +11,8 @@ import type {
 } from "../types";
 import { routePlanningApiService } from "@/api/services/route-planning.service";
 import { mapBackendShipmentToPlanningItem } from "../utils/route-planning-mapper";
+import { toast } from "sonner";
+import { toApiError } from "@/lib/api-error";
 
 export type RoutePlanningTab = "routes" | "shipment" | "parameters" | "builder";
 export type OptimizationCriteria = "balanced" | "fastest" | "lowest_cost" | "avoid_tolls";
@@ -116,17 +118,59 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
 
   acceptRoute: (acceptedRouteId) => {
     const { shipments, selectedShipmentId } = get();
+    const currentShipment = shipments.find((s) => s.id === selectedShipmentId);
+
+    if (currentShipment) {
+      const lockedStatuses = [
+        "Submitted",
+        "Confirmed",
+        "PickedUp",
+        "InTransit",
+        "CustomsProcessing",
+        "Delivered",
+        "Completed",
+      ];
+      if (lockedStatuses.includes(currentShipment.status)) {
+        toast.warning("Lộ trình đã bị khóa cố định", {
+          description: `Vận đơn đang ở trạng thái "${currentShipment.status}". Không được phép thay đổi hoặc gán lại lộ trình mới.`,
+          duration: 5000,
+        });
+        return;
+      }
+    }
+
+    const assignedRoute = currentShipment?.routes.find((r) => r.id === acceptedRouteId);
+
     const updated = shipments.map((s) => {
       if (s.id === selectedShipmentId) {
         return {
           ...s,
           assignedRouteId: acceptedRouteId,
-          status: "Draft" as const,
         };
       }
       return s;
     });
     set({ acceptedRouteId, shipments: updated });
+
+    // Sync to localStorage for immediate cross-page consistency with ShipmentDetail
+    try {
+      if (selectedShipmentId) {
+        localStorage.setItem(`shipment_assigned_route_${selectedShipmentId}`, acceptedRouteId);
+        if (currentShipment?.shipmentNo) {
+          localStorage.setItem(`shipment_assigned_route_${currentShipment.shipmentNo}`, acceptedRouteId);
+        }
+        if (assignedRoute) {
+          localStorage.setItem(`shipment_route_data_${selectedShipmentId}`, JSON.stringify(assignedRoute));
+        }
+      }
+    } catch {
+      // Ignored
+    }
+
+    toast.success("Đã phê duyệt và khóa lộ trình vận chuyển", {
+      description: `Lộ trình "${assignedRoute?.name || acceptedRouteId}" đã được gán cố định cho lô hàng.`,
+      duration: 4000,
+    });
 
     // Fire API call asynchronously to Staff.Bff if it's a persisted route
     routePlanningApiService
@@ -311,7 +355,26 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
         }
       }
     } catch (err) {
+      const apiErr = toApiError(err);
+      const errMsg = apiErr.message || "Optimization service hiện không khả dụng";
       console.warn("Backend VROOM call unavailable, performing local solver optimization:", err);
+
+      if (errMsg.includes("chính sách rủi ro") || errMsg.includes("Risk Policy")) {
+        toast.warning("Chính sách rủi ro (Risk Policy)", {
+          description: errMsg,
+          duration: 8000,
+        });
+      } else if (errMsg.includes("không khả dụng") || errMsg.includes("unavailable") || apiErr.status >= 500) {
+        toast.info("Đang áp dụng bộ giải lộ trình cục bộ (Local Solver)", {
+          description: "Dịch vụ VROOM/OSRM server tạm thời không phản hồi. Hệ thống tự động tính toán lộ trình tối ưu bằng bộ giải cục bộ.",
+          duration: 5000,
+        });
+      } else {
+        toast.error("Tối ưu hóa lộ trình thất bại", {
+          description: errMsg,
+          duration: 6000,
+        });
+      }
     }
 
     // Client-side solver optimization fallback (ensures responsive UX without 500 error blocks)
@@ -381,6 +444,12 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
         const res = await routePlanningApiService.getRouteRecommendation(ensuredId);
         if (res && res.summary) {
           backendHandled = true;
+          if (res.riskLevel === "High" || res.automationDecision === "PendingApproval") {
+            toast.warning("Cảnh báo rủi ro & Yêu cầu duyệt (Risk Governance)", {
+              description: res.summary,
+              duration: 8000,
+            });
+          }
           set((state) => {
             const updatedShipments = state.shipments.map((s) => {
               const hasRoute = s.routes.some((r) => r.id === targetId || r.id === routeId);
@@ -411,7 +480,21 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
         }
       }
     } catch (err) {
+      const apiErr = toApiError(err);
+      const errMsg = apiErr.message || "AI recommendation service hiện không khả dụng";
       console.warn("Backend AI recommendation handled:", err);
+
+      if (errMsg.includes("chính sách rủi ro") || errMsg.includes("Risk Policy")) {
+        toast.warning("Chính sách rủi ro (Risk Policy)", {
+          description: errMsg,
+          duration: 8000,
+        });
+      } else if (!errMsg.includes("unavailable") && !errMsg.includes("không khả dụng") && apiErr.status !== 500) {
+        toast.error("Đánh giá AI khuyến nghị thất bại", {
+          description: errMsg,
+          duration: 6000,
+        });
+      }
     }
 
     // Dynamic AI Evaluation fallback
@@ -472,9 +555,19 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
           : [];
 
       if (rawShipments.length > 0) {
-        const mappedShipments: ShipmentPlanningItem[] = rawShipments.map((shp: any) =>
-          mapBackendShipmentToPlanningItem(shp, rawRoutes),
-        );
+        const mappedShipments: ShipmentPlanningItem[] = rawShipments.map((shp: any) => {
+          const item = mapBackendShipmentToPlanningItem(shp, rawRoutes);
+          const savedRouteId =
+            typeof window !== "undefined"
+              ? localStorage.getItem(`shipment_assigned_route_${item.id}`) ||
+                localStorage.getItem(`shipment_assigned_route_${shp.id}`) ||
+                localStorage.getItem(`shipment_assigned_route_${shp.shipmentNo}`)
+              : null;
+          if (savedRouteId && !item.assignedRouteId) {
+            item.assignedRouteId = savedRouteId;
+          }
+          return item;
+        });
 
         const currentSelectedId = get().selectedShipmentId;
         const selectedShipment =
