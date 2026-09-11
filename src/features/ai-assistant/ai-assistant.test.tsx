@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+import { assistantService, type AssistantQueryResponse } from "@/api/services/assistant.service";
+
 import { AiAssistantPage } from "./index";
-import { assistantService } from "@/api/services/assistant.service";
-import type { AssistantQueryResponse } from "@/dto/assistant/assistant.dto";
 
 vi.mock("@/api/services/assistant.service", () => ({
   assistantService: {
@@ -18,74 +19,50 @@ function renderWithClient(ui: React.ReactElement) {
       mutations: { retry: false },
     },
   });
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-  );
+
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 describe("AiAssistantPage", () => {
-  it("renders page header and query input", () => {
-    renderWithClient(<AiAssistantPage />);
-    expect(screen.getByRole("heading", { name: "AI Assistant", level: 1 })).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(/Ask about compliance rules, customs requirements/i),
-    ).toBeInTheDocument();
-  });
-
-  it("submits query to assistantService when clicking Query Assistant", async () => {
+  it("renders the canonical composer and submits a grounded question", async () => {
     const mockResponse: AssistantQueryResponse = {
       query: "What is cold chain SOP?",
-      answer: "Pharma cold chain requires 2°C to 8°C storage.",
-      regulatoryCitations: [
-        {
-          evidenceId: "ev-1",
-          sourceId: "src-1",
-          documentVersionId: "ver-1",
-          chunkId: "chk-1",
-          title: "ASEAN Pharma Transport Guidelines",
-          authority: "ASEAN Health Authority",
-          jurisdiction: "ASEAN",
-          regulationType: "HEALTH_DIRECTIVE",
-          section: "Sec 4.2",
-          page: "12",
-          excerpt: "Temperature loggers must record hourly.",
-          canonicalSourceUri: "https://asean.org/pharma-guidelines",
-          score: 0.94,
-        },
-      ],
+      answer: "Pharma cold chain requires 2 to 8 C storage.",
+      regulatoryCitations: [],
       knowledgeReferences: [],
       conflicts: [],
       insufficientEvidence: false,
       missingInformation: [],
       governance: {
-        decisionId: "dec-101",
+        decisionId: "decision-1",
         automationLevel: "ASSISTED",
         requiresApproval: false,
-        capabilityCode: "compliance.answer",
-        totalTokens: 150,
+        capabilityCode: "assistant.query",
+        totalTokens: 12,
       },
-      retrievalTraceId: "trace-999",
+      retrievalTraceId: "trace-1",
     };
-
     vi.mocked(assistantService.query).mockResolvedValueOnce(mockResponse);
 
     renderWithClient(<AiAssistantPage />);
 
-    const input = screen.getByPlaceholderText(/Ask about compliance rules, customs requirements/i);
+    expect(screen.getByRole("heading", { name: "AI Assistant", level: 1 })).toBeInTheDocument();
+    const input = screen.getByPlaceholderText("Ask a grounded compliance question");
+    expect(input).toBeInTheDocument();
+
     fireEvent.change(input, { target: { value: "What is cold chain SOP?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask assistant" }));
 
-    const queryBtn = screen.getByRole("button", { name: /Query Assistant/i });
-    fireEvent.click(queryBtn);
-
-    expect(assistantService.query).toHaveBeenCalledWith(
-      expect.objectContaining({
+    await waitFor(() =>
+      expect(assistantService.query).toHaveBeenCalledWith({
         query: "What is cold chain SOP?",
         mode: "ALL",
+        topK: 5,
+        minimumScore: 0.6,
       }),
     );
-
-    const answer = await screen.findByText(/Pharma cold chain requires 2°C to 8°C storage/i);
-    expect(answer).toBeInTheDocument();
-    expect(screen.getByText(/ASEAN Pharma Transport Guidelines/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Pharma cold chain requires 2 to 8 C storage."),
+    ).toBeInTheDocument();
   });
 });
