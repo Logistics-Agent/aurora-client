@@ -78,7 +78,8 @@ export function ThreadHeader({
   unassignButtonRef,
   historyButtonRef,
 }: ThreadHeaderProps): React.JSX.Element {
-  const isSelfAssigned = Boolean(thread.assigneeId) && thread.assigneeId === currentUserId;
+  const isSelfAssigned = Boolean(thread.assigneeId && currentUserId) &&
+    thread.assigneeId!.toLowerCase() === currentUserId!.toLowerCase();
   const readOnly = Boolean(thread.assigneeId) && !isSelfAssigned && !permissions.canReassign;
   const currentPriority = priorityStyles[thread.priority] || priorityStyles.normal;
 

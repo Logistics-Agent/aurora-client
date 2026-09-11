@@ -58,9 +58,12 @@ function matchesQueue(
     case "all":
       return true;
     case "unassigned":
-      return thread.assigneeId === null;
+      return !thread.assigneeId;
     case "mine":
-      return thread.assigneeId === userId;
+      return (
+        Boolean(thread.assigneeId && userId) &&
+        thread.assigneeId!.toLowerCase() === userId.toLowerCase()
+      );
     case "drafts":
       return thread.draft !== null;
   }

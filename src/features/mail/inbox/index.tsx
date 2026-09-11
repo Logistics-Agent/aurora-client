@@ -58,7 +58,9 @@ function ConfiguredMailInbox(props: MailInboxProps): React.JSX.Element {
           counts={props.queueCounts}
           onQueueChange={(queue) => onFiltersChange({ ...filters, queue })}
           showAllThreads={props.showAllThreads}
+          onCompose={props.onCompose}
         />
+
       ) : null}
       {showThreadList ? (
         <div

@@ -270,34 +270,40 @@ export function useMailWorkspace({
   );
 
   const selectedThreadPermissions = useMemo<SelectedMailThreadPermissions>(
-    () => ({
-      canClaim:
-        permissions.canClaim &&
-        (selectedThread?.assigneeId === null || selectedThread?.assigneeId !== user?.userId),
-      canReassign: permissions.canReassign && selectedThread !== null,
-      canUnassign: permissions.canUnassign && selectedThread?.assigneeId !== null,
-      canSetPriority:
-        selectedThread !== null &&
-        (selectedThread?.assigneeId === user?.userId ||
-          permissions.canReassign ||
-          permissions.canClaim ||
-          selectedThread?.assigneeId === null ||
-          user?.role === "STAFF" ||
-          user?.role === "TENANT_ADMIN" ||
-          user?.role === "SYSTEM_ADMIN"),
-      canResolve:
-        selectedThread !== null &&
-        (selectedThread?.assigneeId === user?.userId ||
-          permissions.canReassign ||
-          user?.role === "TENANT_ADMIN" ||
-          user?.role === "SYSTEM_ADMIN"),
-      canCreateDraft:
-        permissions.canCreateDraft &&
-        (selectedThread?.assigneeId === user?.userId || permissions.canReassign),
-      canSend:
-        permissions.canSend &&
-        (selectedThread?.assigneeId === user?.userId || permissions.canReassign),
-    }),
+    () => {
+      const isUnassigned = !selectedThread?.assigneeId;
+      const isAssignedToSelf = Boolean(selectedThread?.assigneeId && user?.userId) &&
+        selectedThread!.assigneeId!.toLowerCase() === user!.userId!.toLowerCase();
+
+      return {
+        canClaim: permissions.canClaim && isUnassigned,
+        canReassign: permissions.canReassign && selectedThread !== null,
+        canUnassign: permissions.canUnassign && !isUnassigned,
+        canSetPriority:
+          selectedThread !== null &&
+          (isAssignedToSelf ||
+            permissions.canReassign ||
+            permissions.canClaim ||
+            isUnassigned ||
+            user?.role === "STAFF" ||
+            user?.role === "MANAGER" ||
+            user?.role === "TENANT_ADMIN" ||
+            user?.role === "SYSTEM_ADMIN"),
+        canResolve:
+          selectedThread !== null &&
+          (isAssignedToSelf ||
+            permissions.canReassign ||
+            user?.role === "MANAGER" ||
+            user?.role === "TENANT_ADMIN" ||
+            user?.role === "SYSTEM_ADMIN"),
+        canCreateDraft:
+          permissions.canCreateDraft &&
+          (isAssignedToSelf || permissions.canReassign || isUnassigned || user?.role === "MANAGER" || user?.role === "TENANT_ADMIN" || user?.role === "SYSTEM_ADMIN"),
+        canSend:
+          permissions.canSend &&
+          (isAssignedToSelf || permissions.canReassign || user?.role === "MANAGER" || user?.role === "TENANT_ADMIN" || user?.role === "SYSTEM_ADMIN"),
+      };
+    },
     [permissions, selectedThread, user?.role, user?.userId],
   );
 

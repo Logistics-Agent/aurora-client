@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef } from "react";
-
+import { PenSquare } from "lucide-react";
 import type { MailQueueScope } from "../../types";
+
 import type { MailQueueCounts } from "../types";
 
 export interface QueueNavigationProps {
@@ -10,6 +11,7 @@ export interface QueueNavigationProps {
   counts: MailQueueCounts;
   onQueueChange: (queue: MailQueueScope) => void;
   showAllThreads: boolean;
+  onCompose?: () => void;
 }
 
 const queueItems: readonly {
@@ -27,6 +29,7 @@ export function QueueNavigation({
   counts,
   onQueueChange,
   showAllThreads,
+  onCompose,
 }: QueueNavigationProps): React.JSX.Element {
   const tabs = queueItems.filter((item) => item.queue !== "all" || showAllThreads);
   const tabRefs = useRef<Partial<Record<MailQueueScope, HTMLButtonElement | null>>>({});
@@ -61,8 +64,21 @@ export function QueueNavigation({
   }
 
   return (
-    <nav aria-label="Mail queues" className="border-b border-border p-3 lg:border-r lg:border-b-0">
+    <nav aria-label="Mail queues" className="border-b border-border p-3 lg:border-r lg:border-b-0 space-y-3">
+      {/* Gmail-style Compose Button */}
+      {onCompose && (
+        <button
+          type="button"
+          onClick={onCompose}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md hover:shadow-lg transition-all"
+        >
+          <PenSquare className="size-4" />
+          <span>Soạn thư mới</span>
+        </button>
+      )}
+
       <div role="tablist" aria-orientation="vertical" className="flex gap-1 overflow-x-auto lg:flex-col">
+
         {tabs.map((item) => {
             const isActive = selectedQueue === item.queue;
             const label = `${item.label} ${counts[item.queue]}`;

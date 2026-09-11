@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PenSquare } from "lucide-react";
 
 import type { UserProfile } from "@/types/auth.types";
 import { MailInbox } from "../inbox";
@@ -11,6 +12,8 @@ import type { MailAssigneeOption } from "../dialogs/types";
 import type { MailListFilters, MailMailbox, MailResourceScope } from "../types";
 import { MailThreadPanel } from "../thread";
 import { MailAccessState } from "./mail-access-state";
+import { GmailComposeWindow, type RealAttachmentItem } from "../composer";
+
 
 export interface MailWorkspaceProps {
   user: UserProfile | null;
@@ -37,6 +40,7 @@ export function MailWorkspace({
   const [mutationStatus, setMutationStatus] = useState<string | null>(null);
   const [remoteAssignees, setRemoteAssignees] = useState<MailAssigneeOption[]>([]);
   const [domainMailboxes, setDomainMailboxes] = useState<MailMailbox[]>([]);
+  const [isComposeOpen, setComposeOpen] = useState(false);
 
   const workspace = useMailWorkspace({
     user,
@@ -45,6 +49,7 @@ export function MailWorkspace({
     repository,
   });
   const { selectThread } = workspace;
+
 
   useEffect(() => {
     let isMounted = true;
@@ -141,27 +146,30 @@ export function MailWorkspace({
 
   const runMutation = useCallback(
     async function runMutation<T>(
-      label: string,
+      actionLabel: string,
       operation: () => Promise<T>,
+      successMessage?: string,
     ): Promise<T> {
       try {
         const result = await operation();
-        setMutationStatus(`${label}`);
+        const msg = successMessage || `${actionLabel} thành công`;
+        setMutationStatus(msg);
         setTimeout(() => {
-          setMutationStatus((prev) => (prev === label ? null : prev));
+          setMutationStatus((prev) => (prev === msg ? null : prev));
         }, 4000);
         return result;
-      } catch (error) {
-        setMutationStatus(`${label} failed`);
+      } catch (error: any) {
+        const detail = error?.response?.data?.detail || error?.response?.data?.errors?.[0] || error?.message || "Vui lòng thử lại.";
+        const failMsg = `${actionLabel} thất bại: ${detail}`;
+        setMutationStatus(failMsg);
         setTimeout(() => {
-          setMutationStatus((prev) => (prev === `${label} failed` ? null : prev));
-        }, 5000);
+          setMutationStatus((prev) => (prev === failMsg ? null : prev));
+        }, 6000);
         throw error;
       }
     },
     [],
   );
-
 
   const selectedThreadId = workspace.selectedThread?.id ?? routeThreadId;
   const showQueueNavigation = viewportMode === "desktop"
@@ -191,8 +199,46 @@ export function MailWorkspace({
     setMobilePane("list");
   }, [routeThreadId, selectThread]);
 
+  const handleSendNewOutboundMessage = useCallback(
+    async (message: {
+      senderAddress: string;
+      recipientAddresses: string[];
+      ccAddresses?: string[];
+      bccAddresses?: string[];
+      subject: string;
+      bodyText: string;
+      bodyHtml: string;
+      attachments?: RealAttachmentItem[];
+    }) => {
+      await runMutation(
+        "Gửi thư mới",
+        async () => {
+          const attachmentsPayload = message.attachments?.map((att) => ({
+            filename: att.fileName,
+            contentType: att.contentType || "application/octet-stream",
+            contentBase64: att.contentBase64 || "",
+          }));
+
+          await mailService.submitOutboundMessage({
+            senderAddress: message.senderAddress,
+            recipientAddresses: message.recipientAddresses,
+            subject: message.subject,
+            bodyText: message.bodyText,
+            bodyHtml: message.bodyHtml,
+            attachments: attachmentsPayload,
+          });
+
+          await workspace.refresh();
+        },
+        "Thư đã được gửi đi thành công",
+      );
+    },
+    [runMutation, workspace],
+  );
+
   return (
     <MailAccessState user={user} isLoading={workspace.isLoading}>
+
       <div
         data-mail-workspace
         data-mail-viewport={viewportMode}
@@ -204,16 +250,28 @@ export function MailWorkspace({
             <h1 className="font-heading text-2xl font-semibold">Mail workspace</h1>
             <p className="text-sm text-muted-foreground">Shared mailbox work, clearly attributed to each human operator.</p>
           </div>
-          {viewportMode === "mid" ? (
+          <div className="flex items-center gap-2">
+            {/* Compose New Email Button */}
             <button
               type="button"
-              className="rounded-lg border border-border px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-              aria-label={queueExpanded ? "Hide mail queues" : "Show mail queues"}
-              onClick={() => setQueueExpanded((current) => !current)}
+              onClick={() => setComposeOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm hover:shadow transition-all"
             >
-              {queueExpanded ? "Hide queues" : "Show queues"}
+              <PenSquare className="size-3.5" />
+              <span>Soạn thư mới</span>
             </button>
-          ) : null}
+
+            {viewportMode === "mid" ? (
+              <button
+                type="button"
+                className="rounded-lg border border-border px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                aria-label={queueExpanded ? "Hide mail queues" : "Show mail queues"}
+                onClick={() => setQueueExpanded((current) => !current)}
+              >
+                {queueExpanded ? "Hide queues" : "Show queues"}
+              </button>
+            ) : null}
+          </div>
         </header>
 
         {viewportMode === "mobile" && mobilePane === "queue" ? (
@@ -226,14 +284,24 @@ export function MailWorkspace({
           </button>
         ) : null}
         {viewportMode === "mobile" && mobilePane === "list" ? (
-          <button
-            type="button"
-            className="w-fit rounded-lg border border-border px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-            aria-label="Open mail queues"
-            onClick={() => setMobilePane("queue")}
-          >
-            Open queues
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="w-fit rounded-lg border border-border px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              aria-label="Open mail queues"
+              onClick={() => setMobilePane("queue")}
+            >
+              Open queues
+            </button>
+            <button
+              type="button"
+              onClick={() => setComposeOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs shadow-sm"
+            >
+              <PenSquare className="size-3.5" />
+              <span>Soạn thư</span>
+            </button>
+          </div>
         ) : null}
         {viewportMode === "mobile" && mobilePane === "thread" ? (
           <button
@@ -261,11 +329,12 @@ export function MailWorkspace({
                 isLoading={workspace.isLoading}
                 mailboxes={scopedMailboxes}
                 onClaim={(threadId) => {
-                  void runMutation("Thread claimed", () => workspace.claimThread(threadId));
+                  void runMutation("Nhận xử lý luồng thư", () => workspace.claimThread(threadId));
                 }}
                 onFiltersChange={inboxFiltersChange}
                 onRetry={() => void workspace.refresh()}
                 onThreadSelect={navigateToThread}
+                onCompose={() => setComposeOpen(true)}
                 queueCounts={workspace.queueCounts}
                 selectedThreadId={selectedThreadId}
                 showAllThreads={workspace.permissions.canReadAll}
@@ -286,20 +355,28 @@ export function MailWorkspace({
                 permissions={workspace.selectedThreadPermissions}
                 assignees={assignees}
                 error={workspace.error}
-                onClaim={workspace.selectedThread ? () => runMutation("Thread claimed", () => workspace.claimThread(workspace.selectedThread!.id).then(() => undefined)) : undefined}
-                onPriorityChange={workspace.selectedThread ? (priority) => runMutation(`Priority updated to ${priority.toUpperCase()}`, () => workspace.setPriority(workspace.selectedThread!.id, priority).then(() => undefined)) : undefined}
-                onResolve={workspace.selectedThread ? () => runMutation("Thread marked as resolved", () => workspace.markResolved(workspace.selectedThread!.id).then(() => undefined)) : undefined}
-                onReassign={workspace.selectedThread ? (targetUserId, reason) => runMutation("Thread reassigned successfully", () => workspace.reassignThread(workspace.selectedThread!.id, targetUserId, reason).then(() => undefined)) : undefined}
-                onUnassign={workspace.selectedThread ? (reason) => runMutation("Thread released to unassigned queue", () => workspace.unassignThread(workspace.selectedThread!.id, reason).then(() => undefined)) : undefined}
+                onClaim={workspace.selectedThread ? () => runMutation("Nhận xử lý luồng thư", () => workspace.claimThread(workspace.selectedThread!.id).then(() => undefined)) : undefined}
+                onPriorityChange={workspace.selectedThread ? (priority) => runMutation(`Cập nhật độ ưu tiên`, () => workspace.setPriority(workspace.selectedThread!.id, priority).then(() => undefined), `Đã chuyển độ ưu tiên sang ${priority.toUpperCase()}`) : undefined}
+                onResolve={workspace.selectedThread ? () => runMutation("Đánh dấu hoàn tất luồng thư", () => workspace.markResolved(workspace.selectedThread!.id).then(() => undefined)) : undefined}
+                onReassign={workspace.selectedThread ? (targetUserId, reason) => runMutation("Chuyển giao luồng thư", () => workspace.reassignThread(workspace.selectedThread!.id, targetUserId, reason).then(() => undefined)) : undefined}
+                onUnassign={workspace.selectedThread ? (reason) => runMutation("Trả luồng thư về hàng đợi chung", () => workspace.unassignThread(workspace.selectedThread!.id, reason).then(() => undefined)) : undefined}
                 composerMailboxes={scopedMailboxes}
                 canCreateDraft={workspace.selectedThreadPermissions.canCreateDraft}
                 canSend={workspace.selectedThreadPermissions.canSend}
-                onSaveDraft={workspace.selectedThread ? (body) => runMutation("Draft saved successfully", () => workspace.saveDraft(workspace.selectedThread!.id, body).then(() => undefined)) : undefined}
-                onSendMessage={workspace.selectedThread ? (message) => runMutation("Outbound email sent", () => workspace.sendMessage(workspace.selectedThread!.id, message).then(() => undefined)) : undefined}
+                onSaveDraft={workspace.selectedThread ? (body) => runMutation("Lưu bản nháp", () => workspace.saveDraft(workspace.selectedThread!.id, body).then(() => undefined)) : undefined}
+                onSendMessage={workspace.selectedThread ? (message) => runMutation("Gửi thư phản hồi", () => workspace.sendMessage(workspace.selectedThread!.id, message).then(() => undefined), "Thư phản hồi đã được gửi đi thành công") : undefined}
               />
             </div>
           ) : null}
         </div>
+
+        {/* Gmail-style Compose New Email Window */}
+        <GmailComposeWindow
+          isOpen={isComposeOpen}
+          onClose={() => setComposeOpen(false)}
+          mailboxes={scopedMailboxes}
+          onSend={handleSendNewOutboundMessage}
+        />
 
         {mutationStatus && (
           <div
@@ -329,6 +406,7 @@ export function MailWorkspace({
         )}
       </div>
     </MailAccessState>
+
 
   );
 }
