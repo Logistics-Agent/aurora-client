@@ -44,7 +44,7 @@ describe("documents API service", () => {
       params: {
         page: 1,
         pageSize: 20,
-        status: "NEEDS_REVIEW",
+        status: "RequiresReview",
         shipmentId: "shipment-1",
       },
     });
@@ -85,6 +85,16 @@ describe("documents API service", () => {
       purpose: "SHIPMENT_DOCUMENT",
       externalReference: "shipment-1",
     });
+  });
+
+  it("uses the lifecycle endpoints for cancel and retry", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue(statusResponse as never);
+
+    await documentsService.cancelDocument("job-123");
+    await documentsService.retryDocument("job-123");
+
+    expect(post).toHaveBeenNthCalledWith(1, "api/v1/documents/shipment-documents/job-123/cancel");
+    expect(post).toHaveBeenNthCalledWith(2, "api/v1/documents/shipment-documents/job-123/retry");
   });
 
   it("includes an explicit external document id when submitting a shipment document", async () => {

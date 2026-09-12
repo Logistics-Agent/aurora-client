@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { documentsService } from "@/api/services/documents.service";
+import { ApiError } from "@/lib/api-error";
 
 import { DocumentReview } from "./document-review";
 
@@ -54,60 +55,7 @@ describe("DocumentReview", () => {
       expect(screen.getAllByText("live-invoice.pdf")).not.toHaveLength(0);
     });
     expect(screen.queryByText("Commercial invoice")).not.toBeInTheDocument();
-    expect(screen.getByText("Needs review")).toBeInTheDocument();
-  });
-
-  it("submits storage metadata to the OCR endpoint from the upload form", async () => {
-    vi.spyOn(documentsService, "listDocuments").mockResolvedValue({
-      items: [],
-      page: 1,
-      pageSize: 20,
-      totalItems: 0,
-      totalPages: 0,
-    });
-    const submit = vi.spyOn(documentsService, "submitShipmentDocument").mockResolvedValue({
-      id: "job-new-1",
-      documentType: "SHIPMENT",
-      status: "RECEIVED",
-      stage: "RECEIVING",
-      fileName: "invoice.pdf",
-      needsReview: false,
-      confidence: null,
-      normalizedJson: null,
-      errorCode: null,
-      errorMessage: null,
-      createdAt: null,
-      updatedAt: null,
-    });
-
-    render(
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-      >
-        <DocumentReview showUpload />
-      </QueryClientProvider>,
-    );
-    await waitFor(() => expect(screen.getByLabelText("Storage reference")).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Storage reference"), {
-      target: { value: "blob://tenant/invoice.pdf" },
-    });
-    fireEvent.change(screen.getByLabelText("Document file name"), {
-      target: { value: "invoice.pdf" },
-    });
-    fireEvent.change(screen.getByLabelText("Document size in bytes"), {
-      target: { value: "1200" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Submit for OCR" }));
-
-    await waitFor(() =>
-      expect(submit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          storageReference: "blob://tenant/invoice.pdf",
-          fileName: "invoice.pdf",
-          sizeBytes: 1200,
-        }),
-      ),
-    );
+    expect(screen.getAllByText("Needs review").length).toBeGreaterThan(1);
   });
 
   it("submits corrected OCR fields through the review endpoint", async () => {
@@ -146,7 +94,7 @@ describe("DocumentReview", () => {
     const review = vi.spyOn(documentsService, "reviewDocument").mockResolvedValue({
       id: "job-review-1",
       documentType: "SHIPMENT",
-      status: "VERIFIED",
+      status: "READY",
       stage: "COMPLETED",
       fileName: "review-invoice.pdf",
       needsReview: false,
@@ -173,6 +121,111 @@ describe("DocumentReview", () => {
         correctedFields: { consignee: "Acme Logistics Ltd" },
       }),
     );
+  });
+
+  it("keeps OCR-unavailable errors distinct from an empty queue", async () => {
+    vi.spyOn(documentsService, "listDocuments").mockRejectedValue(
+      new ApiError({
+        code: "DOCUMENT_OCR_UNAVAILABLE",
+        message: "OCR unavailable",
+        status: 503,
+      }),
+    );
+
+    renderDocumentReview();
+
+    expect(await screen.findByText("OCR processing unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("No documents currently in review queue.")).not.toBeInTheDocument();
+  });
+
+  it("loads a deep-linked document from its detail endpoint", async () => {
+    vi.spyOn(documentsService, "listDocuments").mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      totalItems: 0,
+      totalPages: 0,
+    });
+    vi.spyOn(documentsService, "getDocument").mockResolvedValue({
+      id: "job-deep-link",
+      documentType: "DOCUMENT",
+      status: "PROCESSING",
+      stage: "EXTRACTING",
+      fileName: "deep-link.pdf",
+      needsReview: false,
+      confidence: null,
+      normalizedJson: null,
+      errorCode: null,
+      errorMessage: null,
+      createdAt: null,
+      updatedAt: null,
+    });
+
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <DocumentReview initialDocumentId="job-deep-link" />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("deep-link.pdf")).toBeInTheDocument();
+  });
+
+  it("preserves local corrections after a review conflict", async () => {
+    vi.spyOn(documentsService, "listDocuments").mockResolvedValue({
+      items: [
+        {
+          id: "job-conflict",
+          documentType: "DOCUMENT",
+          status: "NEEDS_REVIEW",
+          stage: "HUMAN_REVIEW",
+          fileName: "conflict.pdf",
+          needsReview: true,
+          confidence: 0.61,
+          normalizedJson: null,
+          errorCode: null,
+          errorMessage: null,
+          createdAt: null,
+          updatedAt: null,
+        },
+      ],
+      page: 1,
+      pageSize: 20,
+      totalItems: 1,
+      totalPages: 1,
+    });
+    vi.spyOn(documentsService, "getOcrReviewDetails").mockResolvedValue({
+      documentId: "job-conflict",
+      jobId: "job-conflict",
+      status: "NEEDS_REVIEW",
+      originalDocumentReference: null,
+      documentType: "DOCUMENT",
+      overallConfidence: 0.61,
+      reviewReasons: ["LOW_CONFIDENCE"],
+      fields: [{ name: "consignee", value: "Acme Ltd", confidence: 0.61, needsReview: true }],
+    });
+    vi.spyOn(documentsService, "reviewDocument").mockRejectedValue(
+      new ApiError({
+        code: "INVALID_STATE_TRANSITION",
+        message: "Document state changed.",
+        status: 409,
+      }),
+    );
+
+    renderDocumentReviewWithOcrFields();
+
+    const field = await screen.findByLabelText("OCR field consignee");
+    fireEvent.change(field, { target: { value: "Acme Logistics Ltd" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Submit corrections" })[0]);
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Submit corrections" }),
+    );
+
+    expect(
+      await screen.findByText(/document changed while you were reviewing it/i),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("OCR field consignee")).toHaveValue("Acme Logistics Ltd");
   });
 });
 

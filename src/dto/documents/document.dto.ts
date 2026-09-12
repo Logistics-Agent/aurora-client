@@ -8,8 +8,6 @@ const documentStatusValues = [
   "REJECTED",
   "FAILED",
   "CANCELLED",
-  "QUEUED",
-  "VERIFIED",
 ] as const;
 
 const documentStageValues = [

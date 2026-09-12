@@ -36,10 +36,15 @@ export function DocumentDetail({
   corrections,
   reviewPending,
   reviewError,
+  reviewConflict,
+  lifecyclePending,
+  lifecycleError,
   onConfirmChange,
   onFieldChange,
   onRequestReview,
   onConfirmReview,
+  onRetry,
+  onCancel,
 }: {
   selected: DocumentStatus | null;
   review?: DocumentReview;
@@ -49,10 +54,15 @@ export function DocumentDetail({
   corrections: Record<string, string>;
   reviewPending: boolean;
   reviewError?: unknown;
+  reviewConflict: boolean;
+  lifecyclePending: boolean;
+  lifecycleError?: unknown;
   onConfirmChange: (open: boolean) => void;
   onFieldChange: (name: string, value: string) => void;
   onRequestReview: (action: ReviewAction) => void;
   onConfirmReview: () => void;
+  onRetry: () => void;
+  onCancel: () => void;
 }) {
   const fields = review?.fields ?? [];
   const hasCorrections = Object.keys(corrections).length > 0;
@@ -72,6 +82,9 @@ export function DocumentDetail({
     );
 
   const reviewErrorMessage = reviewError ? getApiErrorMessage(reviewError) : undefined;
+  const lifecycleErrorMessage = lifecycleError ? getApiErrorMessage(lifecycleError) : undefined;
+  const canCancel = selected.status === "RECEIVED" || selected.status === "PROCESSING";
+  const canRetry = selected.status === "FAILED";
   return (
     <>
       <WorkspaceCard title="Review detail">
@@ -128,12 +141,37 @@ export function DocumentDetail({
             Reject extraction
           </Button>
         </div>
+        {(canCancel || canRetry) && (
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+            {canRetry && (
+              <Button type="button" variant="outline" disabled={lifecyclePending} onClick={onRetry}>
+                {lifecyclePending ? "Retrying…" : "Retry OCR"}
+              </Button>
+            )}
+            {canCancel && (
+              <Button type="button" variant="ghost" disabled={lifecyclePending} onClick={onCancel}>
+                {lifecyclePending ? "Cancelling…" : "Cancel processing"}
+              </Button>
+            )}
+          </div>
+        )}
         {!selected.needsReview && (
           <p className="mt-2 text-sm text-muted-foreground">Document does not require review.</p>
         )}
         {reviewErrorMessage && (
           <p role="alert" className="mt-2 text-sm text-destructive">
             {reviewErrorMessage}
+          </p>
+        )}
+        {reviewConflict && (
+          <p role="alert" className="mt-2 text-sm text-destructive">
+            This document changed while you were reviewing it. The latest OCR values were loaded;
+            review your corrections and submit again.
+          </p>
+        )}
+        {lifecycleErrorMessage && (
+          <p role="alert" className="mt-2 text-sm text-destructive">
+            {lifecycleErrorMessage}
           </p>
         )}
       </WorkspaceCard>
