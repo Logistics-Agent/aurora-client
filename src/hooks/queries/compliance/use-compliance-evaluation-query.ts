@@ -13,5 +13,9 @@ export function useComplianceEvaluationQuery(id: string | undefined) {
       return complianceService.getComplianceEvaluation(id);
     },
     enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "PENDING" || status === "PROCESSING" ? 2_000 : false;
+    },
   });
 }

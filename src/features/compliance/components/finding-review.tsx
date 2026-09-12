@@ -1,6 +1,7 @@
 "use client";
 
 import { getApiErrorMessage } from "@/lib/api-error";
+import { Button } from "@/components/ui/button";
 
 import { useFindingReviewState } from "../hooks/use-finding-review-state";
 import type { FindingReviewProps } from "../types/finding-review.types";
@@ -24,8 +25,10 @@ export function FindingReview({ initialEvaluationId = "" }: FindingReviewProps) 
     setCopilotQuery,
     copilotAnswer,
     askCopilot,
+    startEvaluation,
     loadEvaluation,
     ask,
+    reEvaluate,
   } = useFindingReviewState(initialEvaluationId);
 
   return (
@@ -52,6 +55,18 @@ export function FindingReview({ initialEvaluationId = "" }: FindingReviewProps) 
       {evaluation && (
         <>
           <EvaluationSummary evaluation={evaluation} />
+          {(evaluation.freshness === "STALE" || evaluation.status === "FAILED") && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={startEvaluation.isPending}
+                onClick={() => void reEvaluate()}
+              >
+                {startEvaluation.isPending ? "Starting…" : "Re-evaluate"}
+              </Button>
+            </div>
+          )}
           <FindingList
             findings={evaluation.findings}
             selectedFindingId={selectedFinding?.findingId}

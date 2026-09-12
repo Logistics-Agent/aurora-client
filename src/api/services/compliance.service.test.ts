@@ -41,29 +41,33 @@ const groundedResponse = {
 };
 
 describe("compliance API service", () => {
-  it("evaluates a real snapshot and parses the persisted response", async () => {
+  it("starts an evaluation from a shipment command without sending snapshots", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValue(evaluationResponse as never);
 
-    const result = await complianceService.evaluateCompliance({
+    const result = await complianceService.startEvaluation("shipment-1", {
       idempotencyKey: "request-1",
-      externalShipmentId: "shipment-1",
-      originCountryCode: "VN",
-      destinationCountryCode: "US",
-      transportMode: "OCEAN",
-      cargo: [],
-      documents: [],
     });
 
-    expect(post).toHaveBeenCalledWith("api/v1/compliance/evaluations", {
+    expect(post).toHaveBeenCalledWith("api/v1/shipments/shipment-1/compliance-evaluations", {
       idempotencyKey: "request-1",
-      externalShipmentId: "shipment-1",
-      originCountryCode: "VN",
-      destinationCountryCode: "US",
-      transportMode: "OCEAN",
-      cargo: [],
-      documents: [],
     });
     expect(result.status).toBe("COMPLETED");
+  });
+
+  it("lists persisted evaluations with stable pagination", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      items: [evaluationResponse],
+      page: 1,
+      pageSize: 20,
+      totalCount: 1,
+    } as never);
+
+    const result = await complianceService.listEvaluations({ page: 1, pageSize: 20 });
+
+    expect(get).toHaveBeenCalledWith("api/v1/compliance/evaluations", {
+      params: { page: 1, pageSize: 20 },
+    });
+    expect(result.items[0]?.evaluationId).toBe("evaluation-1");
   });
 
   it("loads a persisted evaluation without recalculating it", async () => {

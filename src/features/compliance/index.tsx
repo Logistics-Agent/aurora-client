@@ -5,6 +5,6 @@ export function CompliancePage() {
   return <ComplianceCenterComposition />;
 }
 
-export function ComplianceDetailPage({ findingId }: { findingId: string }) {
-  return <ComplianceDetailComposition findingId={findingId} />;
+export function ComplianceDetailPage({ evaluationId }: { evaluationId: string }) {
+  return <ComplianceDetailComposition evaluationId={evaluationId} />;
 }

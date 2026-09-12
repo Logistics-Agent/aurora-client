@@ -35,6 +35,18 @@ export function EvaluationSummary({ evaluation }: { evaluation: ComplianceEvalua
           </p>
         </div>
       </div>
+      {evaluation.freshness === "STALE" && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-medium">This evaluation is stale</p>
+          <p className="mt-1">
+            Source changes were detected. Existing findings are preserved; re-evaluate explicitly
+            when the latest shipment evidence is ready.
+          </p>
+          {evaluation.staleReasonCodes.length > 0 && (
+            <p className="mt-1 text-xs">Reasons: {evaluation.staleReasonCodes.join(", ")}</p>
+          )}
+        </div>
+      )}
       {evaluation.missingDocuments.length > 0 && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <p className="font-medium">Missing documents</p>

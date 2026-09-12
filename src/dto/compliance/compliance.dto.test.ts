@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseComplianceEvaluationDto, parseGroundedAnswerDto } from "./compliance.dto";
+import {
+  parseComplianceEvaluationDto,
+  parseComplianceEvaluationListDto,
+  parseGroundedAnswerDto,
+} from "./compliance.dto";
 
 describe("compliance DTO parsers", () => {
   it("parses the persisted compliance response without inventing a verdict", () => {
@@ -74,6 +78,61 @@ describe("compliance DTO parsers", () => {
     expect(result.riskLevel).toBe("UNKNOWN");
     expect(result.evidenceSufficiency).toBe("INSUFFICIENT");
     expect(result.missingDocuments).toContain("commercial-invoice");
+  });
+
+  it("parses freshness and canonical snapshot metadata", () => {
+    const result = parseComplianceEvaluationDto({
+      evaluationId: "evaluation-stale",
+      externalShipmentId: "shipment-1",
+      status: "COMPLIANCE_EVALUATION_STATUS_COMPLETED",
+      freshness: "STALE",
+      snapshotHash: "sha256:abc",
+      snapshotVersion: 3,
+      staleAt: "2026-09-09T05:02:00Z",
+      staleReasonCodes: ["CARGO_CHANGED"],
+      riskLevel: "COMPLIANCE_RISK_LEVEL_LOW",
+      findings: [],
+      missingDocuments: [],
+      assumptions: [],
+      complianceConfidence: 0.91,
+      evidenceSufficiency: "EVIDENCE_SUFFICIENCY_SUFFICIENT",
+      requestedAt: "2026-09-09T05:00:00Z",
+      completedAt: "2026-09-09T05:01:00Z",
+      errorCode: "",
+      errorMessage: "",
+    });
+
+    expect(result.freshness).toBe("STALE");
+    expect(result.snapshotVersion).toBe(3);
+    expect(result.staleReasonCodes).toEqual(["CARGO_CHANGED"]);
+  });
+
+  it("parses a paged evaluation list", () => {
+    const result = parseComplianceEvaluationListDto({
+      items: [
+        {
+          evaluationId: "evaluation-1",
+          externalShipmentId: "shipment-1",
+          status: "PENDING",
+          riskLevel: "UNKNOWN",
+          findings: [],
+          missingDocuments: [],
+          assumptions: [],
+          complianceConfidence: 0,
+          evidenceSufficiency: "INSUFFICIENT",
+          requestedAt: "2026-09-09T05:00:00Z",
+          completedAt: null,
+          errorCode: "",
+          errorMessage: "",
+        },
+      ],
+      page: 1,
+      pageSize: 20,
+      totalCount: 1,
+    });
+
+    expect(result.items[0]?.evaluationId).toBe("evaluation-1");
+    expect(result.totalCount).toBe(1);
   });
 
   it("parses grounded copilot citations and governance metadata", () => {

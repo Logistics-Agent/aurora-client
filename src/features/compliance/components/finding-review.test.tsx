@@ -21,12 +21,17 @@ function renderFindingReview() {
 }
 
 describe("FindingReview", () => {
-  it("renders persisted findings and does not evaluate on mount", async () => {
-    const evaluate = vi.spyOn(complianceService, "evaluateCompliance");
+  it("renders persisted findings and does not start an evaluation on mount", async () => {
+    const startEvaluation = vi.spyOn(complianceService, "startEvaluation");
     vi.spyOn(complianceService, "getComplianceEvaluation").mockResolvedValue({
       evaluationId: "evaluation-live-1",
       externalShipmentId: "shipment-1",
       status: "COMPLETED",
+      freshness: "CURRENT",
+      snapshotHash: "sha256:test",
+      snapshotVersion: 1,
+      staleAt: null,
+      staleReasonCodes: [],
       riskLevel: "HIGH",
       findings: [
         {
@@ -55,7 +60,7 @@ describe("FindingReview", () => {
     await waitFor(() => {
       expect(screen.getAllByText("Live HS code mismatch").length).toBeGreaterThan(0);
     });
-    expect(evaluate).not.toHaveBeenCalled();
+    expect(startEvaluation).not.toHaveBeenCalled();
     expect(screen.queryByText("Commercial invoice mismatch")).not.toBeInTheDocument();
   });
 });

@@ -17,6 +17,8 @@ export const CONTROLLERS = {
   },
   compliance: {
     evaluations: "api/v1/compliance/evaluations",
+    startEvaluation: (shipmentId: string) =>
+      `api/v1/shipments/${encodeURIComponent(shipmentId)}/compliance-evaluations`,
     evaluation: (id: string) => `api/v1/compliance/evaluations/${encodeURIComponent(id)}`,
     copilotAsk: "api/v1/compliance/copilot/ask",
   },

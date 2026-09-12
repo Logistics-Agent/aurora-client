@@ -15,7 +15,7 @@ export function useFindingReviewState(initialEvaluationId: string) {
   const [copilotQuery, setCopilotQuery] = useState("");
   const [copilotAnswer, setCopilotAnswer] = useState<GroundedAnswer>();
   const evaluationQuery = useComplianceEvaluationQuery(evaluationId || undefined);
-  const { askCopilot } = useComplianceMutations();
+  const { startEvaluation, askCopilot } = useComplianceMutations();
   const evaluation = evaluationQuery.data;
   const selectedFinding = evaluation?.findings.find(
     (finding) => finding.findingId === (selectedFindingId ?? evaluation.findings[0]?.findingId),
@@ -35,6 +35,19 @@ export function useFindingReviewState(initialEvaluationId: string) {
     setCopilotAnswer(await askCopilot.mutateAsync({ query, ...COMPLIANCE_COPILOT_DEFAULTS }));
   };
 
+  const reEvaluate = async () => {
+    if (!evaluation?.externalShipmentId) return;
+
+    const nextEvaluation = await startEvaluation.mutateAsync({
+      shipmentId: evaluation.externalShipmentId,
+      request: { idempotencyKey: crypto.randomUUID() },
+    });
+    setEvaluationId(nextEvaluation.evaluationId);
+    setInputValue(nextEvaluation.evaluationId);
+    setSelectedFindingId(undefined);
+    setCopilotAnswer(undefined);
+  };
+
   return {
     evaluationId,
     evaluation,
@@ -47,7 +60,9 @@ export function useFindingReviewState(initialEvaluationId: string) {
     setCopilotQuery,
     copilotAnswer,
     askCopilot,
+    startEvaluation,
     loadEvaluation,
     ask,
+    reEvaluate,
   };
 }

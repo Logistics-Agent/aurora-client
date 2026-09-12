@@ -2,15 +2,15 @@ import { PageHeader } from "@/components/layout";
 
 import { FindingReview } from "../components/finding-review";
 
-export function ComplianceDetailPage({ findingId }: { findingId: string }) {
+export function ComplianceDetailPage({ evaluationId }: { evaluationId: string }) {
   return (
     <>
       <PageHeader
-        breadcrumb={["Compliance", findingId]}
-        title={findingId}
-        description="Load the persisted evaluation that contains this finding to inspect its evidence."
+        breadcrumb={["Compliance", evaluationId]}
+        title={evaluationId}
+        description="Inspect the persisted evaluation, evidence and freshness state."
       />
-      <FindingReview initialEvaluationId={findingId} />
+      <FindingReview initialEvaluationId={evaluationId} />
     </>
   );
 }

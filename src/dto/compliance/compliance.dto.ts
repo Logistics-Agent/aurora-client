@@ -2,6 +2,7 @@ import { z } from "zod";
 export { type GroundedAnswer, parseGroundedAnswerDto } from "@/dto/assistant/assistant.dto";
 
 const statusNames = ["UNSPECIFIED", "PENDING", "PROCESSING", "COMPLETED", "FAILED"] as const;
+const freshnessNames = ["CURRENT", "STALE"] as const;
 const riskNames = ["UNSPECIFIED", "LOW", "MEDIUM", "HIGH", "CRITICAL", "UNKNOWN"] as const;
 const findingTypeNames = [
   "UNSPECIFIED",
@@ -78,6 +79,11 @@ const complianceEvaluationDto = z.object({
   evaluationId: z.string().min(1),
   externalShipmentId: z.string(),
   status: enumDto("COMPLIANCE_EVALUATION_STATUS", statusNames),
+  freshness: enumDto("COMPLIANCE_EVALUATION_FRESHNESS", freshnessNames).default("CURRENT"),
+  snapshotHash: z.string().default(""),
+  snapshotVersion: z.number().int().nonnegative().default(0),
+  staleAt: nullableTimestampDto.default(null),
+  staleReasonCodes: z.array(z.string()).default([]),
   riskLevel: enumDto("COMPLIANCE_RISK_LEVEL", riskNames),
   findings: z.array(findingDto),
   missingDocuments: z.array(z.string()),
@@ -93,6 +99,19 @@ const complianceEvaluationDto = z.object({
 export type ComplianceEvaluation = z.infer<typeof complianceEvaluationDto>;
 export type ComplianceFinding = z.infer<typeof findingDto>;
 
+const complianceEvaluationListDto = z.object({
+  items: z.array(complianceEvaluationDto),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+  totalCount: z.number().int().nonnegative(),
+});
+
+export type ComplianceEvaluationList = z.infer<typeof complianceEvaluationListDto>;
+
 export function parseComplianceEvaluationDto(value: unknown): ComplianceEvaluation {
   return complianceEvaluationDto.parse(value);
+}
+
+export function parseComplianceEvaluationListDto(value: unknown): ComplianceEvaluationList {
+  return complianceEvaluationListDto.parse(value);
 }

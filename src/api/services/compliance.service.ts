@@ -1,42 +1,28 @@
 import { CONTROLLERS } from "@/configs/api";
 import {
   type ComplianceEvaluation,
+  type ComplianceEvaluationList,
   type GroundedAnswer,
   parseComplianceEvaluationDto,
+  parseComplianceEvaluationListDto,
   parseGroundedAnswerDto,
 } from "@/dto/compliance/compliance.dto";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/api-error";
 
-export type ComplianceEvaluationRequest = {
-  idempotencyKey?: string;
-  externalShipmentId?: string;
-  originCountryCode?: string;
-  destinationCountryCode?: string;
-  transportMode?: string;
+export type StartComplianceEvaluationRequest = {
+  idempotencyKey: string;
   effectiveAt?: string;
-  jurisdictionCodes?: string[];
-  cargo?: Array<{
-    name: string;
-    hsCode: string;
-    quantity: number;
-    unit: string;
-    weightKg: number;
-    volumeM3: number;
-    isDangerousGoods: boolean;
-    dangerousGoodsCode?: string;
-    packageType?: string;
-  }>;
-  documents?: Array<{
-    externalDocumentId: string;
-    documentType: string;
-    normalizedJson: string;
-    extractionConfidence: number;
-    needsReview: boolean;
-  }>;
 };
 
 export type ComplianceEvaluationResponse = ComplianceEvaluation;
+
+export type ComplianceEvaluationListParams = {
+  page?: number;
+  pageSize?: number;
+  status?: ComplianceEvaluation["status"];
+  freshness?: ComplianceEvaluation["freshness"];
+};
 
 export type AskCopilotRequest = {
   query: string;
@@ -63,11 +49,29 @@ function parseResponse<T>(response: unknown, parser: (value: unknown) => T): T {
 }
 
 export const complianceService = {
-  evaluateCompliance: async (
-    payload: ComplianceEvaluationRequest,
+  startEvaluation: async (
+    shipmentId: string,
+    payload: StartComplianceEvaluationRequest,
   ): Promise<ComplianceEvaluationResponse> => {
-    const response = await api.post<unknown>(CONTROLLERS.compliance.evaluations, payload);
+    const response = await api.post<unknown>(
+      CONTROLLERS.compliance.startEvaluation(shipmentId),
+      payload,
+    );
     return parseResponse(response, parseComplianceEvaluationDto);
+  },
+
+  listEvaluations: async (
+    params: ComplianceEvaluationListParams = {},
+  ): Promise<ComplianceEvaluationList> => {
+    const response = await api.get<unknown>(CONTROLLERS.compliance.evaluations, {
+      params: {
+        page: params.page ?? 1,
+        pageSize: params.pageSize ?? 20,
+        ...(params.status ? { status: params.status } : {}),
+        ...(params.freshness ? { freshness: params.freshness } : {}),
+      },
+    });
+    return parseResponse(response, parseComplianceEvaluationListDto);
   },
 
   getComplianceEvaluation: async (id: string): Promise<ComplianceEvaluationResponse> => {
