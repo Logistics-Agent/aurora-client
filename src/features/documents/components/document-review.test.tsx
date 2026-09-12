@@ -172,6 +172,54 @@ describe("DocumentReview", () => {
     expect(await screen.findByText("deep-link.pdf")).toBeInTheDocument();
   });
 
+  it("opens a signed document download URL for the selected document", async () => {
+    vi.spyOn(documentsService, "listDocuments").mockResolvedValue({
+      items: [
+        {
+          id: "job-download",
+          documentType: "DOCUMENT",
+          status: "READY",
+          stage: "COMPLETED",
+          fileName: "download.pdf",
+          needsReview: false,
+          confidence: 0.98,
+          normalizedJson: null,
+          errorCode: null,
+          errorMessage: null,
+          createdAt: null,
+          updatedAt: null,
+        },
+      ],
+      page: 1,
+      pageSize: 20,
+      totalItems: 1,
+      totalPages: 1,
+    });
+    vi.spyOn(documentsService, "getDocumentDownload").mockResolvedValue({
+      url: "https://r2.example.test/download.pdf?signature=redacted",
+      expiresAt: "2026-09-09T05:20:00Z",
+      fileName: "download.pdf",
+      mimeType: "application/pdf",
+    });
+    const pendingWindow = {
+      location: { href: "" },
+      close: vi.fn(),
+    } as unknown as Window;
+    const open = vi.spyOn(window, "open").mockReturnValue(pendingWindow);
+
+    renderDocumentReview();
+
+    await screen.findAllByText("download.pdf");
+    fireEvent.click(screen.getByRole("button", { name: "View / download document" }));
+
+    await waitFor(() => {
+      expect(open).toHaveBeenCalledWith("about:blank", "_blank", "noopener,noreferrer");
+      expect(pendingWindow.location.href).toBe(
+        "https://r2.example.test/download.pdf?signature=redacted",
+      );
+    });
+  });
+
   it("preserves local corrections after a review conflict", async () => {
     vi.spyOn(documentsService, "listDocuments").mockResolvedValue({
       items: [

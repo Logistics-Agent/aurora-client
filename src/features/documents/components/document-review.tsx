@@ -22,6 +22,7 @@ export function DocumentReview({
     selectedQuery,
     reviewMutation,
     lifecycleMutation,
+    downloadMutation,
     selectedId,
     confirm,
     reviewAction,
@@ -39,6 +40,7 @@ export function DocumentReview({
     setShipmentIdFilter,
     retryDocument,
     cancelDocument,
+    downloadDocument,
   } = useDocumentReviewWorkflow({ showOcrFields, initialDocumentId });
 
   if (documentsQuery.isLoading) return <LoadingState label="Loading document queue" />;
@@ -84,12 +86,15 @@ export function DocumentReview({
         reviewConflict={reviewConflict}
         lifecyclePending={lifecycleMutation.isPending}
         lifecycleError={lifecycleMutation.error}
+        downloadPending={downloadMutation.isPending}
+        downloadError={downloadMutation.error}
         onConfirmChange={setConfirm}
         onFieldChange={updateCorrection}
         onRequestReview={requestReview}
         onConfirmReview={confirmReview}
         onRetry={retryDocument}
         onCancel={cancelDocument}
+        onDownload={downloadDocument}
       />
     </div>
   );

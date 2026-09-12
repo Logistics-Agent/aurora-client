@@ -1,9 +1,11 @@
 import { CONTROLLERS } from "@/configs/api";
 import {
   type DocumentList,
+  type DocumentDownload,
   type DocumentReview,
   type DocumentStatus,
   parseDocumentListDto,
+  parseDocumentDownloadDto,
   parseDocumentReviewDto,
   parseDocumentStatusDto,
 } from "@/dto/documents/document.dto";
@@ -18,6 +20,7 @@ import { ApiError } from "@/lib/api-error";
 export type UnifiedDocumentStatusResponse = DocumentStatus;
 export type ListShipmentDocumentsResponse = DocumentList;
 export type OcrReviewDetailsResponse = DocumentReview;
+export type DocumentDownloadResponse = DocumentDownload;
 
 export type DocumentReviewInput = {
   decision: "CONFIRM" | "CORRECT" | "REJECT";
@@ -107,6 +110,11 @@ export const documentsService = {
   getOcrReviewDetails: async (id: string): Promise<OcrReviewDetailsResponse> => {
     const response = await api.get<unknown>(CONTROLLERS.documents.shipmentDocumentReview(id));
     return parseResponse(response, parseDocumentReviewDto);
+  },
+
+  getDocumentDownload: async (id: string): Promise<DocumentDownloadResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.documents.shipmentDocumentDownload(id));
+    return parseResponse(response, parseDocumentDownloadDto);
   },
 
   reviewDocument: async (

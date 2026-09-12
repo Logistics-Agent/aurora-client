@@ -67,6 +67,20 @@ describe("documents API service", () => {
     });
   });
 
+  it("requests a short-lived signed download URL for the selected document", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      url: "https://r2.example.test/document.pdf?signature=redacted",
+      expiresAt: "2026-09-09T05:20:00Z",
+      fileName: "invoice.pdf",
+      mimeType: "application/pdf",
+    } as never);
+
+    const result = await documentsService.getDocumentDownload("job-123");
+
+    expect(get).toHaveBeenCalledWith("api/v1/documents/shipment-documents/job-123/download");
+    expect(result.fileName).toBe("invoice.pdf");
+  });
+
   it("creates a document intake from a verified upload without browser-owned IDs", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValue(statusResponse as never);
 

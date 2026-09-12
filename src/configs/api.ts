@@ -7,6 +7,8 @@ export const CONTROLLERS = {
       `api/v1/documents/shipment-documents/${encodeURIComponent(id)}`,
     shipmentDocumentReview: (id: string) =>
       `api/v1/documents/shipment-documents/${encodeURIComponent(id)}/review`,
+    shipmentDocumentDownload: (id: string) =>
+      `api/v1/documents/shipment-documents/${encodeURIComponent(id)}/download`,
     shipmentDocumentCancel: (id: string) =>
       `api/v1/documents/shipment-documents/${encodeURIComponent(id)}/cancel`,
     shipmentDocumentRetry: (id: string) =>

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Download } from "lucide-react";
 
 import type { DocumentReviewInput } from "@/api/services/documents.service";
 import { ConfirmActionDialog, WorkspaceCard } from "@/components/common";
@@ -39,12 +40,15 @@ export function DocumentDetail({
   reviewConflict,
   lifecyclePending,
   lifecycleError,
+  downloadPending,
+  downloadError,
   onConfirmChange,
   onFieldChange,
   onRequestReview,
   onConfirmReview,
   onRetry,
   onCancel,
+  onDownload,
 }: {
   selected: DocumentStatus | null;
   review?: DocumentReview;
@@ -57,12 +61,15 @@ export function DocumentDetail({
   reviewConflict: boolean;
   lifecyclePending: boolean;
   lifecycleError?: unknown;
+  downloadPending: boolean;
+  downloadError?: unknown;
   onConfirmChange: (open: boolean) => void;
   onFieldChange: (name: string, value: string) => void;
   onRequestReview: (action: ReviewAction) => void;
   onConfirmReview: () => void;
   onRetry: () => void;
   onCancel: () => void;
+  onDownload: () => void;
 }) {
   const fields = review?.fields ?? [];
   const hasCorrections = Object.keys(corrections).length > 0;
@@ -83,6 +90,7 @@ export function DocumentDetail({
 
   const reviewErrorMessage = reviewError ? getApiErrorMessage(reviewError) : undefined;
   const lifecycleErrorMessage = lifecycleError ? getApiErrorMessage(lifecycleError) : undefined;
+  const downloadErrorMessage = downloadError ? getApiErrorMessage(downloadError) : undefined;
   const canCancel = selected.status === "RECEIVED" || selected.status === "PROCESSING";
   const canRetry = selected.status === "FAILED";
   return (
@@ -155,6 +163,12 @@ export function DocumentDetail({
             )}
           </div>
         )}
+        <div className="mt-3 border-t border-border pt-3">
+          <Button type="button" variant="outline" disabled={downloadPending} onClick={onDownload}>
+            <Download className="mr-2 size-3.5" />
+            {downloadPending ? "Preparing download…" : "View / download document"}
+          </Button>
+        </div>
         {!selected.needsReview && (
           <p className="mt-2 text-sm text-muted-foreground">Document does not require review.</p>
         )}
@@ -172,6 +186,11 @@ export function DocumentDetail({
         {lifecycleErrorMessage && (
           <p role="alert" className="mt-2 text-sm text-destructive">
             {lifecycleErrorMessage}
+          </p>
+        )}
+        {downloadErrorMessage && (
+          <p role="alert" className="mt-2 text-sm text-destructive">
+            {downloadErrorMessage}
           </p>
         )}
       </WorkspaceCard>

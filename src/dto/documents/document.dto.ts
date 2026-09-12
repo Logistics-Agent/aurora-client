@@ -81,9 +81,17 @@ const documentReviewDto = z.object({
   fields: z.array(ocrFieldDto),
 });
 
+const documentDownloadDto = z.object({
+  url: z.string().url(),
+  expiresAt: validDate,
+  fileName: z.string().min(1),
+  mimeType: z.string().min(1),
+});
+
 export type DocumentStatus = z.infer<typeof documentStatusDto>;
 export type DocumentList = z.infer<typeof documentListDto>;
 export type DocumentReview = z.infer<typeof documentReviewDto>;
+export type DocumentDownload = z.infer<typeof documentDownloadDto>;
 export type OcrField = z.infer<typeof ocrFieldDto>;
 
 export function parseDocumentStatusDto(value: unknown): DocumentStatus {
@@ -96,4 +104,8 @@ export function parseDocumentListDto(value: unknown): DocumentList {
 
 export function parseDocumentReviewDto(value: unknown): DocumentReview {
   return documentReviewDto.parse(value);
+}
+
+export function parseDocumentDownloadDto(value: unknown): DocumentDownload {
+  return documentDownloadDto.parse(value);
 }

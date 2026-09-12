@@ -1,8 +1,9 @@
 "use client";
 
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
-import type { DocumentReviewInput } from "@/api/services/documents.service";
+import { documentsService, type DocumentReviewInput } from "@/api/services/documents.service";
 import { useDocumentLifecycleMutation } from "@/hooks/mutations/documents/use-document-lifecycle-mutation";
 import { useDocumentReviewMutation } from "@/hooks/mutations/documents/use-document-review-mutation";
 import {
@@ -43,6 +44,9 @@ export function useDocumentReviewWorkflow({
   const reviewQuery = useDocumentReviewQuery(showOcrFields ? effectiveSelectedId : undefined);
   const reviewMutation = useDocumentReviewMutation();
   const lifecycleMutation = useDocumentLifecycleMutation();
+  const downloadMutation = useMutation({
+    mutationFn: (id: string) => documentsService.getDocumentDownload(id),
+  });
   const corrections = selected ? (correctionsByDocument[selected.id] ?? {}) : {};
 
   const refresh = () => {
@@ -103,6 +107,7 @@ export function useDocumentReviewWorkflow({
     selectedQuery,
     reviewMutation,
     lifecycleMutation,
+    downloadMutation,
     selectedId: selected?.id,
     confirm,
     reviewAction,
@@ -123,6 +128,23 @@ export function useDocumentReviewWorkflow({
     },
     cancelDocument: () => {
       if (selected) void lifecycleMutation.mutateAsync({ id: selected.id, action: "cancel" });
+    },
+    downloadDocument: () => {
+      if (!selected) return;
+      const pendingWindow =
+        typeof window === "undefined"
+          ? null
+          : window.open("about:blank", "_blank", "noopener,noreferrer");
+      void downloadMutation
+        .mutateAsync(selected.id)
+        .then((download) => {
+          if (pendingWindow) {
+            pendingWindow.location.href = download.url;
+          } else if (typeof window !== "undefined") {
+            window.location.href = download.url;
+          }
+        })
+        .catch(() => pendingWindow?.close());
     },
   };
 }
