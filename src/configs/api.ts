@@ -1,10 +1,18 @@
 export const CONTROLLERS = {
   documents: {
+    uploads: "api/v1/documents/uploads",
+    intakes: "api/v1/documents/intakes",
     shipmentDocuments: "api/v1/documents/shipment-documents",
     shipmentDocument: (id: string) =>
       `api/v1/documents/shipment-documents/${encodeURIComponent(id)}`,
     shipmentDocumentReview: (id: string) =>
       `api/v1/documents/shipment-documents/${encodeURIComponent(id)}/review`,
+    shipmentDocumentDownload: (id: string) =>
+      `api/v1/documents/shipment-documents/${encodeURIComponent(id)}/download`,
+    shipmentDocumentCancel: (id: string) =>
+      `api/v1/documents/shipment-documents/${encodeURIComponent(id)}/cancel`,
+    shipmentDocumentRetry: (id: string) =>
+      `api/v1/documents/shipment-documents/${encodeURIComponent(id)}/retry`,
     shipmentDocumentSubmit: "api/v1/documents/shipment",
   },
   compliance: {

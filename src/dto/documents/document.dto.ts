@@ -8,11 +8,10 @@ const documentStatusValues = [
   "REJECTED",
   "FAILED",
   "CANCELLED",
-  "QUEUED",
-  "VERIFIED",
 ] as const;
 
 const documentStageValues = [
+  "QUEUED",
   "RECEIVING",
   "EXTRACTING",
   "OCR",
@@ -28,6 +27,11 @@ const documentStageValues = [
   "ERROR",
 ] as const;
 
+const documentStageDto = z.preprocess(
+  (value) => (value === "REVIEW" ? "HUMAN_REVIEW" : value),
+  z.enum(documentStageValues).nullable(),
+);
+
 const validDate = z
   .string()
   .refine((value) => !Number.isNaN(Date.parse(value)), "Expected a valid document timestamp");
@@ -40,7 +44,7 @@ const documentStatusDto = z.object({
   id: z.string().min(1),
   documentType: z.string().min(1),
   status: z.enum(documentStatusValues),
-  stage: z.enum(documentStageValues).nullable(),
+  stage: documentStageDto,
   fileName: z.string().min(1),
   needsReview: z.boolean(),
   confidence,
@@ -77,9 +81,17 @@ const documentReviewDto = z.object({
   fields: z.array(ocrFieldDto),
 });
 
+const documentDownloadDto = z.object({
+  url: z.string().url(),
+  expiresAt: validDate,
+  fileName: z.string().min(1),
+  mimeType: z.string().min(1),
+});
+
 export type DocumentStatus = z.infer<typeof documentStatusDto>;
 export type DocumentList = z.infer<typeof documentListDto>;
 export type DocumentReview = z.infer<typeof documentReviewDto>;
+export type DocumentDownload = z.infer<typeof documentDownloadDto>;
 export type OcrField = z.infer<typeof ocrFieldDto>;
 
 export function parseDocumentStatusDto(value: unknown): DocumentStatus {
@@ -92,4 +104,8 @@ export function parseDocumentListDto(value: unknown): DocumentList {
 
 export function parseDocumentReviewDto(value: unknown): DocumentReview {
   return documentReviewDto.parse(value);
+}
+
+export function parseDocumentDownloadDto(value: unknown): DocumentDownload {
+  return documentDownloadDto.parse(value);
 }

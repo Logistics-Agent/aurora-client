@@ -31,6 +31,15 @@ describe("document DTO parsers", () => {
     expect(parsed.errorCode).toBeNull();
   });
 
+  it("normalizes the temporary REVIEW stage alias to HUMAN_REVIEW", () => {
+    const parsed = parseDocumentStatusDto({
+      ...documentFixture,
+      stage: "REVIEW",
+    });
+
+    expect(parsed.stage).toBe("HUMAN_REVIEW");
+  });
+
   it("parses a paginated document list without changing server status semantics", () => {
     const parsed = parseDocumentListDto({
       items: [documentFixture],

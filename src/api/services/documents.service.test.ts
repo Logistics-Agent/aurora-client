@@ -44,7 +44,7 @@ describe("documents API service", () => {
       params: {
         page: 1,
         pageSize: 20,
-        status: "NEEDS_REVIEW",
+        status: "RequiresReview",
         shipmentId: "shipment-1",
       },
     });
@@ -65,6 +65,50 @@ describe("documents API service", () => {
       fields: [{ name: "invoiceNumber", value: "INV-2" }],
       comment: "Corrected from the source document.",
     });
+  });
+
+  it("requests a short-lived signed download URL for the selected document", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      url: "https://r2.example.test/document.pdf?signature=redacted",
+      expiresAt: "2026-09-09T05:20:00Z",
+      fileName: "invoice.pdf",
+      mimeType: "application/pdf",
+    } as never);
+
+    const result = await documentsService.getDocumentDownload("job-123");
+
+    expect(get).toHaveBeenCalledWith("api/v1/documents/shipment-documents/job-123/download");
+    expect(result.fileName).toBe("invoice.pdf");
+  });
+
+  it("creates a document intake from a verified upload without browser-owned IDs", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue(statusResponse as never);
+
+    await documentsService.createDocumentIntake({
+      uploadId: "01a09545-6eb5-7f02-bde4-1d9398a95b7a",
+      documentTypeHint: "COMMERCIAL_INVOICE",
+      idempotencyKey: "intake-1",
+      purpose: "SHIPMENT_DOCUMENT",
+      externalReference: "shipment-1",
+    });
+
+    expect(post).toHaveBeenCalledWith("api/v1/documents/intakes", {
+      uploadId: "01a09545-6eb5-7f02-bde4-1d9398a95b7a",
+      documentTypeHint: "COMMERCIAL_INVOICE",
+      idempotencyKey: "intake-1",
+      purpose: "SHIPMENT_DOCUMENT",
+      externalReference: "shipment-1",
+    });
+  });
+
+  it("uses the lifecycle endpoints for cancel and retry", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue(statusResponse as never);
+
+    await documentsService.cancelDocument("job-123");
+    await documentsService.retryDocument("job-123");
+
+    expect(post).toHaveBeenNthCalledWith(1, "api/v1/documents/shipment-documents/job-123/cancel");
+    expect(post).toHaveBeenNthCalledWith(2, "api/v1/documents/shipment-documents/job-123/retry");
   });
 
   it("includes an explicit external document id when submitting a shipment document", async () => {

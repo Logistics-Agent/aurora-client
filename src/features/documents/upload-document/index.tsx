@@ -1,15 +1,15 @@
 import { PageHeader } from "@/components/layout";
 
-import { DocumentReview } from "../components/document-review";
+import { DocumentUploadForm } from "./components/document-upload-form";
 
-export function UploadDocumentPage() {
+export function UploadDocumentPage({ shipmentId }: { shipmentId?: string }) {
   return (
     <>
       <PageHeader
         title="Upload Document"
-        description="Submit an object-storage reference to the OCR service and track its processing status."
+        description="Upload a document to object storage and start OCR processing."
       />
-      <DocumentReview showUpload />
+      <DocumentUploadForm initialShipmentId={shipmentId} />
     </>
   );
 }
