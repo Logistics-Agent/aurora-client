@@ -32,18 +32,39 @@ describe("assistantService", () => {
 
     await assistantService.query({
       query: "What is the risk?",
-      mode: "COMPLIANCE",
+      mode: "REGULATORY",
       jurisdictionCode: "US",
+      context: {
+        shipmentId: "shipment-1",
+        evaluationId: "evaluation-1",
+      },
       topK: 5,
       minimumScore: 0.6,
     });
 
     expect(api.post).toHaveBeenCalledWith("api/v1/assistant/query", {
       query: "What is the risk?",
-      mode: "COMPLIANCE",
+      mode: "REGULATORY",
       jurisdictionCode: "US",
+      context: {
+        shipmentId: "shipment-1",
+        evaluationId: "evaluation-1",
+      },
       topK: 5,
       minimumScore: 0.6,
+    });
+  });
+
+  it("accepts an explicit provider-unavailable response error", async () => {
+    vi.mocked(api.post).mockRejectedValue({
+      statusCode: 503,
+      code: "AI_SERVICE_UNAVAILABLE",
+      message: "Assistant provider unavailable.",
+    });
+
+    await expect(assistantService.query({ query: "Is this current?" })).rejects.toMatchObject({
+      status: 503,
+      code: "AI_SERVICE_UNAVAILABLE",
     });
   });
 });
