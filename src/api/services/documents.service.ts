@@ -7,6 +7,11 @@ import {
   parseDocumentReviewDto,
   parseDocumentStatusDto,
 } from "@/dto/documents/document.dto";
+import {
+  type CreateDocumentIntakeInput,
+  type DocumentIntake,
+  parseDocumentIntakeDto,
+} from "@/dto/documents/document-upload.dto";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/api-error";
 
@@ -102,6 +107,13 @@ export const documentsService = {
       comment: body.reviewNotes ?? null,
     });
     return parseResponse(response, parseDocumentStatusDto);
+  },
+
+  createDocumentIntake: async (
+    body: CreateDocumentIntakeInput,
+  ): Promise<DocumentIntake> => {
+    const response = await api.post<unknown>(CONTROLLERS.documents.intakes, body);
+    return parseResponse(response, parseDocumentIntakeDto);
   },
 
   submitShipmentDocument: async (

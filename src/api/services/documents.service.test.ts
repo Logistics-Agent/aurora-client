@@ -67,6 +67,26 @@ describe("documents API service", () => {
     });
   });
 
+  it("creates a document intake from a verified upload without browser-owned IDs", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue(statusResponse as never);
+
+    await documentsService.createDocumentIntake({
+      uploadId: "01a09545-6eb5-7f02-bde4-1d9398a95b7a",
+      documentTypeHint: "COMMERCIAL_INVOICE",
+      idempotencyKey: "intake-1",
+      purpose: "SHIPMENT_DOCUMENT",
+      externalReference: "shipment-1",
+    });
+
+    expect(post).toHaveBeenCalledWith("api/v1/documents/intakes", {
+      uploadId: "01a09545-6eb5-7f02-bde4-1d9398a95b7a",
+      documentTypeHint: "COMMERCIAL_INVOICE",
+      idempotencyKey: "intake-1",
+      purpose: "SHIPMENT_DOCUMENT",
+      externalReference: "shipment-1",
+    });
+  });
+
   it("includes an explicit external document id when submitting a shipment document", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValue(statusResponse as never);
 
