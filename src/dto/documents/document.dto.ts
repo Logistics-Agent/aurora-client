@@ -13,6 +13,7 @@ const documentStatusValues = [
 ] as const;
 
 const documentStageValues = [
+  "QUEUED",
   "RECEIVING",
   "EXTRACTING",
   "OCR",
@@ -28,6 +29,11 @@ const documentStageValues = [
   "ERROR",
 ] as const;
 
+const documentStageDto = z.preprocess(
+  (value) => (value === "REVIEW" ? "HUMAN_REVIEW" : value),
+  z.enum(documentStageValues).nullable(),
+);
+
 const validDate = z
   .string()
   .refine((value) => !Number.isNaN(Date.parse(value)), "Expected a valid document timestamp");
@@ -40,7 +46,7 @@ const documentStatusDto = z.object({
   id: z.string().min(1),
   documentType: z.string().min(1),
   status: z.enum(documentStatusValues),
-  stage: z.enum(documentStageValues).nullable(),
+  stage: documentStageDto,
   fileName: z.string().min(1),
   needsReview: z.boolean(),
   confidence,
