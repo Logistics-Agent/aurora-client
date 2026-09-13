@@ -8,6 +8,8 @@ import {
   useRegulatorySourcesQuery,
 } from "@/hooks/queries/corpus/use-corpus-queries";
 
+import { CorpusIngestionPipeline } from "./corpus-ingestion-pipeline";
+
 function CorpusStatus({ status }: { status: string }) {
   return <Badge variant={status === "COMPLETED" ? "secondary" : "outline"}>{status}</Badge>;
 }
@@ -31,7 +33,10 @@ export function CorpusCatalog() {
             id: item.id,
             title: item.title,
             detail: `${item.authority} · ${item.jurisdictionCode}`,
-            version: item.latestVersion,
+            version: item.latestVersion && {
+              ...item.latestVersion,
+              errorMessage: item.latestVersion.errorMessage,
+            },
           }))}
           isLoading={regulatory.isLoading}
         />
@@ -42,7 +47,10 @@ export function CorpusCatalog() {
             id: item.id,
             title: item.title,
             detail: `${item.category} · ${item.languageCode}`,
-            version: item.latestVersion,
+            version: item.latestVersion && {
+              ...item.latestVersion,
+              errorMessage: item.latestVersion.errorMessage,
+            },
           }))}
           isLoading={knowledge.isLoading}
         />
@@ -67,6 +75,7 @@ function CatalogList({
       status: string;
       chunkCount: number;
       embeddedChunkCount: number;
+      errorMessage?: string | null;
     } | null;
   }>;
   isLoading: boolean;
@@ -86,11 +95,7 @@ function CatalogList({
               <CorpusStatus status={item.version?.status ?? "UNKNOWN"} />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
-            {item.version && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {item.version.embeddedChunkCount}/{item.version.chunkCount} chunks embedded
-              </p>
-            )}
+            {item.version && <CorpusIngestionPipeline version={item.version} />}
           </div>
         ))}
       </div>
