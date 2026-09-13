@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
 
 import { documentUploadService } from "./document-upload.service";
-import { corpusUploadService } from "./corpus-upload.service";
+import { corpusUploadService, getCorpusFileMimeType } from "./corpus-upload.service";
 
 const session = {
   uploadId: "01a09545-6eb5-7f02-bde4-1d9398a95b7a",
@@ -22,6 +22,12 @@ const session = {
 afterEach(() => vi.restoreAllMocks());
 
 describe("corpus upload service", () => {
+  it("normalizes markdown uploads even when the browser omits its MIME type", () => {
+    const file = new File(["# rule"], "rule.md", { type: "" });
+
+    expect(getCorpusFileMimeType(file)).toBe("text/markdown");
+  });
+
   it("uploads through the document session before starting corpus intake", async () => {
     const createUploadSession = vi
       .spyOn(documentUploadService, "createUploadSession")

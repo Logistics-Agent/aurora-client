@@ -14,6 +14,11 @@ export interface CorpusFileUploadInput extends DocumentUploadOptions {
   intake: CreateCorpusIntakeInput;
 }
 
+export function getCorpusFileMimeType(file: File): string {
+  if (file.name.toLowerCase().endsWith(".md")) return "text/markdown";
+  return file.type || "application/octet-stream";
+}
+
 function parseResponse(value: unknown): CorpusIntakeResponse {
   try {
     return parseCorpusIntakeResponse(value);
@@ -32,7 +37,7 @@ export const corpusUploadService = {
     const session = await documentUploadService.createUploadSession({
       idempotencyKey: intake.idempotencyKey,
       fileName: file.name,
-      mimeType: file.type || "application/octet-stream",
+      mimeType: getCorpusFileMimeType(file),
       sizeBytes: file.size,
     });
     await documentUploadService.uploadObject(session, file, { signal, onProgress });

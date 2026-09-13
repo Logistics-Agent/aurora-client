@@ -37,7 +37,7 @@ export function CorpusPromotionForm() {
         <Input
           aria-label="Knowledge source file"
           type="file"
-          accept=".pdf,.txt,.md,.doc,.docx"
+          accept=".pdf,.md"
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         />
         {file && (
