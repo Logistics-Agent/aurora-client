@@ -1,18 +1,16 @@
 "use client";
 
 import { ErrorState, LoadingState } from "@/components/common";
+import { toApiError } from "@/lib/api-error";
 
 import { useDocumentReviewWorkflow } from "../hooks/use-document-review-workflow";
-import { DocumentUploadForm } from "../upload-document/components/document-upload-form";
 import { DocumentDetail } from "./document-detail";
 import { DocumentQueue } from "./document-queue";
 
 export function DocumentReview({
-  showUpload = false,
   showOcrFields = false,
   initialDocumentId,
 }: {
-  showUpload?: boolean;
   showOcrFields?: boolean;
   initialDocumentId?: string;
 }) {
@@ -23,6 +21,8 @@ export function DocumentReview({
     reviewQuery,
     selectedQuery,
     reviewMutation,
+    lifecycleMutation,
+    downloadMutation,
     selectedId,
     confirm,
     reviewAction,
@@ -33,28 +33,46 @@ export function DocumentReview({
     updateCorrection,
     requestReview,
     confirmReview,
+    reviewConflict,
+    statusFilter,
+    setStatusFilter,
+    shipmentIdFilter,
+    setShipmentIdFilter,
+    retryDocument,
+    cancelDocument,
+    downloadDocument,
   } = useDocumentReviewWorkflow({ showOcrFields, initialDocumentId });
 
   if (documentsQuery.isLoading) return <LoadingState label="Loading document queue" />;
-  if (documentsQuery.isError)
+  if (documentsQuery.isError) {
+    const error = toApiError(documentsQuery.error);
+    const unavailable = error.code === "DOCUMENT_OCR_UNAVAILABLE";
     return (
       <ErrorState
-        title="Document queue unavailable"
-        description="Try again to load the OCR queue."
+        title={unavailable ? "OCR processing unavailable" : "Document queue unavailable"}
+        description={
+          unavailable
+            ? "The OCR service is temporarily unavailable. Try again later."
+            : "Try again to load the OCR queue."
+        }
       />
     );
+  }
   if (!documentList) return <LoadingState label="Loading document queue" />;
   const confidence = selected?.confidence ?? selectedQuery.data?.confidence ?? null;
 
   return (
     <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-      {showUpload && <DocumentUploadForm />}
       <DocumentQueue
         data={documentList}
         selectedId={selectedId}
         fetching={documentsQuery.isFetching}
         onRefresh={refresh}
         onSelect={setSelectedId}
+        statusFilter={statusFilter}
+        shipmentIdFilter={shipmentIdFilter}
+        onStatusFilterChange={setStatusFilter}
+        onShipmentIdFilterChange={setShipmentIdFilter}
       />
       <DocumentDetail
         selected={selected}
@@ -65,10 +83,18 @@ export function DocumentReview({
         corrections={corrections}
         reviewPending={reviewMutation.isPending}
         reviewError={reviewMutation.error}
+        reviewConflict={reviewConflict}
+        lifecyclePending={lifecycleMutation.isPending}
+        lifecycleError={lifecycleMutation.error}
+        downloadPending={downloadMutation.isPending}
+        downloadError={downloadMutation.error}
         onConfirmChange={setConfirm}
         onFieldChange={updateCorrection}
         onRequestReview={requestReview}
         onConfirmReview={confirmReview}
+        onRetry={retryDocument}
+        onCancel={cancelDocument}
+        onDownload={downloadDocument}
       />
     </div>
   );

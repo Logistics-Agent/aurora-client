@@ -10,6 +10,7 @@ import {
   Map,
   Settings,
   Truck,
+  Upload,
 } from "lucide-react";
 
 import { PERMISSIONS } from "@/constants/permissions";
@@ -46,6 +47,12 @@ export const staffNavigation: NavigationItem[] = [
     href: "/documents",
     icon: FileText,
     capability: PERMISSIONS.DOCUMENTS.READ,
+  },
+  {
+    label: "Upload Document",
+    href: "/documents/upload",
+    icon: Upload,
+    capability: PERMISSIONS.DOCUMENTS.INGEST,
   },
   {
     label: "Compliance",
