@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { corpusService } from "@/api/services/corpus.service";
 
-import { useRegulatoryCorpusQuery } from "./use-corpus-queries";
+import { hasActiveCorpusIngestion, useRegulatoryCorpusQuery } from "./use-corpus-queries";
 
 vi.mock("@/api/services/corpus.service", async () => {
   const actual = await vi.importActual<typeof import("@/api/services/corpus.service")>(
@@ -46,5 +46,26 @@ describe("useRegulatoryCorpusQuery", () => {
       topK: 10,
       minimumRelevanceScore: 0.4,
     });
+  });
+});
+
+describe("hasActiveCorpusIngestion", () => {
+  it("keeps polling while a catalog version is processing", () => {
+    expect(
+      hasActiveCorpusIngestion({
+        items: [
+          { latestVersion: { status: "PENDING_OCR" } },
+          { latestVersion: { status: "COMPLETED" } },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("stops polling when all catalog versions are terminal", () => {
+    expect(
+      hasActiveCorpusIngestion({
+        items: [{ latestVersion: { status: "FAILED" } }],
+      }),
+    ).toBe(false);
   });
 });
