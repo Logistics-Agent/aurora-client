@@ -95,7 +95,7 @@ rtk dotnet build src/dotnet/RegulatoryCompliance/Tests/RegulatoryCompliance.Test
 
 - [x] Step 3: Make DocumentOcr choose full-text extraction for the two corpus purposes while preserving structured mode for shipment/general documents.
 
-- [x] Step 4: Replace local filesystem-only corpus text reconstruction with the existing durable artifact/full-text contract. Do not introduce a fallback that reads another tenant’s path or accepts an arbitrary external URL.
+- [x] Step 4: Prefer the durable full-text event/artifact contract. The existing local artifact reader remains only as a bounded development fallback; it uses the verified tenant-owned storage reference and never accepts an arbitrary external URL or another tenant’s path.
 
 - [x] Step 5: Keep the existing chunker and embedding provider, but process corpus text only after validating the typed purpose, tenant, version ID, and pending status. Preserve idempotent handling of duplicate completion events.
 
@@ -159,6 +159,8 @@ rtk dotnet build src/dotnet/RegulatoryCompliance/Tests/RegulatoryCompliance.Test
 - Create: `/home/kaito/project/aurora-client-ai/src/hooks/mutations/corpus/use-corpus-upload-mutation.ts`
 - Modify: `/home/kaito/project/aurora-client-ai/src/features/corpus/regulatory-ingestion/components/corpus-ingestion-form.tsx`
 - Modify: `/home/kaito/project/aurora-client-ai/src/features/corpus/regulatory-ingestion/hooks/use-corpus-ingestion-form.ts`
+- Modify: `/home/kaito/project/aurora-client-ai/src/features/corpus/knowledge-promotion/components/corpus-promotion-form.tsx`
+- Modify: `/home/kaito/project/aurora-client-ai/src/features/corpus/knowledge-promotion/hooks/use-corpus-promotion-form.ts`
 - Create: `/home/kaito/project/aurora-client-ai/src/features/corpus/components/corpus-upload-status.tsx`
 - Test: `/home/kaito/project/aurora-client-ai/src/api/services/corpus-upload.service.test.ts`
 - Test: `/home/kaito/project/aurora-client-ai/src/features/corpus/regulatory-ingestion/components/corpus-ingestion-form.test.tsx`
@@ -167,7 +169,7 @@ rtk dotnet build src/dotnet/RegulatoryCompliance/Tests/RegulatoryCompliance.Test
 
 - FE calls the existing `documentUploadService.createUploadSession`, uploads the selected `File` with `uploadObject`, then calls `POST /documents/corpus-intakes`.
 - The mutation accepts `File` plus typed metadata and returns `{ corpusVersionId, ocrJobId, status }`.
-- The form must not ask for `rawText` or `contentReference`; the server owns storage references.
+- Regulatory and knowledge forms must not ask for `rawText`, `contentReference`, or a manually entered `storageReference`; the server owns storage references.
 - Poll the existing OCR job/status and invalidate corpus catalog queries when OCR completes.
 
 - [x] Step 1: Add DTO/service tests for upload-session creation, object upload, corpus intake, and failure mapping.
@@ -176,7 +178,7 @@ rtk dotnet build src/dotnet/RegulatoryCompliance/Tests/RegulatoryCompliance.Test
 
 - [x] Step 3: Implement the upload mutation with a new idempotency key per intake, abort support, progress reporting, and no production mock.
 
-- [x] Step 4: Replace the raw-text form with file selection and metadata fields. Show upload progress, OCR/chunk/embedding/ready stages, retryable errors, and the resulting corpus version ID.
+- [x] Step 4: Replace the raw-text/manual-storage-reference forms with file selection and metadata fields for both regulatory and knowledge corpus intake. Show upload progress, OCR/chunk/embedding/ready stages, retryable errors, and the resulting corpus version ID.
 
 - [x] Step 5: Preserve the existing regulatory search and catalog workspace; invalidate `corpusKeys.all` after successful intake.
 
@@ -212,11 +214,11 @@ rtk dotnet build src/dotnet/RegulatoryCompliance/Tests/RegulatoryCompliance.Test
 
 - BE branch: `feat/grounded-assistant-context`, based on `origin/stagging-prod`.
 - FE branch: `feat/grounded-assistant-context`, based on `origin/develop`.
-- BE commits: `e30054f`, `2767f9e`, `74d61ba` plus the pending validation follow-up.
-- FE commits: `2026d62`, `bf1203f`.
-- Focused BE tests, BFF tests, FE Vitest, ESLint, Prettier, and `git diff --check` pass.
+- BE commits: `e30054f`, `2767f9e`, `74d61ba`, `a8c4a8b`, `457fcdf`, `c954861`.
+- FE commits: `2026d62`, `bf1203f`, `75eb373`, plus the knowledge-upload UI follow-up pending commit.
+- Focused BE tests pass: RegulatoryCompliance 72/72 (non-integration), DocumentOcr 116/116 (non-integration), BFF 103/103. FE focused corpus/assistant/compliance tests pass; ESLint, Prettier, and `git diff --check` pass.
 - FE full typecheck is blocked only by six pre-existing errors in route-tracking and shipment-detail; no new errors are reported in the changed files.
-- Staging runtime proof, Key Vault/Kubernetes readiness, and shared-branch merge remain gated until deployment evidence is captured.
+- DocumentOcr and RegulatoryCompliance integration tests require unavailable local PostgreSQL/RabbitMQ; staging runtime proof, Key Vault/Kubernetes readiness, and shared-branch merge remain gated until deployment evidence is captured.
 
 ---
 

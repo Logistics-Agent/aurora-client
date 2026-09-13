@@ -9,53 +9,62 @@ import { useCorpusPromotionForm } from "../hooks/use-corpus-promotion-form";
 
 export function CorpusPromotionForm() {
   const {
-    id,
-    setId,
     title,
     setTitle,
-    storageReference,
-    setStorageReference,
+    sourceReference,
+    setSourceReference,
+    file,
+    setFile,
+    uploadProgress,
     promote,
-    promoteGeneral,
+    uploadCorpus,
   } = useCorpusPromotionForm();
   return (
-    <WorkspaceCard title="Promote general document">
+    <WorkspaceCard title="Ingest knowledge source">
       <form className="space-y-2" onSubmit={promote}>
         <Input
-          aria-label="General document id"
-          value={id}
-          onChange={(event) => setId(event.target.value)}
-          placeholder="General document id"
-        />
-        <Input
-          aria-label="Promotion title"
+          aria-label="Knowledge title"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder="Knowledge title"
         />
         <Input
-          aria-label="Promotion storage reference"
-          value={storageReference}
-          onChange={(event) => setStorageReference(event.target.value)}
-          placeholder="Storage reference"
+          aria-label="Knowledge source reference"
+          value={sourceReference}
+          onChange={(event) => setSourceReference(event.target.value)}
+          placeholder="Source reference or URL"
         />
-        {promoteGeneral.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {getApiErrorMessage(promoteGeneral.error)}
+        <Input
+          aria-label="Knowledge source file"
+          type="file"
+          accept=".pdf,.txt,.md,.doc,.docx"
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+        />
+        {file && (
+          <p className="text-xs text-muted-foreground">
+            {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
           </p>
         )}
-        {promoteGeneral.data && (
+        {uploadCorpus.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {getApiErrorMessage(uploadCorpus.error)}
+          </p>
+        )}
+        {uploadCorpus.isPending && (
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            Uploading {uploadProgress}% and starting OCR…
+          </p>
+        )}
+        {uploadCorpus.data && (
           <p className="text-sm text-muted-foreground">
-            Promotion {promoteGeneral.data.id}: {promoteGeneral.data.status}
+            OCR {uploadCorpus.data.ocrJobId}: {uploadCorpus.data.status}
           </p>
         )}
         <Button
           type="submit"
-          disabled={
-            !id.trim() || !title.trim() || !storageReference.trim() || promoteGeneral.isPending
-          }
+          disabled={!title.trim() || !sourceReference.trim() || !file || uploadCorpus.isPending}
         >
-          {promoteGeneral.isPending ? "Promoting…" : "Promote to knowledge"}
+          {uploadCorpus.isPending ? "Uploading…" : "Upload knowledge source"}
         </Button>
       </form>
     </WorkspaceCard>

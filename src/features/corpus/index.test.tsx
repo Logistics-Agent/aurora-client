@@ -67,6 +67,7 @@ describe("CorpusPage", () => {
         <CorpusPage />
       </QueryClientProvider>,
     );
+    expect(screen.getByLabelText("Knowledge source file")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Regulatory corpus query"), {
       target: { value: "dangerous goods" },
     });
