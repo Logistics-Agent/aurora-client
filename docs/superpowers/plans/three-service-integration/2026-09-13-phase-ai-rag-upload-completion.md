@@ -214,8 +214,8 @@ rtk dotnet build src/dotnet/RegulatoryCompliance/Tests/RegulatoryCompliance.Test
 
 - BE branch: `feat/grounded-assistant-context`, based on `origin/stagging-prod`.
 - FE branch: `feat/grounded-assistant-context`, based on `origin/develop`.
-- BE commits: `e30054f`, `2767f9e`, `74d61ba`, `a8c4a8b`, `457fcdf`, `c954861`.
-- FE commits: `2026d62`, `bf1203f`, `75eb373`, plus the knowledge-upload UI follow-up pending commit.
+- BE commits: `e30054f`, `2767f9e`, `74d61ba`, `a8c4a8b`, `457fcdf`, `c954861`, `847f4c2`.
+- FE commits: `2026d62`, `bf1203f`, `75eb373`, `d83bca2`.
 - Focused BE tests pass: RegulatoryCompliance 72/72 (non-integration), DocumentOcr 116/116 (non-integration), BFF 103/103. FE focused corpus/assistant/compliance tests pass; ESLint, Prettier, and `git diff --check` pass.
 - FE full typecheck is blocked only by six pre-existing errors in route-tracking and shipment-detail; no new errors are reported in the changed files.
 - DocumentOcr and RegulatoryCompliance integration tests require unavailable local PostgreSQL/RabbitMQ; staging runtime proof, Key Vault/Kubernetes readiness, and shared-branch merge remain gated until deployment evidence is captured.
