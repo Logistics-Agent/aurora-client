@@ -7,14 +7,24 @@ import { useAssistantQueryMutation } from "@/hooks/mutations/assistant/use-assis
 
 import { ASSISTANT_QUERY_DEFAULTS } from "../constants/assistant.constants";
 
+function readVerifiedContextFromUrl() {
+  if (typeof window === "undefined") return { shipmentId: "", evaluationId: "" };
+  const params = new URLSearchParams(window.location.search);
+  return {
+    shipmentId: params.get("shipmentId") ?? "",
+    evaluationId: params.get("evaluationId") ?? "",
+  };
+}
+
 export function useAssistantWorkspace() {
+  const initialContext = useState(readVerifiedContextFromUrl)[0];
   const [question, setQuestion] = useState("");
   const [mode, setMode] = useState<AssistantMode>(ASSISTANT_QUERY_DEFAULTS.mode);
   const [jurisdictionCode, setJurisdictionCode] = useState<string>(
     ASSISTANT_QUERY_DEFAULTS.jurisdictionCode,
   );
-  const [shipmentId, setShipmentId] = useState("");
-  const [evaluationId, setEvaluationId] = useState("");
+  const [shipmentId, setShipmentId] = useState(initialContext.shipmentId);
+  const [evaluationId, setEvaluationId] = useState(initialContext.evaluationId);
   const mutation = useAssistantQueryMutation();
 
   const askQuestion = async () => {

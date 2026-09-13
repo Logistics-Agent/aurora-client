@@ -111,4 +111,18 @@ describe("AiAssistantPage", () => {
     expect(await screen.findByText(/assistant provider is unavailable/i)).toBeInTheDocument();
     expect(screen.queryByText(/insufficient evidence/i)).not.toBeInTheDocument();
   });
+
+  it("hydrates verified context from the compliance handoff URL", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/assistant?shipmentId=shipment-from-compliance&evaluationId=evaluation-from-compliance",
+    );
+    renderWithClient(<AiAssistantPage />);
+
+    expect(screen.getByLabelText("Verified shipment ID")).toHaveValue("shipment-from-compliance");
+    expect(screen.getByLabelText("Verified evaluation ID")).toHaveValue(
+      "evaluation-from-compliance",
+    );
+  });
 });
