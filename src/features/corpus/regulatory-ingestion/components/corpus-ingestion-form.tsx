@@ -3,7 +3,6 @@
 import { WorkspaceCard } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { getApiErrorMessage } from "@/lib/api-error";
 
 import { useCorpusIngestionForm } from "../hooks/use-corpus-ingestion-form";
@@ -16,12 +15,11 @@ export function CorpusIngestionForm() {
     setTitle,
     canonicalSourceUri,
     setCanonicalSourceUri,
-    contentReference,
-    setContentReference,
-    rawText,
-    setRawText,
+    file,
+    setFile,
+    uploadProgress,
     ingest,
-    ingestRegulatory,
+    uploadCorpus,
   } = useCorpusIngestionForm();
   return (
     <WorkspaceCard title="Ingest regulatory source">
@@ -46,25 +44,29 @@ export function CorpusIngestionForm() {
           placeholder="https://authority.example/rule"
         />
         <Input
-          aria-label="Regulatory content reference"
-          value={contentReference}
-          onChange={(event) => setContentReference(event.target.value)}
-          placeholder="regulatory/tenant/rule.md"
+          aria-label="Regulatory source file"
+          type="file"
+          accept=".pdf,.txt,.md,.doc,.docx"
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         />
-        <Textarea
-          aria-label="Regulatory raw text"
-          value={rawText}
-          onChange={(event) => setRawText(event.target.value)}
-          placeholder="Regulatory source text"
-        />
-        {ingestRegulatory.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {getApiErrorMessage(ingestRegulatory.error)}
+        {file && (
+          <p className="text-xs text-muted-foreground">
+            {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
           </p>
         )}
-        {ingestRegulatory.data && (
+        {uploadCorpus.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {getApiErrorMessage(uploadCorpus.error)}
+          </p>
+        )}
+        {uploadCorpus.isPending && (
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            Uploading {uploadProgress}% and starting OCR…
+          </p>
+        )}
+        {uploadCorpus.data && (
           <p className="text-sm text-muted-foreground">
-            Ingestion {ingestRegulatory.data.id}: {ingestRegulatory.data.status}
+            OCR {uploadCorpus.data.ocrJobId}: {uploadCorpus.data.status}
           </p>
         )}
         <Button
@@ -73,12 +75,11 @@ export function CorpusIngestionForm() {
             !authority.trim() ||
             !title.trim() ||
             !canonicalSourceUri.trim() ||
-            !contentReference.trim() ||
-            !rawText.trim() ||
-            ingestRegulatory.isPending
+            !file ||
+            uploadCorpus.isPending
           }
         >
-          {ingestRegulatory.isPending ? "Submitting…" : "Submit regulatory source"}
+          {uploadCorpus.isPending ? "Uploading…" : "Upload regulatory source"}
         </Button>
       </form>
     </WorkspaceCard>

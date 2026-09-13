@@ -2,6 +2,7 @@ export const CONTROLLERS = {
   documents: {
     uploads: "api/v1/documents/uploads",
     intakes: "api/v1/documents/intakes",
+    corpusIntakes: "api/v1/documents/corpus-intakes",
     shipmentDocuments: "api/v1/documents/shipment-documents",
     shipmentDocument: (id: string) =>
       `api/v1/documents/shipment-documents/${encodeURIComponent(id)}`,
