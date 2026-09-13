@@ -22,8 +22,18 @@ export const CONTROLLERS = {
   },
   corpus: {
     regulatory: "api/v1/documents/regulatory",
+    regulatorySources: "api/v1/documents/regulatory-sources",
+    regulatorySource: (id: string) =>
+      `api/v1/documents/regulatory-sources/${encodeURIComponent(id)}`,
+    regulatorySourceStatus: (id: string) =>
+      `api/v1/documents/regulatory-sources/${encodeURIComponent(id)}/status`,
     regulatoryQuery: "api/v1/documents/regulatory/query",
     knowledge: "api/v1/documents/knowledge",
+    knowledgeDocuments: "api/v1/documents/knowledge-documents",
+    knowledgeDocument: (id: string) =>
+      `api/v1/documents/knowledge-documents/${encodeURIComponent(id)}`,
+    knowledgeDocumentStatus: (id: string) =>
+      `api/v1/documents/knowledge-documents/${encodeURIComponent(id)}/status`,
     knowledgeQuery: "api/v1/documents/knowledge/query",
     general: "api/v1/documents/general",
     promoteGeneral: (id: string) =>

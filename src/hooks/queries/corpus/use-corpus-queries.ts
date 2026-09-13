@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { corpusKeys } from "@/api/query-keys/corpus.keys";
 import {
+  type CorpusCatalogParams,
   corpusService,
   type KnowledgeQueryInput,
   type RegulatoryQueryInput,
@@ -32,5 +33,21 @@ export function useKnowledgeCorpusQuery(input?: KnowledgeQueryInput) {
       return corpusService.queryKnowledge(queryInput);
     },
     enabled: Boolean(queryInput),
+  });
+}
+
+export function useRegulatorySourcesQuery(params: CorpusCatalogParams = {}) {
+  return useQuery({
+    queryKey: corpusKeys.regulatorySources(params),
+    queryFn: () => corpusService.listRegulatorySources(params),
+  });
+}
+
+export function useKnowledgeDocumentsQuery(
+  params: CorpusCatalogParams & { category?: number } = {},
+) {
+  return useQuery({
+    queryKey: corpusKeys.knowledgeDocuments(params),
+    queryFn: () => corpusService.listKnowledgeDocuments(params),
   });
 }
