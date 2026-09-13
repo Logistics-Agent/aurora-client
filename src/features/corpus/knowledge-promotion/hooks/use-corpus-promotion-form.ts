@@ -2,35 +2,46 @@
 
 import { type FormEvent, useState } from "react";
 
-import { useCorpusMutations } from "@/hooks/mutations/corpus/use-corpus-mutations";
+import { useCorpusUploadMutation } from "@/hooks/mutations/corpus/use-corpus-upload-mutation";
 
 import { DEFAULT_KNOWLEDGE_CATEGORY } from "../constants/knowledge-promotion.constants";
 
 export function useCorpusPromotionForm() {
-  const [id, setId] = useState("");
   const [title, setTitle] = useState("");
-  const [storageReference, setStorageReference] = useState("");
-  const { promoteGeneral } = useCorpusMutations();
+  const [sourceReference, setSourceReference] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadCorpus = useCorpusUploadMutation();
   const promote = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!id.trim() || !title.trim() || !storageReference.trim()) return;
-    await promoteGeneral.mutateAsync({
-      id: id.trim(),
-      input: {
+    if (!title.trim() || !sourceReference.trim() || !file) return;
+    setUploadProgress(0);
+    await uploadCorpus.mutateAsync({
+      file,
+      onProgress: setUploadProgress,
+      intake: {
+        purpose: "KNOWLEDGE_CORPUS",
+        idempotencyKey: crypto.randomUUID(),
         title: title.trim(),
         category: DEFAULT_KNOWLEDGE_CATEGORY,
-        storageReference: storageReference.trim(),
+        sourceReference: sourceReference.trim(),
+        languageCode: "vi",
+        versionLabel: "1.0",
       },
     });
+    setTitle("");
+    setSourceReference("");
+    setFile(null);
   };
   return {
-    id,
-    setId,
     title,
     setTitle,
-    storageReference,
-    setStorageReference,
+    sourceReference,
+    setSourceReference,
+    file,
+    setFile,
+    uploadProgress,
     promote,
-    promoteGeneral,
+    uploadCorpus,
   };
 }

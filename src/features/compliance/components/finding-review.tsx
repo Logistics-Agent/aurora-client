@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
 import { getApiErrorMessage } from "@/lib/api-error";
 
 import { useFindingReviewState } from "../hooks/use-finding-review-state";
@@ -52,6 +55,15 @@ export function FindingReview({ initialEvaluationId = "" }: FindingReviewProps) 
       {evaluation && (
         <>
           <EvaluationSummary evaluation={evaluation} />
+          {evaluation.externalShipmentId && (
+            <Button asChild variant="outline">
+              <Link
+                href={`/assistant?shipmentId=${encodeURIComponent(evaluation.externalShipmentId)}&evaluationId=${encodeURIComponent(evaluation.evaluationId)}`}
+              >
+                Ask AI about this evaluation
+              </Link>
+            </Button>
+          )}
           <FindingList
             findings={evaluation.findings}
             selectedFindingId={selectedFinding?.findingId}

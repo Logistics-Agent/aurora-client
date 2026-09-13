@@ -49,7 +49,7 @@ describe("AiAssistantPage", () => {
         screen.getByText("I cannot determine that from the available evidence."),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByText(/insufficient evidence/i)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/insufficient evidence/i);
     expect(screen.getByText("verified shipment document")).toBeInTheDocument();
     expect(screen.queryByText(/Prepared locally|Ask mock question/)).not.toBeInTheDocument();
   });

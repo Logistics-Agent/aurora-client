@@ -15,6 +15,18 @@ export function AssistantAnswer({ response }: { response: AssistantQueryResponse
           intent={response.governance.requiresApproval ? "critical" : "ai"}
         />
       </div>
+      {response.insufficientEvidence && (
+        <div
+          role="status"
+          className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          <p className="font-semibold">Insufficient evidence</p>
+          <p className="mt-1">
+            This response is limited to the verified evidence returned for the question. Confirm the
+            missing information before acting.
+          </p>
+        </div>
+      )}
       {response.missingInformation.length > 0 && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <p className="font-medium">Missing information</p>
@@ -60,6 +72,26 @@ export function AssistantAnswer({ response }: { response: AssistantQueryResponse
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
           Conflicting evidence was returned. Resolve the conflict before taking action.
         </p>
+      )}
+      {response.context && (
+        <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground sm:grid-cols-2">
+          <div aria-label="Verified response context">
+            <p className="font-medium text-foreground">Verified context</p>
+            <p className="mt-1">
+              {response.context.shipmentId
+                ? `Shipment ${response.context.shipmentId}`
+                : "No shipment"}
+              {response.context.evaluationId
+                ? ` · Evaluation ${response.context.evaluationId}`
+                : " · No evaluation"}
+            </p>
+          </div>
+          <div aria-label="Response freshness">
+            <p className="font-medium text-foreground">Evidence freshness</p>
+            <p className="mt-1">{response.context.freshness}</p>
+            <p>Snapshot {response.context.snapshotHash || "Unavailable"}</p>
+          </div>
+        </div>
       )}
       <p className="mt-4 text-xs text-muted-foreground">
         Decision {response.governance.decisionId} · trace {response.retrievalTraceId}

@@ -2,34 +2,34 @@
 
 ## Identity graph bắt buộc
 
-| Dữ liệu | Khóa liên kết authoritative | Không được thay bằng |
-|---|---|---|
-| Session | userId + tenantId + capabilities từ BE | anonymous fixture, tenant client chọn tùy ý |
-| Shipment | shipment.id; shipmentNo chỉ display | shipmentNo làm resource UUID |
-| Document/OCR | shipmentId → externalDocumentId → OCR job id; review trả documentId/jobId | file.name, storage URL hoặc giả định mọi id là cùng entity |
-| Route/approval | routeId + version → approvalId + routeVersion/policyVersion | routeId gửi vào approval action, status Approved tự gán |
-| Negotiation/mail | sessionId → sourceThreadId/sourceMessageId → draftId/draftRootId → processedMessageId | UUID random/local cache id |
-| Invoice/payment | shipmentId + customerId → invoiceId → payment/ledger identity | customerName, first invoice trong list |
-| GPS/notification | shipmentId + tenant scope + timestamp/event identity | fixture marker hoặc tenant fallback |
+| Dữ liệu          | Khóa liên kết authoritative                                                           | Không được thay bằng                                       |
+| ---------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Session          | userId + tenantId + capabilities từ BE                                                | anonymous fixture, tenant client chọn tùy ý                |
+| Shipment         | shipment.id; shipmentNo chỉ display                                                   | shipmentNo làm resource UUID                               |
+| Document/OCR     | shipmentId → externalDocumentId → OCR job id; review trả documentId/jobId             | file.name, storage URL hoặc giả định mọi id là cùng entity |
+| Route/approval   | routeId + version → approvalId + routeVersion/policyVersion                           | routeId gửi vào approval action, status Approved tự gán    |
+| Negotiation/mail | sessionId → sourceThreadId/sourceMessageId → draftId/draftRootId → processedMessageId | UUID random/local cache id                                 |
+| Invoice/payment  | shipmentId + customerId → invoiceId → payment/ledger identity                         | customerName, first invoice trong list                     |
+| GPS/notification | shipmentId + tenant scope + timestamp/event identity                                  | fixture marker hoặc tenant fallback                        |
 
 ## Invalidation map
 
 Các tên dưới là nhóm query, không bắt buộc event name. Dedupe bằng event/message ID nếu contract cung cấp; thiếu ID thì refetch có debounce, không tự tăng count.
 
-| Mutation/event được xác thực | Query cần invalidate/refetch |
-|---|---|
-| Create/update/submit shipment | shipment list/detail/timeline, dashboard, route-planning shipment pool |
-| Attach/OCR/review | document queue/review/detail, shipment documents; đánh dấu compliance snapshot stale |
-| Compliance evaluated | evaluation detail và shipment context; không tự viết status shipment |
-| Route optimize/recommend/approve/reject | route list/detail, pending approvals; assignment thực sự đổi mới invalidate shipment |
-| Persist route assignment | route detail/capacity, shipment detail/list/timeline, map |
-| Mail claim/reassign/unassign | các queue mail, thread detail/history, workload summary nếu BE có |
-| Draft/send | draft/detail/thread/messages; unread chỉ theo BE, send accepted chưa delivered |
-| Negotiation suggestion/draft | session detail/list, draft/thread liên quan |
-| Invoice/payment | invoice detail/list, wallet/credit nếu nghiệp vụ tác động, dashboard metrics liên quan |
-| GPS/alert resolve | tracking current/history/alerts và dashboard; giữ recordedAt để bỏ event cũ |
-| Read notification | notification list + unread count |
-| Logout/session/tenant change | cancel in-flight, clear toàn bộ tenant-sensitive caches, disconnect transport |
+| Mutation/event được xác thực            | Query cần invalidate/refetch                                                           |
+| --------------------------------------- | -------------------------------------------------------------------------------------- |
+| Create/update/submit shipment           | shipment list/detail/timeline, dashboard, route-planning shipment pool                 |
+| Attach/OCR/review                       | document queue/review/detail, shipment documents; đánh dấu compliance snapshot stale   |
+| Compliance evaluated                    | evaluation detail và shipment context; không tự viết status shipment                   |
+| Route optimize/recommend/approve/reject | route list/detail, pending approvals; assignment thực sự đổi mới invalidate shipment   |
+| Persist route assignment                | route detail/capacity, shipment detail/list/timeline, map                              |
+| Mail claim/reassign/unassign            | các queue mail, thread detail/history, workload summary nếu BE có                      |
+| Draft/send                              | draft/detail/thread/messages; unread chỉ theo BE, send accepted chưa delivered         |
+| Negotiation suggestion/draft            | session detail/list, draft/thread liên quan                                            |
+| Invoice/payment                         | invoice detail/list, wallet/credit nếu nghiệp vụ tác động, dashboard metrics liên quan |
+| GPS/alert resolve                       | tracking current/history/alerts và dashboard; giữ recordedAt để bỏ event cũ            |
+| Read notification                       | notification list + unread count                                                       |
+| Logout/session/tenant change            | cancel in-flight, clear toàn bộ tenant-sensitive caches, disconnect transport          |
 
 ## V01 — Baseline và contract tests
 
@@ -81,6 +81,13 @@ Tạo `docs/integration/implementation-status.md` **khi bắt đầu implementat
 - [ ] Unsupported actions ghi rõ; không exposure admin; customer portal đạt CP01–CP09 và V07 ở file 13, không cấp quyền staff để bypass.
 
 Chưa chạy các gate này trong lượt viết plan. Chỉ validation tài liệu và đọc OpenAPI công khai được thực hiện.
+
+### AI/RAG corpus completion status (2026-09-13)
+
+- Implemented on isolated BE/FE branches from `origin/stagging-prod` and `origin/develop` respectively.
+- Automated non-integration verification is green for the RegulatoryCompliance, DocumentOcr, BFF, corpus upload, compliance handoff, and assistant slices.
+- Full FE typecheck still reports six pre-existing errors outside these slices; local DocumentOcr/RegulatoryCompliance integration tests need PostgreSQL/RabbitMQ.
+- Staging deployment, real R2/OCR/embedding E2E, and merge into shared branches are intentionally pending until the administrator confirms Key Vault wiring and a deployable revision is available.
 
 ## V07 — Customer portal bắt buộc
 

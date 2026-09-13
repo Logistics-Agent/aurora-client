@@ -2,10 +2,19 @@
 
 import { useMutation } from "@tanstack/react-query";
 
-import { type AssistantQueryInput, assistantService } from "@/api/services/assistant.service";
+import {
+  type AssistantQueryInput,
+  assistantService,
+  isAssistantProviderUnavailable,
+} from "@/api/services/assistant.service";
 
 export function useAssistantQueryMutation() {
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (input: AssistantQueryInput) => assistantService.query(input),
   });
+
+  return {
+    ...mutation,
+    isProviderUnavailable: isAssistantProviderUnavailable(mutation.error),
+  };
 }
