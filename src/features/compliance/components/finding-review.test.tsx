@@ -1,12 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { complianceService } from "@/api/services/compliance.service";
 
 import { FindingReview } from "./finding-review";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 function renderFindingReview() {
   const queryClient = new QueryClient({
@@ -57,5 +60,31 @@ describe("FindingReview", () => {
     });
     expect(evaluate).not.toHaveBeenCalled();
     expect(screen.queryByText("Commercial invoice mismatch")).not.toBeInTheDocument();
+  });
+
+  it("offers a grounded assistant handoff for the loaded evaluation", async () => {
+    vi.spyOn(complianceService, "getComplianceEvaluation").mockResolvedValue({
+      evaluationId: "evaluation-live-1",
+      externalShipmentId: "shipment-live-1",
+      status: "COMPLETED",
+      riskLevel: "HIGH",
+      findings: [],
+      missingDocuments: [],
+      assumptions: [],
+      complianceConfidence: 0.8,
+      evidenceSufficiency: "SUFFICIENT",
+      requestedAt: "2026-09-09T05:00:00Z",
+      completedAt: "2026-09-09T05:01:00Z",
+      errorCode: "",
+      errorMessage: "",
+    });
+
+    renderFindingReview();
+
+    const handoff = await screen.findByRole("link", { name: "Ask AI about this evaluation" });
+    expect(handoff).toHaveAttribute(
+      "href",
+      "/assistant?shipmentId=shipment-live-1&evaluationId=evaluation-live-1",
+    );
   });
 });

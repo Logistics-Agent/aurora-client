@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout";
 import { KnowledgePromotionWorkflow } from "./knowledge-promotion";
 import { RegulatoryIngestionWorkflow } from "./regulatory-ingestion";
 import { RegulatorySearchWorkflow } from "./regulatory-search";
+import { CorpusCatalog } from "./components/corpus-catalog";
 
 export function CorpusPage() {
   return (
@@ -17,6 +18,7 @@ export function CorpusPage() {
           <KnowledgePromotionWorkflow />
         </div>
         <RegulatorySearchWorkflow />
+        <CorpusCatalog />
       </div>
     </>
   );

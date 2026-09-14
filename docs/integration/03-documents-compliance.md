@@ -13,6 +13,14 @@ Prefix `/api/v1/documents/shipment-documents` (submit cũng có alias `/document
 - Compliance POST `/api/v1/compliance/evaluations`; GET `/evaluations/{id}`; POST `/copilot/ask`.
 - Evaluation body gồm idempotencyKey, externalShipmentId, originCountryCode, destinationCountryCode, transportMode, effectiveAt, jurisdictionCodes, cargo snapshots và OCR document snapshots. Không hardcode US/VN/OCEAN hoặc tự evaluate mỗi lần render.
 
+## D04 — Corpus upload → OCR → RAG
+
+Regulatory và knowledge corpus dùng flow chung: `POST /api/v1/documents/uploads` tạo upload-session, FE upload file lên signed target, sau đó gọi `POST /api/v1/documents/corpus-intakes` với `uploadId`, metadata typed và `purpose` (`REGULATORY_CORPUS` hoặc `KNOWLEDGE_CORPUS`). BFF xác minh upload receipt, tạo corpus version `PENDING_OCR`, rồi tạo OCR job với `externalReference = corpusVersionId`.
+
+OCR xử lý corpus ở chế độ full text và phát event typed về RegulatoryCompliance. Consumer chỉ resume đúng tenant + corpus version đang `PENDING_OCR`, chunk/embedding rồi chuyển version sang trạng thái sẵn sàng. FE đọc catalog/status bằng các API corpus hiện có; không nhập raw text, storage key, signed URL hoặc `contentReference` thủ công.
+
+`POST /api/v1/documents/corpus-intakes` là endpoint additive cho workflow mới. Các endpoint ingestion/promotion cũ vẫn giữ để tương thích, nhưng không còn là đường chính trên màn Corpus.
+
 ## D01 — Document data layer
 
 Sửa `src/api/services/documents.service.ts`, `src/configs/api.ts`; tạo `src/dto/documents/document.dto.ts`, `src/api/query-keys/documents.keys.ts`, `src/api/services/documents.service.test.ts`.

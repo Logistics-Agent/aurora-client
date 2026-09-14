@@ -12,12 +12,29 @@ vi.mock("@/api/services/corpus.service", async () => {
   );
   return {
     ...actual,
-    corpusService: { ...actual.corpusService, queryRegulatory: vi.fn() },
+    corpusService: {
+      ...actual.corpusService,
+      queryRegulatory: vi.fn(),
+      listRegulatorySources: vi.fn(),
+      listKnowledgeDocuments: vi.fn(),
+    },
   };
 });
 
 describe("CorpusPage", () => {
   it("shows grounded regulatory query results from the corpus API", async () => {
+    vi.mocked(corpusService.listRegulatorySources).mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      totalCount: 0,
+    });
+    vi.mocked(corpusService.listKnowledgeDocuments).mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      totalCount: 0,
+    });
     vi.mocked(corpusService.queryRegulatory).mockResolvedValue({
       query: "dangerous goods",
       retrievalTraceId: "trace-1",
@@ -50,6 +67,7 @@ describe("CorpusPage", () => {
         <CorpusPage />
       </QueryClientProvider>,
     );
+    expect(screen.getByLabelText("Knowledge source file")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Regulatory corpus query"), {
       target: { value: "dangerous goods" },
     });

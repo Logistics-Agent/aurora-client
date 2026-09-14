@@ -1,20 +1,28 @@
 import { CONTROLLERS } from "@/configs/api";
-import { type GroundedAnswer, parseGroundedAnswerDto } from "@/dto/assistant/assistant.dto";
+import {
+  type AssistantQueryRequest,
+  type AssistantQueryResponse,
+  parseGroundedAnswerDto,
+} from "@/dto/assistant/assistant.dto";
 import { api } from "@/lib/api";
-import { ApiError } from "@/lib/api-error";
+import { ApiError, toApiError } from "@/lib/api-error";
 
-export type AssistantQueryInput = {
-  query: string;
-  mode?: string;
-  jurisdictionCode?: string;
-  effectiveAt?: string;
-  regulationTypes?: string[];
-  categories?: string[];
-  topK?: number;
-  minimumScore?: number;
-};
+export type AssistantQueryInput = AssistantQueryRequest;
 
-export type AssistantQueryResponse = GroundedAnswer;
+export {
+  type AssistantQueryRequest,
+  type AssistantQueryResponse,
+} from "@/dto/assistant/assistant.dto";
+
+export function isAssistantProviderUnavailable(error: unknown): boolean {
+  const apiError = toApiError(error);
+  return (
+    apiError.status === 503 ||
+    apiError.code === "AI_SERVICE_UNAVAILABLE" ||
+    apiError.code === "AI_PROVIDER_UNAVAILABLE" ||
+    apiError.code === "PROVIDER_UNAVAILABLE"
+  );
+}
 
 function parseResponse(response: unknown): AssistantQueryResponse {
   try {
@@ -31,7 +39,11 @@ function parseResponse(response: unknown): AssistantQueryResponse {
 
 export const assistantService = {
   query: async (payload: AssistantQueryInput): Promise<AssistantQueryResponse> => {
-    const response = await api.post<unknown>(CONTROLLERS.assistant.query, payload);
-    return parseResponse(response);
+    try {
+      const response = await api.post<unknown>(CONTROLLERS.assistant.query, payload);
+      return parseResponse(response);
+    } catch (error) {
+      throw toApiError(error);
+    }
   },
 };

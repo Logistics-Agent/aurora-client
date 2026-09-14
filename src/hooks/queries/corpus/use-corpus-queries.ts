@@ -4,10 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 
 import { corpusKeys } from "@/api/query-keys/corpus.keys";
 import {
+  type CorpusCatalogParams,
   corpusService,
   type KnowledgeQueryInput,
   type RegulatoryQueryInput,
 } from "@/api/services/corpus.service";
+
+type CorpusProcessingSnapshot = {
+  items: Array<{ latestVersion?: { status?: string | null } | null }>;
+};
+
+export function hasActiveCorpusIngestion(snapshot: CorpusProcessingSnapshot | undefined): boolean {
+  return (
+    snapshot?.items.some((item) =>
+      ["PENDING", "PENDING_OCR", "PROCESSING"].includes(item.latestVersion?.status ?? ""),
+    ) ?? false
+  );
+}
 
 export function useRegulatoryCorpusQuery(input?: RegulatoryQueryInput) {
   const queryInput = input?.query.trim() ? input : undefined;
@@ -32,5 +45,25 @@ export function useKnowledgeCorpusQuery(input?: KnowledgeQueryInput) {
       return corpusService.queryKnowledge(queryInput);
     },
     enabled: Boolean(queryInput),
+  });
+}
+
+export function useRegulatorySourcesQuery(params: CorpusCatalogParams = {}) {
+  return useQuery({
+    queryKey: corpusKeys.regulatorySources(params),
+    queryFn: () => corpusService.listRegulatorySources(params),
+    refetchInterval: (query) => (hasActiveCorpusIngestion(query.state.data) ? 3_000 : false),
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useKnowledgeDocumentsQuery(
+  params: CorpusCatalogParams & { category?: number } = {},
+) {
+  return useQuery({
+    queryKey: corpusKeys.knowledgeDocuments(params),
+    queryFn: () => corpusService.listKnowledgeDocuments(params),
+    refetchInterval: (query) => (hasActiveCorpusIngestion(query.state.data) ? 3_000 : false),
+    refetchIntervalInBackground: false,
   });
 }
