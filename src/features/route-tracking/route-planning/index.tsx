@@ -44,9 +44,9 @@ import {
 } from "@/components/ui/dialog";
 import { UpdateShipmentDialog } from "@/features/shipment/components/update-shipment-dialog";
 import type { ShipmentDto } from "@/api/services/shipment.service";
+import { useCurrentUserQuery } from "@/hooks/queries/auth/use-current-user-query";
 import {
   CENTRAL_AMERICA_FACILITIES,
-  routeAcceptanceFixture,
 } from "./mock";
 import {
   type OptimizationCriteria,
@@ -106,6 +106,7 @@ export function RoutePlanningPage() {
   const fetchLiveBackendData = useRoutePlanningStore(
     (state) => state.fetchLiveBackendData,
   );
+  const { data: currentUser } = useCurrentUserQuery();
   const searchParams = useSearchParams();
   const queryShipmentId = searchParams ? searchParams.get("shipmentId") : null;
 
@@ -481,10 +482,23 @@ export function RoutePlanningPage() {
           title="Route Planning & Optimization"
           description="No active shipments found for this account. Create a shipment to start planning."
           actions={
-            <Button size="sm" className="gap-1.5" onClick={() => setIsCreateShipmentOpen(true)}>
-              <Plus className="size-3.5" />
-              Create Shipment
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 shadow-xs text-xs font-medium"
+                onClick={() => void fetchLiveBackendData()}
+                disabled={isLoadingApi}
+                title="Tải lại danh sách vận đơn từ API"
+              >
+                <RotateCcw className={`size-3.5 ${isLoadingApi ? "animate-spin" : ""}`} />
+                <span>Làm mới</span>
+              </Button>
+              <Button size="sm" className="gap-1.5" onClick={() => setIsCreateShipmentOpen(true)}>
+                <Plus className="size-3.5" />
+                Create Shipment
+              </Button>
+            </div>
           }
         />
         <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-slate-50/60 p-8 text-center">
@@ -739,6 +753,19 @@ export function RoutePlanningPage() {
                 ))}
               </select>
             </div>
+
+            {/* Refresh Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shadow-xs text-xs font-medium"
+              onClick={() => void fetchLiveBackendData()}
+              disabled={isLoadingApi}
+              title="Tải lại danh sách vận đơn từ API"
+            >
+              <RotateCcw className={`size-3.5 ${isLoadingApi ? "animate-spin" : ""}`} />
+              <span>Làm mới</span>
+            </Button>
 
             {/* Quick Create Shipment Modal with Central America presets */}
             <Dialog open={isCreateShipmentOpen} onOpenChange={setIsCreateShipmentOpen}>
@@ -1819,10 +1846,10 @@ export function RoutePlanningPage() {
                       <span className="font-medium">Shipment ID:</span> {currentShipment.shipmentNo} ({currentShipment.customerName})
                     </p>
                     <p>
-                      <span className="font-medium">Reviewer:</span> {routeAcceptanceFixture.reviewer}
+                      <span className="font-medium">Reviewer:</span> {currentUser?.name || currentUser?.email || "Staff Route Planner"}
                     </p>
                     <p>
-                      <span className="font-medium">Timestamp:</span> {routeAcceptanceFixture.timestamp}
+                      <span className="font-medium">Status:</span> {currentShipment.status || "Approved"}
                     </p>
                     <p className="text-[11px] text-emerald-700">
                       <span className="font-medium">Policy:</span> platform-default-route-governance (v1.2)

@@ -10,6 +10,7 @@ import type {
   ShipmentPlanningItem,
 } from "../types";
 import { routePlanningApiService } from "@/api/services/route-planning.service";
+import { shipmentService } from "@/api/services/shipment.service";
 import { mapBackendShipmentToPlanningItem } from "../utils/route-planning-mapper";
 import { toast } from "sonner";
 import { toApiError } from "@/lib/api-error";
@@ -537,20 +538,31 @@ export const useRoutePlanningStore = create<RoutePlanningState>((set, get) => ({
     set({ isLoadingApi: true });
     try {
       const [shipmentsRes, routesRes] = await Promise.allSettled([
-        routePlanningApiService.listShipments(1, 50),
-        routePlanningApiService.listRoutes(1, 50),
+        shipmentService.listShipments({ page: 1, limit: 100 }),
+        routePlanningApiService.listRoutes(1, 100),
       ]);
 
-      const rawShipments =
-        shipmentsRes.status === "fulfilled"
-          ? (shipmentsRes.value as any)?.shipments ||
-            (shipmentsRes.value as any)?.items ||
-            (Array.isArray(shipmentsRes.value) ? shipmentsRes.value : [])
-          : [];
+      let rawShipments: any[] = [];
+      if (shipmentsRes.status === "fulfilled") {
+        const val = shipmentsRes.value as any;
+        rawShipments = val?.shipments || val?.items || (Array.isArray(val) ? val : []);
+      }
+
+      // If shipmentService returned empty or failed, attempt routePlanningApiService
+      if (rawShipments.length === 0) {
+        try {
+          const fallbackRes = await routePlanningApiService.listShipments(1, 100);
+          const val = fallbackRes as any;
+          rawShipments = val?.shipments || val?.items || (Array.isArray(val) ? val : []);
+        } catch {
+          // Ignored
+        }
+      }
 
       const rawRoutes =
         routesRes.status === "fulfilled"
           ? (routesRes.value as any)?.items ||
+            (routesRes.value as any)?.routes ||
             (Array.isArray(routesRes.value) ? routesRes.value : [])
           : [];
 

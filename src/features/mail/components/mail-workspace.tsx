@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PenSquare } from "lucide-react";
+import { PenSquare, RefreshCw } from "lucide-react";
 
 import type { UserProfile } from "@/types/auth.types";
 import { MailInbox } from "../inbox";
@@ -251,6 +251,19 @@ export function MailWorkspace({
             <p className="text-sm text-muted-foreground">Shared mailbox work, clearly attributed to each human operator.</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={() => void workspace.refresh()}
+              disabled={workspace.isLoading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-background hover:bg-muted text-foreground font-medium text-xs shadow-xs hover:shadow transition-all disabled:opacity-50"
+              aria-label="Tải lại danh sách email"
+              title="Tải lại danh sách email"
+            >
+              <RefreshCw className={`size-3.5 ${workspace.isLoading ? "animate-spin" : ""}`} />
+              <span>Làm mới</span>
+            </button>
+
             {/* Compose New Email Button */}
             <button
               type="button"
@@ -295,6 +308,17 @@ export function MailWorkspace({
             </button>
             <button
               type="button"
+              onClick={() => void workspace.refresh()}
+              disabled={workspace.isLoading}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted text-xs font-medium disabled:opacity-50"
+              aria-label="Tải lại email"
+              title="Tải lại email"
+            >
+              <RefreshCw className={`size-3.5 ${workspace.isLoading ? "animate-spin" : ""}`} />
+              <span>Làm mới</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setComposeOpen(true)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs shadow-sm"
             >
@@ -329,7 +353,7 @@ export function MailWorkspace({
                 isLoading={workspace.isLoading}
                 mailboxes={scopedMailboxes}
                 onClaim={(threadId) => {
-                  void runMutation("Nhận xử lý luồng thư", () => workspace.claimThread(threadId));
+                  void runMutation("Nhận xử lý luồng thư", () => workspace.claimThread(threadId), "Thread claimed.");
                 }}
                 onFiltersChange={inboxFiltersChange}
                 onRetry={() => void workspace.refresh()}
@@ -355,7 +379,7 @@ export function MailWorkspace({
                 permissions={workspace.selectedThreadPermissions}
                 assignees={assignees}
                 error={workspace.error}
-                onClaim={workspace.selectedThread ? () => runMutation("Nhận xử lý luồng thư", () => workspace.claimThread(workspace.selectedThread!.id).then(() => undefined)) : undefined}
+                onClaim={workspace.selectedThread ? () => runMutation("Nhận xử lý luồng thư", () => workspace.claimThread(workspace.selectedThread!.id).then(() => undefined), "Thread claimed.") : undefined}
                 onPriorityChange={workspace.selectedThread ? (priority) => runMutation(`Cập nhật độ ưu tiên`, () => workspace.setPriority(workspace.selectedThread!.id, priority).then(() => undefined), `Đã chuyển độ ưu tiên sang ${priority.toUpperCase()}`) : undefined}
                 onResolve={workspace.selectedThread ? () => runMutation("Đánh dấu hoàn tất luồng thư", () => workspace.markResolved(workspace.selectedThread!.id).then(() => undefined)) : undefined}
                 onReassign={workspace.selectedThread ? (targetUserId, reason) => runMutation("Chuyển giao luồng thư", () => workspace.reassignThread(workspace.selectedThread!.id, targetUserId, reason).then(() => undefined)) : undefined}

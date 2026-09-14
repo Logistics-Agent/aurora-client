@@ -27,10 +27,6 @@ export function MailAccessState({
     );
   }
 
-  if (isLoading) {
-    return <LoadingState label="Loading Mail workspace" />;
-  }
-
   if (!hasPermission(user, "mail:read")) {
     return (
       <section aria-label="Mail access">
@@ -40,6 +36,10 @@ export function MailAccessState({
         />
       </section>
     );
+  }
+
+  if (isLoading) {
+    return <LoadingState label="Loading Mail workspace" />;
   }
 
   return <>{children}</>;
