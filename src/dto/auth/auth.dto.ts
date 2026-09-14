@@ -35,5 +35,18 @@ const authUserDtoValidator = z.object({
 });
 
 export function parseAuthUserDto(value: unknown): AuthUserDto {
+  if (typeof value === "object" && value !== null) {
+    const raw = value as Record<string, unknown>;
+    const normalized: Record<string, unknown> = {
+      userId: raw.userId ?? raw.UserId ?? raw.id ?? raw.sub ?? "",
+      tenantId: raw.tenantId ?? raw.TenantId ?? "",
+      email: raw.email ?? raw.Email ?? "",
+      name: raw.name ?? raw.Name ?? raw.fullName ?? raw.FullName ?? "",
+      role: raw.role ?? raw.Role ?? "STAFF",
+      permissions: raw.permissions ?? raw.Permissions ?? [],
+      isAuthenticated: raw.isAuthenticated ?? true,
+    };
+    return authUserDtoValidator.parse(normalized);
+  }
   return authUserDtoValidator.parse(value);
 }

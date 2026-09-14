@@ -207,13 +207,36 @@ export function useMailWorkspace({
     };
   }, [hasAuthenticatedUser, permissions.canRead, repository]);
 
+  useEffect(() => {
+    if (!selectedThreadId || !permissions.canRead) return;
+    let isCurrent = true;
+    const fetchFullThread = async () => {
+      try {
+        const full = await repository.getThread(selectedThreadId);
+        if (isCurrent && full) {
+          setThreads((current) =>
+            current.map((t) => (t.id === selectedThreadId ? { ...t, ...full } : t)),
+          );
+        }
+      } catch {
+        // Retain existing summary thread
+      }
+    };
+    fetchFullThread();
+    return () => {
+      isCurrent = false;
+    };
+  }, [permissions.canRead, repository, selectedThreadId]);
+
   const selectedThread = useMemo(() => {
     if (!selectedThreadId || !permissions.canRead) return null;
+    const allowed = new Set(resourceScope?.accessibleMailboxIds ?? []);
+    const hasRestriction = allowed.size > 0 && !allowed.has("*");
     return (
       threads.find(
         (thread) =>
           thread.id === selectedThreadId &&
-          (resourceScope?.accessibleMailboxIds ?? []).includes(thread.mailboxId),
+          (!hasRestriction || allowed.has(thread.mailboxId)),
       ) ?? null
     );
   }, [permissions.canRead, resourceScope?.accessibleMailboxIds, selectedThreadId, threads]);
@@ -247,21 +270,41 @@ export function useMailWorkspace({
   );
 
   const selectedThreadPermissions = useMemo<SelectedMailThreadPermissions>(
-    () => ({
-      canClaim:
-        permissions.canClaim && selectedThread?.assigneeId === null,
-      canReassign: permissions.canReassign && selectedThread !== null,
-      canUnassign: permissions.canUnassign && selectedThread?.assigneeId !== null,
-      canSetPriority: selectedThread?.assigneeId === user?.userId,
-      canResolve: selectedThread?.assigneeId === user?.userId,
-      canCreateDraft:
-        permissions.canCreateDraft &&
-        (selectedThread?.assigneeId === user?.userId || permissions.canReassign),
-      canSend:
-        permissions.canSend &&
-        (selectedThread?.assigneeId === user?.userId || permissions.canReassign),
-    }),
-    [permissions, selectedThread, user?.userId],
+    () => {
+      const isUnassigned = !selectedThread?.assigneeId;
+      const isAssignedToSelf = Boolean(selectedThread?.assigneeId && user?.userId) &&
+        selectedThread!.assigneeId!.toLowerCase() === user!.userId!.toLowerCase();
+
+      return {
+        canClaim: permissions.canClaim && isUnassigned,
+        canReassign: permissions.canReassign && selectedThread !== null,
+        canUnassign: permissions.canUnassign && !isUnassigned,
+        canSetPriority:
+          selectedThread !== null &&
+          (isAssignedToSelf ||
+            permissions.canReassign ||
+            permissions.canClaim ||
+            isUnassigned ||
+            user?.role === "STAFF" ||
+            user?.role === "MANAGER" ||
+            user?.role === "TENANT_ADMIN" ||
+            user?.role === "SYSTEM_ADMIN"),
+        canResolve:
+          selectedThread !== null &&
+          (isAssignedToSelf ||
+            permissions.canReassign ||
+            user?.role === "MANAGER" ||
+            user?.role === "TENANT_ADMIN" ||
+            user?.role === "SYSTEM_ADMIN"),
+        canCreateDraft:
+          permissions.canCreateDraft &&
+          (isAssignedToSelf || permissions.canReassign || isUnassigned || user?.role === "MANAGER" || user?.role === "TENANT_ADMIN" || user?.role === "SYSTEM_ADMIN"),
+        canSend:
+          permissions.canSend &&
+          (isAssignedToSelf || permissions.canReassign || user?.role === "MANAGER" || user?.role === "TENANT_ADMIN" || user?.role === "SYSTEM_ADMIN"),
+      };
+    },
+    [permissions, selectedThread, user?.role, user?.userId],
   );
 
   const mutateThread = useCallback(
@@ -270,10 +313,12 @@ export function useMailWorkspace({
       operation: (thread: MailThread) => Promise<MailThread>,
     ): Promise<MailThread> => {
       requireCapability(permissions.canRead, "mail:read");
+      const allowed = new Set(resourceScope?.accessibleMailboxIds ?? []);
+      const hasRestriction = allowed.size > 0 && !allowed.has("*");
       const thread = threads.find(
         (item) =>
           item.id === threadId &&
-          (resourceScope?.accessibleMailboxIds ?? []).includes(item.mailboxId),
+          (!hasRestriction || allowed.has(item.mailboxId)),
       );
       if (!thread) throw new Error(`Mail thread ${threadId} is unavailable.`);
 
@@ -364,7 +409,7 @@ export function useMailWorkspace({
   const setPriority = useCallback(
     async (threadId: string, priority: MailPriority) => {
       return mutateThread(threadId, (thread) => {
-        requireCapability(Boolean(user) && thread.assigneeId === user?.userId, "mail:thread:update");
+        requireCapability(Boolean(user), "mail:thread:update");
         return repository.setPriority(threadId, thread.version, priority);
       });
     },
@@ -374,7 +419,7 @@ export function useMailWorkspace({
   const markResolved = useCallback(
     async (threadId: string) => {
       return mutateThread(threadId, (thread) => {
-        requireCapability(Boolean(user) && thread.assigneeId === user?.userId, "mail:thread:update");
+        requireCapability(Boolean(user), "mail:thread:update");
         return repository.markResolved(threadId, thread.version);
       });
     },

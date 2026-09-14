@@ -55,7 +55,7 @@ export function CommandCenterPage() {
     {
       label: "Active Shipments",
       value: `${shipmentCount}`,
-      meta: "Realtime Staff.BFF stream",
+      meta: "Realtime from shipment service",
     },
     {
       label: "Active Routes",

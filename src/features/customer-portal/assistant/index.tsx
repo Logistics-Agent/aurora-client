@@ -27,9 +27,9 @@ export function AssistantPage() {
   };
 
   // Extract source titles for insight component
-  const sources = [
-    ...(result?.regulatoryCitations?.map((r) => r.title || r.authority) || []),
-    ...(result?.knowledgeReferences?.map((k) => k.title || k.category) || []),
+  const sources: string[] = [
+    ...(result?.regulatoryCitations?.map((r: { title?: string; authority?: string }) => r.title || r.authority || "").filter(Boolean) || []),
+    ...(result?.knowledgeReferences?.map((k: { title?: string; category?: string }) => k.title || k.category || "").filter(Boolean) || []),
   ].slice(0, 4);
 
   return (

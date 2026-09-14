@@ -31,9 +31,16 @@ export interface MailThreadPanelProps {
   canSend?: boolean;
   onSaveDraft?: (body: string) => Promise<void> | void;
   onSendMessage?: (
-    message: { senderAddress: string; bodyText: string },
+
+    message: {
+      senderAddress: string;
+      bodyText: string;
+      bodyHtml?: string;
+      attachments?: readonly import("../mock/mail-repository").RealAttachmentInput[];
+    },
   ) => Promise<void> | void;
 }
+
 
 const noActions: ThreadHeaderPermissions = {
   canClaim: false,
@@ -144,7 +151,11 @@ export function MailThreadPanel({
             if (!senderMailbox || !onSendMessage) {
               throw new Error("A shared sender mailbox is required to send this reply.");
             }
-            return onSendMessage({ senderAddress: senderMailbox.senderAddress, bodyText: draft.body });
+            return onSendMessage({
+              senderAddress: senderMailbox.senderAddress,
+              bodyText: draft.body,
+              attachments: draft.attachments,
+            });
           }}
         />
       ) : null}

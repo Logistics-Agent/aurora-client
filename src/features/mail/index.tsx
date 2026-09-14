@@ -17,7 +17,7 @@ export interface MailPageProps {
 const defaultRepository = defaultMailApiRepository;
 
 const defaultResourceScope: MailResourceScope = {
-  accessibleMailboxIds: ["mailbox-operations", "mailbox-support"],
+  accessibleMailboxIds: [],
   permissions: [
     "mail:read",
     "mail:thread:claim",

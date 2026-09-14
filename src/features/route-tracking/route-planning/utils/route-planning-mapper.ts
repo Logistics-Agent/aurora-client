@@ -198,32 +198,10 @@ export function mapBackendShipmentToPlanningItem(
       serviceDurationMinutes: 45,
     });
 
-    // If cross-border between different coordinates, insert an intermediate transit waypoint
-    const distanceKm = calculateHaversineDistanceKm(
-      originFacility.latitude,
-      originFacility.longitude,
-      destFacility.latitude,
-      destFacility.longitude,
-    );
-
-    if (distanceKm > 400) {
-      const midLat = (originFacility.latitude + destFacility.latitude) / 2;
-      const midLng = (originFacility.longitude + destFacility.longitude) / 2;
-      waypoints.push({
-        id: `wp-${shipmentId}-border`,
-        sequence: 2,
-        stopType: "Customs",
-        locationName: "Regional Border & Customs Checkpoint",
-        address: "Pan-American Highway Transit Corridor",
-        latitude: midLat,
-        longitude: midLng,
-        serviceDurationMinutes: 90,
-      });
-    }
-
+    // Only add real stops (origin and destination) to ensure OSRM/VROOM route along valid road networks
     waypoints.push({
       id: `wp-${shipmentId}-dest`,
-      sequence: waypoints.length + 1,
+      sequence: 2,
       stopType: "Delivery",
       locationName: destFacility.name,
       address: destFacility.address,

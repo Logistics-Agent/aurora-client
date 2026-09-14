@@ -7,12 +7,23 @@ import type {
   MailThread,
 } from "../types";
 
+export interface RealAttachmentInput {
+  id?: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  contentBase64?: string;
+}
+
 export interface SendMailMessageInput {
   authorId: string;
   authorName: string;
   senderAddress: string;
   bodyText: string;
+  bodyHtml?: string;
+  attachments?: readonly RealAttachmentInput[];
 }
+
 
 export interface MailMockRepository {
   listThreads(): Promise<MailThread[]>;

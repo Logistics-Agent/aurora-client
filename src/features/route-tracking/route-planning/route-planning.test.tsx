@@ -1,9 +1,11 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRoutePlanningStore } from "./stores/use-route-planning-store";
 import { RoutePlanningPage } from "./index";
 import type { ShipmentPlanningItem } from "./types";
 import { routePlanningApiService } from "@/api/services/route-planning.service";
+import { shipmentService } from "@/api/services/shipment.service";
 
 const testShipmentA: ShipmentPlanningItem = {
   id: "SHP-2026-00128",
@@ -174,10 +176,23 @@ const testShipmentB: ShipmentPlanningItem = {
 };
 
 describe("RoutePlanningPage", () => {
+  let queryClient: QueryClient;
   afterEach(cleanup);
 
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
     vi.spyOn(routePlanningApiService, "listShipments").mockResolvedValue({
+      shipments: [],
+      page: 1,
+      limit: 50,
+      totalCount: 0,
+    });
+    vi.spyOn(shipmentService, "listShipments").mockResolvedValue({
       shipments: [],
       page: 1,
       limit: 50,
@@ -203,8 +218,15 @@ describe("RoutePlanningPage", () => {
     });
   });
 
+  const renderWithQuery = () =>
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RoutePlanningPage />
+      </QueryClientProvider>,
+    );
+
   it("selects and accepts an alternative route", () => {
-    render(<RoutePlanningPage />);
+    renderWithQuery();
 
     const routeB = screen.getByRole("button", { name: /choose route b/i });
     fireEvent.click(routeB);
@@ -217,7 +239,7 @@ describe("RoutePlanningPage", () => {
   });
 
   it("switches tabs between Proposed Routes, Cargo Specs, Waypoints, and Route Builder", () => {
-    render(<RoutePlanningPage />);
+    renderWithQuery();
 
     fireEvent.click(screen.getByRole("button", { name: /^cargo specs$/i }));
     expect(screen.getByText(/gross cargo weight/i)).toBeInTheDocument();
@@ -230,7 +252,7 @@ describe("RoutePlanningPage", () => {
   });
 
   it("compares all route alternatives before human acceptance", () => {
-    render(<RoutePlanningPage />);
+    renderWithQuery();
 
     fireEvent.click(screen.getByRole("button", { name: /^compare routes$/i }));
     const dialog = screen.getByRole("dialog", { name: /route comparison/i });
@@ -239,7 +261,7 @@ describe("RoutePlanningPage", () => {
   });
 
   it("switches shipment context and updates cargo specs", () => {
-    render(<RoutePlanningPage />);
+    renderWithQuery();
 
     const select = screen.getByRole("combobox", {
       name: /select shipment for route planning/i,
