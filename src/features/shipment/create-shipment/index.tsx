@@ -192,7 +192,7 @@ export function CreateShipmentPage() {
         open={confirm}
         onOpenChange={setConfirm}
         title="Confirm Shipment Dispatch?"
-        consequence="This will create a real shipment order in Staff.BFF and initiate route assignment."
+        consequence="Do you want to create and dispatch this shipment?"
         confirmLabel="Confirm & Create"
         onConfirm={handleSubmit}
       />
