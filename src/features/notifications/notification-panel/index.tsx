@@ -54,7 +54,7 @@ function NotificationPanelBody({
           Shipment and document updates will appear here.
         </p>
         <p className="text-sm leading-6 text-muted-foreground">
-          Enable browser notifications to stay informed.
+          Desktop notifications are optional; in-app updates remain available.
         </p>
       </div>
     );
@@ -62,11 +62,7 @@ function NotificationPanelBody({
 
   return (
     <div className="p-4">
-      <NotificationList
-        notifications={notifications}
-        onMarkRead={onMarkRead}
-        onOpen={onOpen}
-      />
+      <NotificationList notifications={notifications} onMarkRead={onMarkRead} onOpen={onOpen} />
     </div>
   );
 }

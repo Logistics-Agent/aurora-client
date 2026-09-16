@@ -11,8 +11,7 @@ let mockFcmToken: string | null = null;
 vi.mock("../hooks/use-fcm-notification", () => ({
   useFcmNotification: () => ({
     state: mockState,
-    errorMessage:
-      mockState === "error" ? "Unable to enable browser notifications." : null,
+    errorMessage: mockState === "error" ? "Unable to enable desktop notifications." : null,
     fcmToken: mockFcmToken,
     enable: mockEnable,
     disable: mockDisable,
@@ -26,9 +25,8 @@ describe("FcmPermissionControl", () => {
     const user = userEvent.setup();
     render(<FcmPermissionControl />);
 
-    await user.click(
-      screen.getByRole("button", { name: /enable browser notifications/i }),
-    );
+    expect(screen.getByText(/in-app notifications are always on/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /enable desktop notifications/i }));
 
     expect(mockEnable).toHaveBeenCalledTimes(1);
   });
@@ -38,12 +36,8 @@ describe("FcmPermissionControl", () => {
     const user = userEvent.setup();
     render(<FcmPermissionControl />);
 
-    expect(
-      screen.getByText(/notifications enabled/i),
-    ).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: /disable browser notifications/i }),
-    );
+    expect(screen.getByText(/notifications enabled/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /disable desktop notifications/i }));
     expect(mockDisable).toHaveBeenCalledTimes(1);
     mockState = "idle";
     mockFcmToken = null;
@@ -53,9 +47,7 @@ describe("FcmPermissionControl", () => {
     mockState = "error";
     render(<FcmPermissionControl />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Unable to enable browser notifications.",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Unable to enable desktop notifications.");
     expect(screen.queryByText(/token|private|firebase/i)).not.toBeInTheDocument();
     mockState = "idle";
   });
@@ -65,9 +57,7 @@ describe("FcmPermissionControl", () => {
     mockFcmToken = "browser-token-for-local-grpc";
     render(<FcmPermissionControl />);
 
-    expect(screen.getByTestId("fcm-token")).toHaveTextContent(
-      "browser-token-for-local-grpc",
-    );
+    expect(screen.getByTestId("fcm-token")).toHaveTextContent("browser-token-for-local-grpc");
     mockState = "idle";
     mockFcmToken = null;
   });

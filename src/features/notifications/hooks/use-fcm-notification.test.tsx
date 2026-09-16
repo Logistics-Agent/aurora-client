@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFcmNotification } from "./use-fcm-notification";
 
@@ -28,8 +30,7 @@ vi.mock("@/configs", () => ({
 vi.mock("../lib/firebase-client", () => ({
   getFirebaseMessaging: () => mockGetFirebaseMessaging(),
   isFcmSupported: () => mockIsFcmSupported(),
-  registerFirebaseServiceWorker: () =>
-    mockRegisterFirebaseServiceWorker(),
+  registerFirebaseServiceWorker: () => mockRegisterFirebaseServiceWorker(),
 }));
 
 vi.mock("firebase/messaging", () => ({
@@ -44,11 +45,12 @@ vi.mock("@/hooks/mutations/notifications/use-notification-mutations", () => ({
 }));
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <QueryClientProvider client={new QueryClient()}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>;
+}
+
+function HookStateView() {
+  const { state } = useFcmNotification();
+  return <span>{state}</span>;
 }
 
 describe("useFcmNotification", () => {
@@ -81,6 +83,42 @@ describe("useFcmNotification", () => {
       platform: "Web",
       isActive: true,
     });
+  });
+
+  it("restores enabled state when a registered device is already stored", () => {
+    window.localStorage.setItem("aurora.notification.deviceId", "device-1");
+
+    const { result } = renderHook(() => useFcmNotification(), { wrapper });
+
+    expect(result.current.state).toBe("enabled");
+    expect(result.current.deviceId).toBe("device-1");
+  });
+
+  it("does not mismatch during hydration when a registered device is stored", async () => {
+    const serverWindow = globalThis.window;
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: undefined,
+    });
+    const serverMarkup = renderToString(<HookStateView />);
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: serverWindow,
+    });
+    window.localStorage.setItem("aurora.notification.deviceId", "device-1");
+
+    const container = document.createElement("div");
+    container.innerHTML = serverMarkup;
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const root = hydrateRoot(container, <HookStateView />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining("Hydration failed"));
+    root.unmount();
+    consoleError.mockRestore();
   });
 
   it("requests permission and registers the browser token", async () => {
@@ -137,9 +175,7 @@ describe("useFcmNotification", () => {
 
     expect(result.current.state).toBe("error");
     expect(mockRegisterDevice).not.toHaveBeenCalled();
-    expect(result.current.errorMessage).toBe(
-      "Firebase did not return a browser token.",
-    );
+    expect(result.current.errorMessage).toBe("Firebase did not return a browser token.");
   });
 
   it("reports the Firebase reason when token creation fails", async () => {

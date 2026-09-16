@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { env } from "@/configs";
 import { toApiError } from "@/lib/api-error";
 import { useNotificationMutations } from "@/hooks/mutations/notifications/use-notification-mutations";
@@ -26,22 +26,32 @@ export type UseFcmNotificationResult = {
 
 let inFlightRegistration: Promise<void> | null = null;
 
+function subscribeToNotificationDeviceId(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+
+  window.addEventListener(FCM_REGISTRATION_CHANGED_EVENT, onStoreChange);
+  return () => window.removeEventListener(FCM_REGISTRATION_CHANGED_EVENT, onStoreChange);
+}
+
+const getNotificationDeviceIdSnapshot = readNotificationDeviceId;
+const getServerNotificationDeviceIdSnapshot = () => null;
+
 function safeErrorMessage(error: unknown): string {
   const apiError = toApiError(error);
   if (apiError.status === 0) {
     return "Notification API could not be reached. Check the BFF URL and local HTTPS certificate.";
   }
   if (apiError.status === 401) {
-    return "Sign in before enabling browser notifications.";
+    return "Sign in before enabling desktop notifications.";
   }
   if (apiError.status === 403) {
-    return "Your account does not have permission to register browser notifications.";
+    return "Your account does not have permission to register desktop notifications.";
   }
   if (apiError.status === 409) {
     return "This browser device is already registered to another account.";
   }
 
-  return "Unable to register browser notifications. Please try again.";
+  return "Unable to register desktop notifications. Please try again.";
 }
 
 function firebaseErrorMessage(error: unknown): string {
@@ -53,14 +63,18 @@ function firebaseErrorMessage(error: unknown): string {
 
 export function useFcmNotification(): UseFcmNotificationResult {
   const { registerDevice, removeDevice } = useNotificationMutations();
+  const persistedDeviceId = useSyncExternalStore(
+    subscribeToNotificationDeviceId,
+    getNotificationDeviceIdSnapshot,
+    getServerNotificationDeviceIdSnapshot,
+  );
   const [state, setState] = useState<FcmRegistrationState>(
     env.firebase.enabled ? "idle" : "disabled",
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fcmToken, setFcmToken] = useState<string | null>(null);
   const [registeredDevice, setRegisteredDevice] = useState<string | null>(null);
-  const storedDeviceId = readNotificationDeviceId();
-  const deviceId = registeredDevice ?? storedDeviceId;
+  const deviceId = registeredDevice ?? persistedDeviceId;
 
   const registerCurrentToken = useCallback(async () => {
     if (!env.firebase.enabled) {
@@ -176,6 +190,7 @@ export function useFcmNotification(): UseFcmNotificationResult {
       clearNotificationDeviceId();
       setRegisteredDevice(null);
       setState(env.firebase.enabled ? "idle" : "disabled");
+      window.dispatchEvent(new Event(FCM_REGISTRATION_CHANGED_EVENT));
       return true;
     }
 
@@ -186,23 +201,25 @@ export function useFcmNotification(): UseFcmNotificationResult {
       setState("idle");
       setErrorMessage(null);
       setFcmToken(null);
+      window.dispatchEvent(new Event(FCM_REGISTRATION_CHANGED_EVENT));
       return true;
     } catch (error) {
       if (toApiError(error).status === 404) {
         clearNotificationDeviceId();
         setRegisteredDevice(null);
         setState("idle");
+        window.dispatchEvent(new Event(FCM_REGISTRATION_CHANGED_EVENT));
         return true;
       }
 
       setState("error");
-      setErrorMessage("Unable to disable browser notifications.");
+      setErrorMessage("Unable to disable desktop notifications.");
       return false;
     }
   }, [deviceId, removeDevice]);
 
   return {
-    state,
+    state: state === "idle" && persistedDeviceId ? "enabled" : state,
     errorMessage,
     fcmToken,
     deviceId,
