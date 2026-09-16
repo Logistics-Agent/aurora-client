@@ -1,291 +1,162 @@
+import { CONTROLLERS } from "@/configs/api";
+import {
+  type CreateDraftApiRequest,
+  type DraftApiDto,
+  type DraftListResponse,
+  type DraftListParams,
+  type MailboxListParams,
+  type Mailbox,
+  type MailListParams,
+  type ProcessedMessageListParams,
+  type ProcessedMessageListResponse,
+  type ProcessedMessageResponse,
+  type QuarantineListParams,
+  type QuarantineListResponse,
+  type QuarantineRecordResponse,
+  type ReleaseQuarantineResponse,
+  type SubmitOutboundMessageApiRequest,
+  type SubmitOutboundMessageApiResponse,
+  type ThreadAssignmentActionResponse,
+  type ThreadAssignmentHistoryListResponse,
+  type ThreadDetailApiResponse,
+  type ThreadListApiResponse,
+  parseDraftDto,
+  parseDraftListResponseDto,
+  parseMailboxListResponseDto,
+  parseOutboundMessageResponseDto,
+  parseProcessedMessageDto,
+  parseProcessedMessageListResponseDto,
+  parseQuarantineListResponseDto,
+  parseQuarantineRecordResponseDto,
+  parseReleaseQuarantineResponseDto,
+  parseThreadAssignmentActionResponseDto,
+  parseThreadAssignmentHistoryListResponseDto,
+  parseThreadDetailResponseDto,
+  parseThreadListResponseDto,
+} from "@/dto/mail/mail.dto";
 import { api } from "@/lib/api";
+import { ApiError } from "@/lib/api-error";
 
-export type ThreadSummaryApiDto = {
-  threadId: string;
-  mailboxId: string;
-  subject: string;
-  participants: string[];
-  lastMessageAt: string;
-  messageCount: number;
-  draftCount: number;
-  hasUnread: boolean;
-  snippet: string;
-  primaryAssigneeUserId?: string | null;
-  assignedAt?: string | null;
-  status?: string | null;
-  priority?: string | null;
+export type ReassignThreadRequest = {
+  targetUserId: string;
+  reason?: string;
 };
 
-export type ThreadListApiResponse = {
-  threads: ThreadSummaryApiDto[];
-  nextPageToken?: string | null;
-  hasMore?: boolean;
+export type UnassignThreadRequest = {
+  reason?: string;
 };
 
-export type ThreadMessageApiDto = {
-  messageId: string;
-  direction: string;
-  senderAddress: string;
-  recipientAddresses: string[];
-  subject: string;
-  bodyText: string;
-  bodyPreview: string;
-  replyToMessageId?: string;
-  receivedAt: string;
-  sentAt: string;
-};
-
-export type DraftApiDto = {
-  draftId: string;
-  draftRootId: string;
-  revisionNumber: number;
-  isLatestRevision: boolean;
-  source: string;
-  status: string;
-  mailboxId: string;
-  assignedStaffId?: string | null;
-  subject: string;
-  body: string;
-  contentHash: string;
-  createdAt: string;
-  to?: string[];
-  threadId?: string | null;
-  replyToMessageId?: string | null;
-};
-
-export type ThreadAssignmentHistoryApiDto = {
-  id: string;
-  threadId: string;
-  fromUserId: string;
-  toUserId: string;
-  action: string;
-  actorUserId: string;
-  reason: string;
-  createdAt: string;
-};
-
-export type ThreadDetailApiResponse = {
-  threadId: string;
-  mailboxId: string;
-  subject: string;
-  participants: string[];
-  messages: ThreadMessageApiDto[];
-  drafts: DraftApiDto[];
-  createdAt: string;
-  updatedAt: string;
-  primaryAssigneeUserId?: string | null;
-  assignedAt?: string | null;
-  status?: string | null;
-  priority?: string | null;
-  assignmentHistory?: ThreadAssignmentHistoryApiDto[];
-};
-
-export type CreateDraftApiRequest = {
-  mailboxId: string;
-  assignedStaffId?: string;
-  subject: string;
-  body: string;
-  sourceType?: string;
-  sourceId?: string;
-  idempotencyKey?: string;
-  to?: string[];
-  threadId?: string;
-  replyToMessageId?: string;
-};
-
-export type SubmitOutboundMessageApiRequest = {
-  senderAddress: string;
-  recipientAddresses: string[];
-  subject: string;
-  bodyText: string;
-  bodyHtml?: string;
-  attachments?: Array<{
-    filename: string;
-    contentType: string;
-    contentBase64: string;
-  }>;
-  idempotencyKey?: string;
-  draftRootId?: string;
-  threadId?: string;
-  replyToMessageId?: string;
-};
-
-export type SubmitOutboundMessageApiResponse = {
-  processedMessageId: string;
-  stalwartQueueId: string;
-  submittedAt: string;
-};
+function parseResponse<T>(response: unknown, parser: (value: unknown) => T): T {
+  try {
+    return parser(response);
+  } catch (error) {
+    throw new ApiError({
+      message: "Mail service returned an invalid response.",
+      code: "SERVER",
+      details: error,
+      status: 500,
+    });
+  }
+}
 
 export const mailService = {
-  // Threads
-  listThreads: async (params?: {
-    mailboxId?: string;
-    pageSize?: number;
-    pageToken?: string;
-    scope?: string;
-    status?: string;
-    search?: string;
-  }): Promise<ThreadListApiResponse> => {
-    return api.get<ThreadListApiResponse>("/api/v1/mail/threads", { params });
+  listMailboxes: async (
+    params?: MailboxListParams,
+  ): Promise<{
+    mailboxes: Mailbox[];
+    nextPageToken: string | null;
+  }> => {
+    const response = await api.get<unknown>(CONTROLLERS.mail.mailboxes, { params });
+    return parseResponse(response, parseMailboxListResponseDto);
+  },
+
+  listThreads: async (params?: MailListParams): Promise<ThreadListApiResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.mail.threads, { params });
+    return parseResponse(response, parseThreadListResponseDto);
   },
 
   getThread: async (id: string): Promise<ThreadDetailApiResponse> => {
-    return api.get<ThreadDetailApiResponse>(`/api/v1/mail/threads/${id}`);
+    const response = await api.get<unknown>(CONTROLLERS.mail.thread(id));
+    return parseResponse(response, parseThreadDetailResponseDto);
   },
 
-  listMailboxes: async (params?: {
-    domainId?: string;
-    pageSize?: number;
-    pageToken?: string;
-  }): Promise<{ mailboxes: Array<{ mailboxId: string; fullAddress: string; domainId?: string; localPart?: string; userId?: string }>; nextPageToken?: string }> => {
-    const cacheKey = `aurora_mailboxes_cache_${params?.domainId || "all"}_${params?.pageSize || 100}`;
-    if (typeof window !== "undefined" && !params?.pageToken) {
-      try {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          const isExpired = Date.now() - (parsed.timestamp || 0) > 10 * 60 * 1000; // 10 minutes TTL
-          if (!isExpired && parsed.data?.mailboxes) {
-            return parsed.data;
-          }
-        }
-      } catch {
-        // Fallback to API on localStorage read error
-      }
-    }
-
-    const response = await api.get<{
-      mailboxes: Array<{
-        mailboxId: string;
-        fullAddress: string;
-        domainId?: string;
-        localPart?: string;
-        userId?: string;
-      }>;
-      nextPageToken?: string;
-    }>("/api/v1/mail/mailboxes", { params });
-
-    if (typeof window !== "undefined" && !params?.pageToken && response?.mailboxes?.length > 0) {
-      try {
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({ timestamp: Date.now(), data: response }),
-        );
-      } catch {
-        // Ignore localStorage quota errors
-      }
-    }
-
-    return response;
-  },
-
-  listDomains: async (params?: {
-    pageSize?: number;
-    pageToken?: string;
-  }): Promise<{ domains: Array<{ domainId: string; domainName: string; status: string }>; nextPageToken?: string }> => {
-    return api.get("/api/v1/mail/domains", { params });
-  },
-
-  claimThread: async (id: string): Promise<{
-    success: boolean;
-    threadId: string;
-    primaryAssigneeUserId: string;
-    assignedAt: string;
-    status: string;
-  }> => {
-    return api.post(`/api/v1/mail/threads/${id}/claim`);
+  claimThread: async (id: string): Promise<ThreadAssignmentActionResponse> => {
+    const response = await api.post<unknown>(CONTROLLERS.mail.threadClaim(id));
+    return parseResponse(response, parseThreadAssignmentActionResponseDto);
   },
 
   reassignThread: async (
     id: string,
-    targetUserId: string,
+    payload: ReassignThreadRequest | string,
     reason?: string,
-  ): Promise<{
-    success: boolean;
-    threadId: string;
-    primaryAssigneeUserId: string;
-    assignedAt: string;
-    status: string;
-  }> => {
-    return api.post(`/api/v1/mail/threads/${id}/reassign`, {
-      targetUserId,
-      reason,
-    });
+  ): Promise<ThreadAssignmentActionResponse> => {
+    const request: ReassignThreadRequest =
+      typeof payload === "string" ? { targetUserId: payload, reason } : payload;
+    const response = await api.post<unknown>(CONTROLLERS.mail.threadReassign(id), request);
+    return parseResponse(response, parseThreadAssignmentActionResponseDto);
   },
 
   unassignThread: async (
     id: string,
-    reason?: string,
-  ): Promise<{
-    success: boolean;
-    threadId: string;
-    status: string;
-  }> => {
-    return api.post(`/api/v1/mail/threads/${id}/unassign`, { reason });
+    payload: UnassignThreadRequest | string = {},
+  ): Promise<ThreadAssignmentActionResponse> => {
+    const request: UnassignThreadRequest =
+      typeof payload === "string" ? { reason: payload } : payload;
+    const response = await api.post<unknown>(CONTROLLERS.mail.threadUnassign(id), request);
+    return parseResponse(response, parseThreadAssignmentActionResponseDto);
   },
 
-  getThreadAssignmentHistory: async (
-    id: string,
-  ): Promise<{
-    threadId: string;
-    history: ThreadAssignmentHistoryApiDto[];
-  }> => {
-    return api.get(`/api/v1/mail/threads/${id}/assignment-history`);
+  getThreadAssignmentHistory: async (id: string): Promise<ThreadAssignmentHistoryListResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.mail.threadAssignmentHistory(id));
+    return parseResponse(response, parseThreadAssignmentHistoryListResponseDto);
   },
 
-  // Drafts
   createDraft: async (payload: CreateDraftApiRequest): Promise<DraftApiDto> => {
-    return api.post<DraftApiDto>("/api/v1/mail/drafts", payload);
+    const response = await api.post<unknown>(CONTROLLERS.mail.drafts, payload);
+    return parseResponse(response, parseDraftDto);
   },
 
-  listDrafts: async (params?: {
-    mailboxId?: string;
-    status?: string;
-    pageSize?: number;
-    pageToken?: string;
-  }): Promise<{ drafts: DraftApiDto[]; nextPageToken?: string }> => {
-    return api.get("/api/v1/mail/drafts", { params });
+  listDrafts: async (params?: DraftListParams): Promise<DraftListResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.mail.drafts, { params });
+    return parseResponse(response, parseDraftListResponseDto);
   },
 
   getDraft: async (id: string): Promise<DraftApiDto> => {
-    return api.get<DraftApiDto>(`/api/v1/mail/drafts/${id}`);
+    const response = await api.get<unknown>(CONTROLLERS.mail.draft(id));
+    return parseResponse(response, parseDraftDto);
   },
 
-  // Outbound
   submitOutboundMessage: async (
     payload: SubmitOutboundMessageApiRequest,
   ): Promise<SubmitOutboundMessageApiResponse> => {
-    return api.post<SubmitOutboundMessageApiResponse>(
-      "/api/v1/mail/messages/outbound",
-      payload,
-    );
+    const response = await api.post<unknown>(CONTROLLERS.mail.outboundMessages, payload);
+    return parseResponse(response, parseOutboundMessageResponseDto);
   },
 
-  // Processed Messages
-  listProcessedMessages: async (params?: {
-    direction?: string;
-    emailCategory?: string;
-    pipelineStatus?: string;
-    pageSize?: number;
-    pageToken?: string;
-  }): Promise<any> => {
-    return api.get("/api/v1/mail/messages", { params });
+  listProcessedMessages: async (
+    params?: ProcessedMessageListParams,
+  ): Promise<ProcessedMessageListResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.mail.messages, { params });
+    return parseResponse(response, parseProcessedMessageListResponseDto);
   },
 
-  getProcessedMessage: async (id: string): Promise<any> => {
-    return api.get(`/api/v1/mail/messages/${id}`);
+  getProcessedMessage: async (id: string): Promise<ProcessedMessageResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.mail.message(id));
+    return parseResponse(response, parseProcessedMessageDto);
   },
 
-  // Quarantine
-  listQuarantine: async (params?: {
-    status?: string;
-    pageSize?: number;
-    pageToken?: string;
-  }): Promise<any> => {
-    return api.get("/api/v1/mail/quarantine", { params });
+  listQuarantine: async (params?: QuarantineListParams): Promise<QuarantineListResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.mail.quarantine, { params });
+    return parseResponse(response, parseQuarantineListResponseDto);
   },
 
-  releaseQuarantine: async (id: string): Promise<any> => {
-    return api.post(`/api/v1/mail/quarantine/${id}/release`);
+  getQuarantineRecord: async (id: string): Promise<QuarantineRecordResponse> => {
+    const response = await api.get<unknown>(CONTROLLERS.mail.quarantineRecord(id));
+    return parseResponse(response, parseQuarantineRecordResponseDto);
+  },
+
+  releaseQuarantine: async (id: string): Promise<ReleaseQuarantineResponse> => {
+    const response = await api.post<unknown>(CONTROLLERS.mail.quarantineRelease(id));
+    return parseResponse(response, parseReleaseQuarantineResponseDto);
   },
 };

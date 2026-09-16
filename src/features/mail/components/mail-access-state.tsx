@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 
 import { EmptyState, LoadingState } from "@/components/common";
-import { hasPermission, type UserProfile } from "@/types/auth.types";
+import type { UserProfile } from "@/types/auth.types";
+import { hasMailPermission } from "../utils/mail-permissions";
 
 export interface MailAccessStateProps {
   user: UserProfile | null;
@@ -27,7 +28,33 @@ export function MailAccessState({
     );
   }
 
-  if (!hasPermission(user, "mail:read")) {
+  if (isLoading) {
+    return <LoadingState label="Loading Mail workspace" />;
+  }
+
+  if (!user.tenantId) {
+    return (
+      <section aria-label="Mail access">
+        <EmptyState
+          title="Tenant context required"
+          description="Mail is available to tenant Staff and Manager accounts only."
+        />
+      </section>
+    );
+  }
+
+  if (user.role !== "STAFF" && user.role !== "MANAGER") {
+    return (
+      <section aria-label="Mail access">
+        <EmptyState
+          title="Mail access unavailable"
+          description="This Mail workspace is limited to Staff and Manager accounts."
+        />
+      </section>
+    );
+  }
+
+  if (!hasMailPermission(user, "mail:read")) {
     return (
       <section aria-label="Mail access">
         <EmptyState
@@ -36,10 +63,6 @@ export function MailAccessState({
         />
       </section>
     );
-  }
-
-  if (isLoading) {
-    return <LoadingState label="Loading Mail workspace" />;
   }
 
   return <>{children}</>;

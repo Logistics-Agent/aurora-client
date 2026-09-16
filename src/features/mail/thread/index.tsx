@@ -29,18 +29,10 @@ export interface MailThreadPanelProps {
   composerMailboxes?: readonly MailMailbox[];
   canCreateDraft?: boolean;
   canSend?: boolean;
+  allowMockAttachments?: boolean;
   onSaveDraft?: (body: string) => Promise<void> | void;
-  onSendMessage?: (
-
-    message: {
-      senderAddress: string;
-      bodyText: string;
-      bodyHtml?: string;
-      attachments?: readonly import("../mock/mail-repository").RealAttachmentInput[];
-    },
-  ) => Promise<void> | void;
+  onSendMessage?: (message: { senderAddress: string; bodyText: string }) => Promise<void> | void;
 }
-
 
 const noActions: ThreadHeaderPermissions = {
   canClaim: false,
@@ -67,6 +59,7 @@ export function MailThreadPanel({
   composerMailboxes,
   canCreateDraft = false,
   canSend = false,
+  allowMockAttachments = true,
   onSaveDraft,
   onSendMessage,
 }: MailThreadPanelProps): React.JSX.Element {
@@ -111,7 +104,10 @@ export function MailThreadPanel({
   }
 
   return (
-    <section aria-label="Mail thread" className="grid min-w-0 gap-5 rounded-xl border border-border bg-card p-4">
+    <section
+      aria-label="Mail thread"
+      className="grid min-w-0 gap-5 rounded-xl border border-border bg-card p-4"
+    >
       <ThreadHeader
         thread={thread}
         mailbox={mailbox}
@@ -136,6 +132,7 @@ export function MailThreadPanel({
           mailboxes={availableComposerMailboxes}
           canCreateDraft={canCreateDraft}
           canSend={canSend}
+          allowMockAttachments={allowMockAttachments}
           canClaim={permissions.canClaim}
           onClaim={onClaim}
           onSave={(draft) => {
@@ -154,7 +151,6 @@ export function MailThreadPanel({
             return onSendMessage({
               senderAddress: senderMailbox.senderAddress,
               bodyText: draft.body,
-              attachments: draft.attachments,
             });
           }}
         />
@@ -194,14 +190,20 @@ function ConflictOrForbiddenAlert({ error }: { error: unknown }): React.JSX.Elem
   if (!isMailOperationError(error)) return null;
   if (error.status === 409 && error.code === "THREAD_ALREADY_ASSIGNED") {
     return (
-      <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      <p
+        role="alert"
+        className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+      >
         Assignment refreshed. This thread is now read-only.
       </p>
     );
   }
   if (error.status === 403 && error.code === "CROSS_STAFF_REPLY_FORBIDDEN") {
     return (
-      <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      <p
+        role="alert"
+        className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+      >
         Replying is unavailable because this thread is owned by another staff member.
       </p>
     );
@@ -209,9 +211,7 @@ function ConflictOrForbiddenAlert({ error }: { error: unknown }): React.JSX.Elem
   return null;
 }
 
-function isMailOperationError(
-  error: unknown,
-): error is { status: number; code: string } {
+function isMailOperationError(error: unknown): error is { status: number; code: string } {
   return (
     typeof error === "object" &&
     error !== null &&

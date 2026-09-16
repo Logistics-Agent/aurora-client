@@ -10,7 +10,6 @@ import {
   Trash2,
   Send,
   Sparkles,
-  Link as LinkIcon,
   FileText,
   Loader2,
   ChevronDown,
@@ -155,7 +154,7 @@ export function GmailComposeWindow({
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const applyTemplate = (tpl: typeof LOGISTICS_LEAD_TEMPLATES[0]) => {
+  const applyTemplate = (tpl: (typeof LOGISTICS_LEAD_TEMPLATES)[0]) => {
     setSubject(tpl.subject);
     setBodyHtml(tpl.html);
     setShowTemplates(false);
@@ -187,8 +186,14 @@ export function GmailComposeWindow({
     setErrorMessage(null);
 
     try {
-      const ccList = ccInput.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
-      const bccList = bccInput.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+      const ccList = ccInput
+        .split(/[,;]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const bccList = bccInput
+        .split(/[,;]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
 
       await onSend({
         senderAddress: senderMailbox.senderAddress,
@@ -215,9 +220,9 @@ export function GmailComposeWindow({
     return (
       <div
         onClick={() => setWindowState("normal")}
-        className="fixed bottom-0 right-4 md:right-8 z-50 w-72 h-10 px-3.5 flex items-center justify-between bg-slate-900 text-white rounded-t-xl shadow-2xl cursor-pointer hover:bg-slate-800 transition-colors select-none"
+        className="fixed right-4 bottom-0 z-50 flex h-10 w-72 cursor-pointer items-center justify-between rounded-t-xl bg-slate-900 px-3.5 text-white shadow-2xl transition-colors select-none hover:bg-slate-800 md:right-8"
       >
-        <span className="text-xs font-semibold truncate">
+        <span className="truncate text-xs font-semibold">
           {subject || "Thư mới (Đang soạn...)"}
         </span>
         <div className="flex items-center gap-1.5">
@@ -227,7 +232,7 @@ export function GmailComposeWindow({
               e.stopPropagation();
               setWindowState("normal");
             }}
-            className="p-1 hover:bg-slate-700 rounded"
+            className="rounded p-1 hover:bg-slate-700"
             title="Mở rộng"
           >
             <Maximize2 className="size-3" />
@@ -238,7 +243,7 @@ export function GmailComposeWindow({
               e.stopPropagation();
               onClose();
             }}
-            className="p-1 hover:bg-slate-700 rounded"
+            className="rounded p-1 hover:bg-slate-700"
             title="Đóng"
           >
             <X className="size-3.5" />
@@ -256,10 +261,10 @@ export function GmailComposeWindow({
   return (
     <div className={containerClasses} role="dialog" aria-label="Soạn thư mới">
       {/* Window Header */}
-      <header className="flex items-center justify-between px-4 py-2.5 bg-slate-100/90 border-b border-slate-200 select-none">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-slate-100/90 px-4 py-2.5 select-none">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-800">Thư mới (New Message)</span>
-          <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
+          <span className="hidden text-[10px] font-medium text-slate-500 sm:inline">
             · Tiếp cận khách hàng & Gửi báo giá
           </span>
         </div>
@@ -267,7 +272,7 @@ export function GmailComposeWindow({
           <button
             type="button"
             onClick={() => setWindowState("minimized")}
-            className="p-1.5 hover:bg-slate-200 rounded text-slate-600"
+            className="rounded p-1.5 text-slate-600 hover:bg-slate-200"
             title="Thu nhỏ"
           >
             <Minus className="size-3.5" />
@@ -275,15 +280,19 @@ export function GmailComposeWindow({
           <button
             type="button"
             onClick={() => setWindowState(windowState === "maximized" ? "normal" : "maximized")}
-            className="p-1.5 hover:bg-slate-200 rounded text-slate-600 hidden md:inline-block"
+            className="hidden rounded p-1.5 text-slate-600 hover:bg-slate-200 md:inline-block"
             title={windowState === "maximized" ? "Thu vừa" : "Phóng to"}
           >
-            {windowState === "maximized" ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+            {windowState === "maximized" ? (
+              <Minimize2 className="size-3.5" />
+            ) : (
+              <Maximize2 className="size-3.5" />
+            )}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 hover:bg-slate-200 rounded text-slate-600"
+            className="rounded p-1.5 text-slate-600 hover:bg-slate-200"
             title="Đóng"
           >
             <X className="size-3.5" />
@@ -292,14 +301,14 @@ export function GmailComposeWindow({
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-y-auto p-3.5 space-y-2.5">
+      <div className="flex flex-1 flex-col space-y-2.5 overflow-y-auto p-3.5">
         {/* From shared mailbox */}
-        <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 text-xs">
-          <span className="w-12 text-slate-500 font-medium shrink-0">Từ:</span>
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-1.5 text-xs">
+          <span className="w-12 shrink-0 font-medium text-slate-500">Từ:</span>
           <select
             value={senderMailboxId}
             onChange={(e) => setSenderMailboxId(e.target.value)}
-            className="flex-1 bg-transparent text-slate-800 font-medium outline-none cursor-pointer py-1"
+            className="flex-1 cursor-pointer bg-transparent py-1 font-medium text-slate-800 outline-none"
           >
             {mailboxes.map((mb) => (
               <option key={mb.id} value={mb.id}>
@@ -310,13 +319,13 @@ export function GmailComposeWindow({
         </div>
 
         {/* To input with chip badges */}
-        <div className="flex flex-wrap items-center gap-1.5 pb-1.5 border-b border-slate-100 text-xs min-h-[36px]">
-          <span className="w-12 text-slate-500 font-medium shrink-0">Đến:</span>
-          <div className="flex-1 flex flex-wrap items-center gap-1.5">
+        <div className="flex min-h-[36px] flex-wrap items-center gap-1.5 border-b border-slate-100 pb-1.5 text-xs">
+          <span className="w-12 shrink-0 font-medium text-slate-500">Đến:</span>
+          <div className="flex flex-1 flex-wrap items-center gap-1.5">
             {recipients.map((email) => (
               <span
                 key={email}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-medium text-xs"
+                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800"
               >
                 <span>{email}</span>
                 <button
@@ -334,16 +343,18 @@ export function GmailComposeWindow({
               onChange={(e) => setToInput(e.target.value)}
               onKeyDown={handleToKeyDown}
               onBlur={() => handleAddRecipient(toInput)}
-              placeholder={recipients.length === 0 ? "Nhập địa chỉ email người nhận (Enter hoặc phẩy)..." : ""}
-              className="flex-1 min-w-[160px] bg-transparent outline-none text-xs text-slate-800 placeholder:text-slate-400"
+              placeholder={
+                recipients.length === 0 ? "Nhập địa chỉ email người nhận (Enter hoặc phẩy)..." : ""
+              }
+              className="min-w-[160px] flex-1 bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
             />
           </div>
-          <div className="flex items-center gap-2 text-slate-500 font-medium shrink-0">
+          <div className="flex shrink-0 items-center gap-2 font-medium text-slate-500">
             {!showCc && (
               <button
                 type="button"
                 onClick={() => setShowCc(true)}
-                className="hover:text-primary transition-colors"
+                className="transition-colors hover:text-primary"
               >
                 Cc
               </button>
@@ -352,7 +363,7 @@ export function GmailComposeWindow({
               <button
                 type="button"
                 onClick={() => setShowBcc(true)}
-                className="hover:text-primary transition-colors"
+                className="transition-colors hover:text-primary"
               >
                 Bcc
               </button>
@@ -362,14 +373,14 @@ export function GmailComposeWindow({
 
         {/* Optional CC */}
         {showCc && (
-          <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 text-xs">
-            <span className="w-12 text-slate-500 font-medium shrink-0">Cc:</span>
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-1.5 text-xs">
+            <span className="w-12 shrink-0 font-medium text-slate-500">Cc:</span>
             <input
               type="text"
               value={ccInput}
               onChange={(e) => setCcInput(e.target.value)}
               placeholder="Email nhận bản sao..."
-              className="flex-1 bg-transparent outline-none text-xs text-slate-800"
+              className="flex-1 bg-transparent text-xs text-slate-800 outline-none"
             />
             <button
               type="button"
@@ -386,14 +397,14 @@ export function GmailComposeWindow({
 
         {/* Optional BCC */}
         {showBcc && (
-          <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 text-xs">
-            <span className="w-12 text-slate-500 font-medium shrink-0">Bcc:</span>
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-1.5 text-xs">
+            <span className="w-12 shrink-0 font-medium text-slate-500">Bcc:</span>
             <input
               type="text"
               value={bccInput}
               onChange={(e) => setBccInput(e.target.value)}
               placeholder="Email nhận bản sao ẩn danh..."
-              className="flex-1 bg-transparent outline-none text-xs text-slate-800"
+              className="flex-1 bg-transparent text-xs text-slate-800 outline-none"
             />
             <button
               type="button"
@@ -409,14 +420,14 @@ export function GmailComposeWindow({
         )}
 
         {/* Subject */}
-        <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 text-xs">
-          <span className="w-12 text-slate-500 font-medium shrink-0">Tiêu đề:</span>
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-1.5 text-xs">
+          <span className="w-12 shrink-0 font-medium text-slate-500">Tiêu đề:</span>
           <input
             type="text"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Tiêu đề email..."
-            className="flex-1 bg-transparent outline-none text-xs font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400"
+            className="flex-1 bg-transparent text-xs font-semibold text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400"
           />
         </div>
 
@@ -425,7 +436,7 @@ export function GmailComposeWindow({
           <button
             type="button"
             onClick={() => setShowTemplates(!showTemplates)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-primary/30 bg-primary/5 text-primary text-xs font-semibold hover:bg-primary/10 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
           >
             <Sparkles className="size-3.5 text-primary" />
             <span>Mẫu email Logistics & Chào hàng AI</span>
@@ -433,8 +444,8 @@ export function GmailComposeWindow({
           </button>
 
           {showTemplates && (
-            <div className="absolute left-0 top-full mt-1.5 z-40 w-full md:w-[480px] rounded-xl border border-slate-200 bg-white p-2 shadow-xl space-y-1">
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2 py-1">
+            <div className="absolute top-full left-0 z-40 mt-1.5 w-full space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl md:w-[480px]">
+              <p className="px-2 py-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase">
                 Chọn mẫu thư có sẵn để điền nhanh:
               </p>
               {LOGISTICS_LEAD_TEMPLATES.map((tpl, i) => (
@@ -442,14 +453,12 @@ export function GmailComposeWindow({
                   key={i}
                   type="button"
                   onClick={() => applyTemplate(tpl)}
-                  className="w-full text-left p-2 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all group"
+                  className="group w-full rounded-lg border border-transparent p-2 text-left transition-all hover:border-slate-200 hover:bg-slate-50"
                 >
-                  <p className="font-semibold text-xs text-slate-900 group-hover:text-primary">
+                  <p className="text-xs font-semibold text-slate-900 group-hover:text-primary">
                     {tpl.title}
                   </p>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    {tpl.subject}
-                  </p>
+                  <p className="mt-0.5 truncate text-[11px] text-slate-500">{tpl.subject}</p>
                 </button>
               ))}
             </div>
@@ -457,7 +466,7 @@ export function GmailComposeWindow({
         </div>
 
         {/* Rich Text Editor */}
-        <div className="flex-1 min-h-[220px]">
+        <div className="min-h-[220px] flex-1">
           <RichTextEditor
             initialHtml={bodyHtml}
             placeholder="Kính gửi Quý Khách hàng / Đối tác,..."
@@ -471,24 +480,29 @@ export function GmailComposeWindow({
         {/* Real Attachments Display */}
         {attachments.length > 0 && (
           <div className="space-y-1.5 pt-1">
-            <p className="text-[11px] font-semibold text-slate-600">Tệp đính kèm ({attachments.length}):</p>
+            <p className="text-[11px] font-semibold text-slate-600">
+              Tệp đính kèm ({attachments.length}):
+            </p>
             <div className="flex flex-wrap gap-2">
               {attachments.map((att) => (
                 <div
                   key={att.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs shadow-3xs"
+                  className="shadow-3xs inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs"
                 >
-                  <FileText className="size-3.5 text-primary shrink-0" />
-                  <span className="font-medium text-slate-800 max-w-[200px] truncate" title={att.fileName}>
+                  <FileText className="size-3.5 shrink-0 text-primary" />
+                  <span
+                    className="max-w-[200px] truncate font-medium text-slate-800"
+                    title={att.fileName}
+                  >
                     {att.fileName}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">
+                  <span className="font-mono text-[10px] text-slate-400">
                     ({formatFileSize(att.sizeBytes)})
                   </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveAttachment(att.id)}
-                    className="text-slate-400 hover:text-rose-600 font-bold ml-1"
+                    className="ml-1 font-bold text-slate-400 hover:text-rose-600"
                     aria-label={`Remove ${att.fileName}`}
                   >
                     <X className="size-3" />
@@ -500,21 +514,24 @@ export function GmailComposeWindow({
         )}
 
         {errorMessage && (
-          <p role="alert" className="text-xs font-medium text-destructive bg-destructive/10 p-2 rounded-lg">
+          <p
+            role="alert"
+            className="rounded-lg bg-destructive/10 p-2 text-xs font-medium text-destructive"
+          >
             {errorMessage}
           </p>
         )}
       </div>
 
       {/* Footer / Action Bar */}
-      <footer className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-t border-slate-200 bg-slate-50/70 select-none">
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50/70 px-4 py-2.5 select-none">
         <div className="flex items-center gap-2">
           {/* Main Send Button */}
           <Button
             type="button"
             disabled={isSending}
             onClick={handleSend}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-8 px-4 gap-1.5 shadow-sm rounded-lg"
+            className="h-8 gap-1.5 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
           >
             {isSending ? (
               <>
@@ -541,7 +558,7 @@ export function GmailComposeWindow({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-1.5 hover:bg-slate-200 rounded text-slate-600"
+            className="rounded p-1.5 text-slate-600 hover:bg-slate-200"
             title="Đính kèm tệp (Attach files)"
           >
             <Paperclip className="size-4" />
@@ -552,7 +569,7 @@ export function GmailComposeWindow({
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 hover:bg-slate-200 rounded text-slate-500 hover:text-destructive transition-colors"
+          className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-destructive"
           title="Hủy / Xóa bản nháp"
         >
           <Trash2 className="size-4" />

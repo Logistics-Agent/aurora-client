@@ -1,9 +1,9 @@
 "use client";
 
 import { useCurrentUserQuery } from "@/hooks/queries/auth/use-current-user-query";
+import { EmptyState, LoadingState } from "@/components/common";
 import type { UserProfile } from "@/types/auth.types";
 import { MailWorkspace, type MailWorkspaceProps } from "./components/mail-workspace";
-import { defaultMailApiRepository } from "./services/mail-api-repository";
 import type { MailMockRepository } from "./mock/mail-repository";
 import type { MailResourceScope } from "./types";
 
@@ -14,47 +14,43 @@ export interface MailPageProps {
   repository?: MailMockRepository;
 }
 
-const defaultRepository = defaultMailApiRepository;
-
 const defaultResourceScope: MailResourceScope = {
   accessibleMailboxIds: [],
-  permissions: [
-    "mail:read",
-    "mail:thread:claim",
-    "mail:thread:reassign",
-    "mail:thread:unassign",
-    "mail:draft:create",
-    "mail:send",
-  ],
+  permissions: [],
 };
 
 export function MailPage({
   initialThreadId,
   user: explicitUser,
   resourceScope: explicitResourceScope,
-  repository = defaultRepository,
+  repository,
 }: MailPageProps): React.JSX.Element {
-  const { data: currentUser } = useCurrentUserQuery();
+  const { data: currentUser, isLoading, isError } = useCurrentUserQuery();
 
-  const user: UserProfile = explicitUser ?? (currentUser
-    ? {
-        userId: currentUser.userId,
-        tenantId: currentUser.tenantId || "default-tenant",
-        name: currentUser.name || currentUser.email || "Staff Member",
-        email: currentUser.email,
-        role: currentUser.role || "STAFF",
-        permissions: currentUser.permissions ? [...currentUser.permissions] : [...defaultResourceScope.permissions],
-        isAuthenticated: true,
-      }
-    : {
-        userId: "anonymous",
-        tenantId: "default-tenant",
-        name: "Anonymous Staff",
-        email: "staff@aurora.internal",
-        role: "STAFF",
-        permissions: [...defaultResourceScope.permissions],
-        isAuthenticated: true,
-      });
+  if (!explicitUser && isLoading) {
+    return <LoadingState label="Loading Mail access" />;
+  }
+
+  if (!explicitUser && (isError || !currentUser)) {
+    return (
+      <section aria-label="Mail access">
+        <EmptyState
+          title="Unable to load Mail access"
+          description="Refresh the page after your authenticated operations session is available."
+        />
+      </section>
+    );
+  }
+
+  const user: UserProfile | null = explicitUser ?? {
+    userId: currentUser!.userId,
+    tenantId: currentUser!.tenantId,
+    name: currentUser!.name || currentUser!.email || "Staff Member",
+    email: currentUser!.email,
+    role: currentUser!.role || "STAFF",
+    permissions: currentUser!.permissions ? [...currentUser!.permissions] : [],
+    isAuthenticated: true,
+  };
 
   const resourceScope: MailResourceScope =
     explicitResourceScope &&
@@ -63,7 +59,7 @@ export function MailPage({
       ? explicitResourceScope
       : {
           accessibleMailboxIds: defaultResourceScope.accessibleMailboxIds,
-          permissions: user.permissions ?? defaultResourceScope.permissions,
+          permissions: user?.permissions ?? defaultResourceScope.permissions,
         };
 
   const props: MailWorkspaceProps = { user, resourceScope, initialThreadId, repository };

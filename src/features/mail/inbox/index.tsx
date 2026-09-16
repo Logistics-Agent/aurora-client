@@ -33,10 +33,7 @@ function ConfiguredMailInbox(props: MailInboxProps): React.JSX.Element {
     showQueueNavigation = true,
     showThreadList = true,
   } = props;
-  const effectiveQueue =
-    filters.queue === "all" && !showAllThreads
-      ? "unassigned"
-      : filters.queue;
+  const effectiveQueue = filters.queue === "all" && !showAllThreads ? "unassigned" : filters.queue;
 
   useEffect(() => {
     if (effectiveQueue !== filters.queue) {
@@ -44,8 +41,7 @@ function ConfiguredMailInbox(props: MailInboxProps): React.JSX.Element {
     }
   }, [effectiveQueue, filters, onFiltersChange]);
 
-  const displayedThreads =
-    filters.queue === "all" && !showAllThreads ? [] : props.threads;
+  const displayedThreads = filters.queue === "all" && !showAllThreads ? [] : props.threads;
 
   return (
     <section
@@ -58,9 +54,7 @@ function ConfiguredMailInbox(props: MailInboxProps): React.JSX.Element {
           counts={props.queueCounts}
           onQueueChange={(queue) => onFiltersChange({ ...filters, queue })}
           showAllThreads={props.showAllThreads}
-          onCompose={props.onCompose}
         />
-
       ) : null}
       {showThreadList ? (
         <div

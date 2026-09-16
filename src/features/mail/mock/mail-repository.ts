@@ -7,32 +7,17 @@ import type {
   MailThread,
 } from "../types";
 
-export interface RealAttachmentInput {
-  id?: string;
-  fileName: string;
-  contentType: string;
-  sizeBytes: number;
-  contentBase64?: string;
-}
-
 export interface SendMailMessageInput {
   authorId: string;
   authorName: string;
   senderAddress: string;
   bodyText: string;
-  bodyHtml?: string;
-  attachments?: readonly RealAttachmentInput[];
 }
-
 
 export interface MailMockRepository {
   listThreads(): Promise<MailThread[]>;
   getThread(threadId: string): Promise<MailThread | null>;
-  claimThread(
-    threadId: string,
-    expectedVersion: number,
-    userId: string,
-  ): Promise<MailThread>;
+  claimThread(threadId: string, expectedVersion: number, userId: string): Promise<MailThread>;
   reassignThread(
     threadId: string,
     expectedVersion: number,
@@ -52,11 +37,7 @@ export interface MailMockRepository {
     priority: MailPriority,
   ): Promise<MailThread>;
   markResolved(threadId: string, expectedVersion: number): Promise<MailThread>;
-  saveDraft(
-    threadId: string,
-    expectedVersion: number,
-    body: string,
-  ): Promise<MailThread>;
+  saveDraft(threadId: string, expectedVersion: number, body: string): Promise<MailThread>;
   sendMessage(
     threadId: string,
     expectedVersion: number,
@@ -72,9 +53,7 @@ export type MailRepositoryError =
 
 const TRANSITION_TIME = "2026-09-04T10:00:00.000Z";
 
-export function createMailMockRepository(
-  seed: readonly MailThread[],
-): MailMockRepository {
+export function createMailMockRepository(seed: readonly MailThread[]): MailMockRepository {
   const threads = new Map(seed.map((thread) => [thread.id, copyThread(thread)]));
   let sequence = 0;
 
@@ -258,10 +237,7 @@ export function createMailMockRepository(
   };
 }
 
-function isScenarioEnabled(
-  thread: MailThread,
-  scenario: MailFixtureScenario,
-): boolean {
+function isScenarioEnabled(thread: MailThread, scenario: MailFixtureScenario): boolean {
   return thread.fixtureScenario === scenario;
 }
 

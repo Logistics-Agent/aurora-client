@@ -1,9 +1,8 @@
 "use client";
 
 import { useRef } from "react";
-import { PenSquare } from "lucide-react";
-import type { MailQueueScope } from "../../types";
 
+import type { MailQueueScope } from "../../types";
 import type { MailQueueCounts } from "../types";
 
 export interface QueueNavigationProps {
@@ -11,7 +10,6 @@ export interface QueueNavigationProps {
   counts: MailQueueCounts;
   onQueueChange: (queue: MailQueueScope) => void;
   showAllThreads: boolean;
-  onCompose?: () => void;
 }
 
 const queueItems: readonly {
@@ -29,7 +27,6 @@ export function QueueNavigation({
   counts,
   onQueueChange,
   showAllThreads,
-  onCompose,
 }: QueueNavigationProps): React.JSX.Element {
   const tabs = queueItems.filter((item) => item.queue !== "all" || showAllThreads);
   const tabRefs = useRef<Partial<Record<MailQueueScope, HTMLButtonElement | null>>>({});
@@ -64,53 +61,44 @@ export function QueueNavigation({
   }
 
   return (
-    <nav aria-label="Mail queues" className="border-b border-border p-3 lg:border-r lg:border-b-0 space-y-3">
-      {/* Gmail-style Compose Button */}
-      {onCompose && (
-        <button
-          type="button"
-          onClick={onCompose}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md hover:shadow-lg transition-all"
-        >
-          <PenSquare className="size-4" />
-          <span>Soạn thư mới</span>
-        </button>
-      )}
-
-      <div role="tablist" aria-orientation="vertical" className="flex gap-1 overflow-x-auto lg:flex-col">
-
+    <nav aria-label="Mail queues" className="border-b border-border p-3 lg:border-r lg:border-b-0">
+      <div
+        role="tablist"
+        aria-orientation="vertical"
+        className="flex gap-1 overflow-x-auto lg:flex-col"
+      >
         {tabs.map((item) => {
-            const isActive = selectedQueue === item.queue;
-            const label = `${item.label} ${counts[item.queue]}`;
+          const isActive = selectedQueue === item.queue;
+          const label = `${item.label} ${counts[item.queue]}`;
 
-            return (
-              <button
-                key={item.queue}
-                type="button"
-                role="tab"
-                id={`mail-queue-${item.queue}-tab`}
-                ref={(element) => {
-                  tabRefs.current[item.queue] = element;
-                }}
-                aria-label={label}
-                aria-selected={isActive}
-                aria-controls="mail-thread-panel"
-                tabIndex={isActive ? 0 : -1}
-                className={`flex min-w-max items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-medium outline-none transition-colors motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  isActive
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                }`}
-                onClick={() => activateQueue(item.queue)}
-                onKeyDown={(event) => handleKeyDown(event, item.queue)}
-              >
-                <span>{item.label}</span>
-                <span aria-hidden="true" className="text-xs tabular-nums">
-                  {counts[item.queue]}
-                </span>
-              </button>
-            );
-          })}
+          return (
+            <button
+              key={item.queue}
+              type="button"
+              role="tab"
+              id={`mail-queue-${item.queue}-tab`}
+              ref={(element) => {
+                tabRefs.current[item.queue] = element;
+              }}
+              aria-label={label}
+              aria-selected={isActive}
+              aria-controls="mail-thread-panel"
+              tabIndex={isActive ? 0 : -1}
+              className={`flex min-w-max items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${
+                isActive
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              }`}
+              onClick={() => activateQueue(item.queue)}
+              onKeyDown={(event) => handleKeyDown(event, item.queue)}
+            >
+              <span>{item.label}</span>
+              <span aria-hidden="true" className="text-xs tabular-nums">
+                {counts[item.queue]}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </nav>
   );

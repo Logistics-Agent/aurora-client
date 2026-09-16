@@ -1,9 +1,4 @@
-import type {
-  MailListFilters,
-  MailMailbox,
-  MailResourceScope,
-  MailThread,
-} from "../types";
+import type { MailListFilters, MailMailbox, MailResourceScope, MailThread } from "../types";
 
 export function selectVisibleMailboxes(
   mailboxes: readonly string[],
@@ -18,9 +13,6 @@ export function selectVisibleMailboxes(
   resourceScope: MailResourceScope,
 ): (string | MailMailbox)[] {
   const allowedMailboxIds = new Set(resourceScope?.accessibleMailboxIds ?? []);
-  if (allowedMailboxIds.size === 0 || allowedMailboxIds.has("*")) {
-    return [...mailboxes];
-  }
 
   return mailboxes.filter((mailbox) =>
     allowedMailboxIds.has(typeof mailbox === "string" ? mailbox : mailbox.id),
@@ -34,11 +26,10 @@ export function selectVisibleThreads(
   resourceScope: MailResourceScope,
 ): MailThread[] {
   const allowedMailboxIds = new Set(resourceScope?.accessibleMailboxIds ?? []);
-  const hasRestriction = allowedMailboxIds.size > 0 && !allowedMailboxIds.has("*");
   const search = filters.search?.trim().toLocaleLowerCase();
 
   return threads.filter((thread) => {
-    if (hasRestriction && !allowedMailboxIds.has(thread.mailboxId)) return false;
+    if (!allowedMailboxIds.has(thread.mailboxId)) return false;
     if (filters.mailboxId && thread.mailboxId !== filters.mailboxId) return false;
     if (filters.status && thread.status !== filters.status) return false;
     if (filters.priority && thread.priority !== filters.priority) return false;
@@ -58,12 +49,9 @@ function matchesQueue(
     case "all":
       return true;
     case "unassigned":
-      return !thread.assigneeId;
+      return thread.assigneeId === null;
     case "mine":
-      return (
-        Boolean(thread.assigneeId && userId) &&
-        thread.assigneeId!.toLowerCase() === userId.toLowerCase()
-      );
+      return thread.assigneeId === userId;
     case "drafts":
       return thread.draft !== null;
   }
@@ -73,10 +61,7 @@ function matchesSearch(thread: MailThread, search: string): boolean {
   const searchableText = [
     thread.subject,
     thread.preview,
-    ...thread.participants.flatMap((participant) => [
-      participant.name,
-      participant.email,
-    ]),
+    ...thread.participants.flatMap((participant) => [participant.name, participant.email]),
   ]
     .join(" ")
     .toLocaleLowerCase();

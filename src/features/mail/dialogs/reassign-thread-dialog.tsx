@@ -67,22 +67,35 @@ export function ReassignThreadDialog({
         <div className="grid gap-3">
           <label className="grid gap-1" htmlFor="mail-reassign-target">
             <span>Assign to</span>
-            <select
-              id="mail-reassign-target"
-              aria-label="Assign to"
-              value={values.targetUserId}
-              aria-invalid={Boolean(errors.targetUserId)}
-              onChange={(event) =>
-                setValues((current) => ({ ...current, targetUserId: event.target.value }))
-              }
-            >
-              <option value="">Choose staff</option>
-              {assignees.map((assignee) => (
-                <option key={assignee.userId} value={assignee.userId}>
-                  {assignee.name}
-                </option>
-              ))}
-            </select>
+            {assignees.length > 0 ? (
+              <select
+                id="mail-reassign-target"
+                aria-label="Assign to"
+                value={values.targetUserId}
+                aria-invalid={Boolean(errors.targetUserId)}
+                onChange={(event) =>
+                  setValues((current) => ({ ...current, targetUserId: event.target.value }))
+                }
+              >
+                <option value="">Choose staff</option>
+                {assignees.map((assignee) => (
+                  <option key={assignee.userId} value={assignee.userId}>
+                    {assignee.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id="mail-reassign-target"
+                aria-label="Assign to user ID"
+                placeholder="Staff user ID"
+                value={values.targetUserId}
+                aria-invalid={Boolean(errors.targetUserId)}
+                onChange={(event) =>
+                  setValues((current) => ({ ...current, targetUserId: event.target.value }))
+                }
+              />
+            )}
             {errors.targetUserId ? <span role="alert">{errors.targetUserId}</span> : null}
           </label>
           <label className="grid gap-1" htmlFor="mail-reassign-reason">

@@ -1,9 +1,4 @@
-import type {
-  MailListFilters,
-  MailMailbox,
-  MailQueueScope,
-  MailThread,
-} from "../../types";
+import type { MailListFilters, MailMailbox, MailQueueScope, MailThread } from "../../types";
 
 export type MailQueueCounts = Record<MailQueueScope, number>;
 
@@ -24,6 +19,4 @@ export interface MailInboxProps {
   showQueueNavigation?: boolean;
   showThreadList?: boolean;
   threads: readonly MailThread[];
-  onCompose?: () => void;
 }
-
