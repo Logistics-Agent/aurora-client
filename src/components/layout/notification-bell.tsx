@@ -13,15 +13,16 @@ type NotificationBellProps = {
   showLabel?: boolean;
 };
 
-export function NotificationBell({
-  className,
-  showLabel = false,
-}: NotificationBellProps) {
+const UNREAD_COUNT_POLL_INTERVAL_MS = 30_000;
+
+export function NotificationBell({ className, showLabel = false }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
-  const { data: unreadCount } = useUnreadNotificationCountQuery();
+  const { data: unreadCount } = useUnreadNotificationCountQuery({
+    refetchInterval: UNREAD_COUNT_POLL_INTERVAL_MS,
+    refetchOnWindowFocus: true,
+  });
   const count = typeof unreadCount === "number" ? unreadCount : 0;
-  const label =
-    count > 0 ? "Notifications, " + count + " unread" : "Notifications";
+  const label = count > 0 ? "Notifications, " + count + " unread" : "Notifications";
   const badge = count > 99 ? "99+" : String(count);
 
   return (
@@ -43,12 +44,12 @@ export function NotificationBell({
             <Bell className="size-5" />
           </span>
           {showLabel && (
-            <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left text-sm opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100">
+            <span className="min-w-0 flex-1 truncate overflow-hidden text-left text-sm whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100">
               Notifications
             </span>
           )}
           {count > 0 && (
-            <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-critical px-1 text-center text-[10px] font-semibold leading-4 text-white">
+            <span className="absolute -top-1 -right-1 min-w-4 rounded-full bg-critical px-1 text-center text-[10px] leading-4 font-semibold text-white">
               {badge}
             </span>
           )}

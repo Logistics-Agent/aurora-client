@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Bell, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -104,16 +105,15 @@ export function WorkspaceSidebar({
         {isExpanded ? (
           <>
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-sm">
-                L
-              </div>
-              <div className="min-w-0 overflow-hidden whitespace-nowrap">
-                <p className="truncate text-base leading-tight font-bold text-foreground">
-                  {brandName}
-                </p>
-                <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  {brandSubtitle}
-                </p>
+              <div className="relative h-10 w-[154px] shrink-0">
+                <Image
+                  src="/logo-wordmark.png"
+                  alt={`${brandName} ${brandSubtitle}`}
+                  fill
+                  priority
+                  sizes="154px"
+                  className="object-contain object-left"
+                />
               </div>
             </div>
             <Button
