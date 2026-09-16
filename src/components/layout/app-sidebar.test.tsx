@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { staffNavigation } from "@/configs/navigation.config";
 import { useSidebarStore } from "@/stores/sidebar.store";
 import { AppSidebar } from "./app-sidebar";
@@ -35,6 +35,12 @@ vi.mock("./notification-bell", () => ({
     </button>
   ),
 }));
+
+vi.mock("@/hooks/queries/notifications/use-unread-notification-count-query", () => ({
+  useUnreadNotificationCountQuery: () => ({ data: 3 }),
+}));
+
+afterEach(cleanup);
 
 describe("AppSidebar", () => {
   beforeEach(() => {
@@ -72,6 +78,8 @@ describe("AppSidebar", () => {
     expect(sidebar).toHaveClass("inset-y-0");
     expect(sidebar).toHaveClass("z-50");
     expect(within(sidebar).getByText("Overview")).toBeInTheDocument();
+    expect(within(sidebar).getByLabelText("3 unread notifications")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open navigation menu" })).toBeInTheDocument();
 
     const mailToggle = within(sidebar).getByRole("button", { name: "Mail" });
     expect(mailToggle).toHaveAttribute("aria-expanded", "false");
@@ -96,5 +104,20 @@ describe("AppSidebar", () => {
 
     expect(sidebar).toHaveClass("w-[64px]");
     expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+  });
+
+  it("opens the complete mobile navigation in a drawer", async () => {
+    const user = userEvent.setup();
+    render(<AppSidebar />);
+
+    await user.click(screen.getByRole("button", { name: "Open navigation menu" }));
+
+    const drawer = screen.getByRole("dialog", { name: "Staff navigation" });
+    expect(within(drawer).getByText("Overview")).toBeInTheDocument();
+    expect(within(drawer).getByText("Notifications")).toBeInTheDocument();
+
+    await user.click(within(drawer).getByRole("button", { name: "Mail" }));
+    expect(within(drawer).getByRole("link", { name: "Mail exchange" })).toBeInTheDocument();
+    expect(within(drawer).getByRole("link", { name: "Quarantine" })).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ export function AppSidebar() {
       ariaLabel="Staff navigation"
       brandName="Aurora"
       brandSubtitle="ACME Logistics"
+      brandLogoSrc="/logo-wordmark.png"
       accountName="Operations Staff"
       accountSubtitle="Staff workspace"
       accountInitials="OP"

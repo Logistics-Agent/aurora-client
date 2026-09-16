@@ -20,6 +20,10 @@ vi.mock("@/hooks/queries/auth/use-current-user-query", () => ({
   }),
 }));
 
+vi.mock("@/hooks/queries/notifications/use-unread-notification-count-query", () => ({
+  useUnreadNotificationCountQuery: () => ({ data: 0 }),
+}));
+
 afterEach(cleanup);
 
 describe("CustomerShell", () => {
@@ -46,9 +50,7 @@ describe("CustomerShell", () => {
     expect(within(sidebar).getByText("LogiSphere")).toBeInTheDocument();
     expect(within(sidebar).getByText("Customer Portal")).toBeInTheDocument();
     expect(within(sidebar).getByText("Acme Trading Ltd.")).toBeInTheDocument();
-    expect(
-      within(sidebar).getByRole("button", { name: "Help" }),
-    ).toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: "Help" })).toBeInTheDocument();
     expect(screen.getByText("Portal page content")).toBeInTheDocument();
 
     const collapseButton = screen.getByRole("button", {

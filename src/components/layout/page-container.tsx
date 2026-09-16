@@ -13,9 +13,7 @@ export function PageContainer({ children }: { children: React.ReactNode }) {
         isExpanded ? "lg:ml-[224px]" : "lg:ml-[64px]",
       )}
     >
-      <div className="w-full p-4 sm:p-6 lg:p-8">
-        {children}
-      </div>
+      <div className="w-full p-4 pt-[4.5rem] sm:p-6 sm:pt-20 lg:p-8 lg:pt-8">{children}</div>
     </main>
   );
 }
