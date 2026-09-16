@@ -71,6 +71,16 @@ describe("MailWorkspace", () => {
     expect(screen.getByRole("region", { name: "Mail inbox" })).toBeVisible();
     expect(screen.getByRole("region", { name: "Mail thread" })).toBeVisible();
     expect(screen.queryByRole("tab", { name: /All Threads/ })).not.toBeInTheDocument();
+
+    const workspaceLayout = screen.getByTestId("mail-workspace-layout");
+    expect(workspaceLayout).toHaveClass("min-h-0", "flex-1");
+    expect(workspaceLayout.parentElement).toHaveClass(
+      "flex",
+      "min-h-[40rem]",
+      "flex-col",
+      "lg:h-[calc(100vh-4rem)]",
+      "lg:min-h-0",
+    );
   });
 
   it("keeps restricted managers on the same workspace while gating supervisory queues and actions", async () => {
@@ -152,25 +162,28 @@ describe("MailWorkspace", () => {
     expect(listThreads).not.toHaveBeenCalled();
   });
 
-  it.each([1024, 1100, 1279])("uses an explicit two-pane list/detail layout at %i pixels", async (width) => {
-    setViewport(width);
-    render(
-      <MailWorkspace
-        user={profile(0)}
-        resourceScope={scope(0)}
-        initialThreadId={mailThreadFixtures[0].id}
-        repository={createMailMockRepository(mailThreadFixtures)}
-      />,
-    );
+  it.each([1024, 1100, 1279])(
+    "uses an explicit two-pane list/detail layout at %i pixels",
+    async (width) => {
+      setViewport(width);
+      render(
+        <MailWorkspace
+          user={profile(0)}
+          resourceScope={scope(0)}
+          initialThreadId={mailThreadFixtures[0].id}
+          repository={createMailMockRepository(mailThreadFixtures)}
+        />,
+      );
 
-    const workspace = await screen.findByTestId("mail-workspace-layout");
-    expect(workspace).toHaveAttribute("data-mail-viewport", "mid");
-    expect(workspace).toHaveAttribute("data-mail-layout", "two-pane");
-    expect(workspace.className).toContain("grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]");
-    expect(screen.getByRole("region", { name: "Mail inbox" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Mail thread" })).toBeVisible();
-    expect(screen.queryByRole("navigation", { name: "Mail queues" })).not.toBeInTheDocument();
-  });
+      const workspace = await screen.findByTestId("mail-workspace-layout");
+      expect(workspace).toHaveAttribute("data-mail-viewport", "mid");
+      expect(workspace).toHaveAttribute("data-mail-layout", "two-pane");
+      expect(workspace.className).toContain("grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]");
+      expect(screen.getByRole("region", { name: "Mail inbox" })).toBeVisible();
+      expect(screen.getByRole("region", { name: "Mail thread" })).toBeVisible();
+      expect(screen.queryByRole("navigation", { name: "Mail queues" })).not.toBeInTheDocument();
+    },
+  );
 
   it("uses single-pane mobile navigation with explicit back behavior", async () => {
     setViewport(800);

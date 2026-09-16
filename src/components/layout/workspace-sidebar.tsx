@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Bell, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuthLogout } from "@/hooks/mutations/auth/use-auth-logout";
@@ -41,30 +42,49 @@ export function WorkspaceSidebar({
   // Dynamic user profile fallback
   const displayName = user?.name || accountName || "Staff User";
   const displayRole = user?.role || accountSubtitle || "Staff workspace";
-  const displayInitials =
-    user?.name
-      ? user.name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
-      : accountInitials || "ST";
+  const displayInitials = user?.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : accountInitials || "ST";
 
-  const getItemClassName = (active?: boolean) =>
+  const getItemClassName = (active?: boolean, nested = false) =>
     cn(
       "flex h-10 w-full items-center rounded-lg text-sm font-medium transition-[background-color,color,padding] duration-150",
       isExpanded ? "justify-start px-3 gap-3" : "justify-center px-0 gap-0",
+      nested && isExpanded && "pl-11",
       active
         ? "bg-blue-50 text-primary font-semibold dark:bg-blue-950/50 dark:text-blue-400"
         : "text-muted-foreground hover:bg-slate-50 hover:text-foreground dark:hover:bg-slate-800/60 dark:hover:text-foreground",
     );
 
   // Filter items by capability if user profile is loaded and item requires capability
-  const visibleNavigation = navigation.filter((item) => {
-    if (!item.capability || !user) return true;
-    return hasPermission(user, item.capability);
-  });
+  const visibleNavigation = useMemo(
+    () =>
+      navigation.reduce<NavigationItem[]>((items, item) => {
+        if (item.capability && user && !hasPermission(user, item.capability)) return items;
+
+        const visibleChildren = item.children?.filter(
+          (child) => !child.capability || !user || hasPermission(user, child.capability),
+        );
+        items.push(visibleChildren ? { ...item, children: visibleChildren } : item);
+        return items;
+      }, []),
+    [navigation, user],
+  );
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const activeExpandableItems = useMemo(
+    () =>
+      new Set(
+        visibleNavigation
+          .filter((item) => item.children?.some((child) => isNavigationItemActive(child, pathname)))
+          .map((item) => item.href),
+      ),
+    [pathname, visibleNavigation],
+  );
 
   return (
     <aside
@@ -88,10 +108,10 @@ export function WorkspaceSidebar({
                 L
               </div>
               <div className="min-w-0 overflow-hidden whitespace-nowrap">
-                <p className="truncate text-base font-bold leading-tight text-foreground">
+                <p className="truncate text-base leading-tight font-bold text-foreground">
                   {brandName}
                 </p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
                   {brandSubtitle}
                 </p>
               </div>
@@ -126,30 +146,67 @@ export function WorkspaceSidebar({
       {/* Navigation */}
       <nav
         aria-label={`${ariaLabel} menu`}
-        className="flex-1 space-y-1 overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex-1 [scrollbar-width:none] space-y-1 overflow-y-auto p-2 [&::-webkit-scrollbar]:hidden"
       >
-        {visibleNavigation.map(({ label, href, icon: Icon }) => {
-          const active =
-            pathname === href ||
-            (href !== "/portal" && href !== "/overview" && pathname.startsWith(`${href}/`));
+        {visibleNavigation.map((item) => {
+          const active = isNavigationItemActive(item, pathname);
+          const children = item.children ?? [];
 
+          if (children.length === 0) {
+            return (
+              <NavigationLink
+                key={item.href}
+                item={item}
+                active={active}
+                className={getItemClassName(active)}
+              />
+            );
+          }
+
+          const isOpen = expandedItems[item.href] ?? activeExpandableItems.has(item.href);
+          const Icon = item.icon;
           return (
-            <Link
-              key={href}
-              href={href}
-              title={label}
-              aria-current={active ? "page" : undefined}
-              className={getItemClassName(active)}
-            >
-              <span className="flex size-8 shrink-0 items-center justify-center">
-                <Icon className="size-4" />
-              </span>
-              {isExpanded && (
-                <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
-                  {label}
+            <div key={item.href}>
+              <button
+                type="button"
+                title={item.label}
+                aria-expanded={isOpen}
+                className={getItemClassName(active)}
+                onClick={() =>
+                  setExpandedItems((current) => ({ ...current, [item.href]: !isOpen }))
+                }
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center">
+                  <Icon className="size-4" />
                 </span>
-              )}
-            </Link>
+                {isExpanded ? (
+                  <>
+                    <span className="min-w-0 flex-1 truncate overflow-hidden text-left whitespace-nowrap">
+                      {item.label}
+                    </span>
+                    <ChevronDown
+                      className={cn("size-4 shrink-0 transition-transform", isOpen && "rotate-180")}
+                      aria-hidden="true"
+                    />
+                  </>
+                ) : null}
+              </button>
+              {isExpanded && isOpen ? (
+                <div className="mt-1 grid gap-1">
+                  {children.map((child) => {
+                    const childActive = isNavigationItemActive(child, pathname);
+                    return (
+                      <NavigationLink
+                        key={child.href}
+                        item={child}
+                        active={childActive}
+                        className={getItemClassName(childActive, true)}
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </nav>
@@ -166,7 +223,7 @@ export function WorkspaceSidebar({
               <Bell className="size-4" />
             </span>
             {isExpanded && (
-              <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
+              <span className="min-w-0 flex-1 truncate overflow-hidden text-left whitespace-nowrap">
                 Notifications
               </span>
             )}
@@ -185,7 +242,7 @@ export function WorkspaceSidebar({
             <LogOut className="size-4" />
           </span>
           {isExpanded && (
-            <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
+            <span className="min-w-0 flex-1 truncate overflow-hidden text-left whitespace-nowrap">
               Sign out
             </span>
           )}
@@ -198,7 +255,7 @@ export function WorkspaceSidebar({
           className={cn(
             "flex h-11 items-center rounded-lg transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-800/80",
             pathname === "/settings" && "bg-blue-50/80 dark:bg-blue-950/40",
-            isExpanded ? "justify-start px-2.5 gap-2.5" : "justify-center px-0 gap-0",
+            isExpanded ? "justify-start gap-2.5 px-2.5" : "justify-center gap-0 px-0",
           )}
         >
           <span className="flex size-8 shrink-0 items-center justify-center">
@@ -209,8 +266,8 @@ export function WorkspaceSidebar({
             </Avatar>
           </span>
           {isExpanded && (
-            <span className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left">
-              <span className="block truncate text-sm font-semibold leading-tight text-foreground">
+            <span className="min-w-0 flex-1 truncate overflow-hidden text-left whitespace-nowrap">
+              <span className="block truncate text-sm leading-tight font-semibold text-foreground">
                 {displayName}
               </span>
               <span className="block truncate text-xs font-normal text-muted-foreground">
@@ -221,5 +278,39 @@ export function WorkspaceSidebar({
         </Link>
       </div>
     </aside>
+  );
+}
+
+function NavigationLink({
+  item,
+  active,
+  className,
+}: {
+  item: NavigationItem;
+  active: boolean;
+  className: string;
+}): React.JSX.Element {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      title={item.label}
+      aria-current={active ? "page" : undefined}
+      className={className}
+    >
+      <span className="flex size-8 shrink-0 items-center justify-center">
+        <Icon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1 truncate overflow-hidden text-left whitespace-nowrap">
+        {item.label}
+      </span>
+    </Link>
+  );
+}
+
+function isNavigationItemActive(item: NavigationItem, pathname: string): boolean {
+  return (
+    pathname === item.href ||
+    (item.href !== "/portal" && item.href !== "/overview" && pathname.startsWith(`${item.href}/`))
   );
 }

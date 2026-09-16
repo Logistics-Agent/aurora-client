@@ -3,7 +3,7 @@ import type { MailMessage } from "../../types";
 
 export function OutboundMessage({ message }: { message: MailMessage }): React.JSX.Element {
   return (
-    <article className="grid gap-3 rounded-lg border border-blue-200 bg-blue-50/40 p-4">
+    <article className="grid gap-2 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
       <header className="grid gap-1">
         <h3 className="font-medium">Outbound message</h3>
         <MailboxIdentity address={message.senderAddress} label="Shared sender" />

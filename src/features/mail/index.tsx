@@ -68,3 +68,4 @@ export function MailPage({
 
 export { MailWorkspace } from "./components/mail-workspace";
 export { MailAccessState } from "./components/mail-access-state";
+export { MailQuarantinePage } from "./quarantine";

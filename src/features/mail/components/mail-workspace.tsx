@@ -144,7 +144,7 @@ function MockMailWorkspace({
       <div
         data-mail-workspace
         data-mail-viewport={viewportMode}
-        className="grid min-h-[40rem] gap-3 transition-colors motion-reduce:transition-none"
+        className="flex min-h-[40rem] flex-col gap-3 transition-colors motion-reduce:transition-none lg:h-[calc(100vh-4rem)] lg:min-h-0"
       >
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <div>
@@ -208,10 +208,10 @@ function MockMailWorkspace({
           data-testid="mail-workspace-layout"
           data-mail-viewport={viewportMode}
           data-mail-layout={layoutName}
-          className={`grid min-w-0 gap-3 ${layoutClass}`}
+          className={`grid min-h-0 min-w-0 flex-1 gap-3 ${layoutClass}`}
         >
           {showThreadList || showQueueNavigation ? (
-            <div className="min-w-0">
+            <div className="min-h-0 min-w-0">
               <MailInbox
                 canClaim={workspace.permissions.canClaim}
                 currentUserId={user?.userId ?? ""}
@@ -236,7 +236,7 @@ function MockMailWorkspace({
           ) : null}
 
           {showThreadDetail ? (
-            <div className="min-w-0">
+            <div className="min-h-0 min-w-0">
               <MailThreadPanel
                 initialThreadId={routeThreadId}
                 thread={workspace.selectedThread}

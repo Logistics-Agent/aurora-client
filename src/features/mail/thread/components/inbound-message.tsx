@@ -11,7 +11,7 @@ export function InboundMessage({
   onAttachmentOpen,
 }: InboundMessageProps): React.JSX.Element {
   return (
-    <article className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4">
+    <article className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3">
       <header className="grid gap-0.5">
         <h3 className="font-medium">Received from {message.authorName}</h3>
         <p className="text-sm text-muted-foreground">From: {message.senderAddress}</p>

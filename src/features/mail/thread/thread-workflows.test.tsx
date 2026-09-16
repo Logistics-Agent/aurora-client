@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -12,6 +12,71 @@ import { MailThreadPanel } from "./index";
 afterEach(cleanup);
 
 describe("MailThreadPanel", () => {
+  it("opens the reply composer from a button and closes it without leaving the conversation", async () => {
+    const user = userEvent.setup();
+    const thread = createMailThreadFixture({ assigneeId: "staff-01" });
+
+    render(
+      <ThreadPanel
+        thread={thread}
+        mailbox={operationsMailbox}
+        currentUserId="staff-01"
+        permissions={ownThreadPermissions}
+        composerMailboxes={[operationsMailbox]}
+        canCreateDraft
+        canSend
+        onSaveDraft={() => undefined}
+        onSendMessage={() => undefined}
+      />,
+    );
+
+    const replySlot = screen.getByRole("button", { name: "Reply" }).parentElement;
+    expect(replySlot).toHaveClass("h-9", "shrink-0");
+    expect(screen.queryByRole("region", { name: "Reply composer" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Reply" }));
+    expect(screen.getByRole("region", { name: "Reply composer" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Reply composer" }).parentElement).toHaveClass(
+      "h-9",
+      "shrink-0",
+    );
+    expect(screen.getByLabelText("Reply message")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Close reply composer" }));
+    expect(screen.getByRole("button", { name: "Reply" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Reply composer" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the thread header fixed while only the conversation timeline scrolls", () => {
+    render(
+      <ThreadPanel
+        thread={createMailThreadFixture({
+          messages: [],
+          status: "in_progress",
+          draft: { body: "Draft reply", updatedAt: "2026-09-04T08:00:00.000Z" },
+        })}
+        mailbox={operationsMailbox}
+        currentUserId="staff-01"
+        permissions={ownThreadPermissions}
+      />,
+    );
+
+    const panel = screen.getByRole("region", { name: "Mail thread" });
+    const header = within(panel).getByRole("banner");
+    const conversation = within(panel).getByRole("region", { name: "Conversation timeline" });
+    const metadataDivider = within(header).getByRole("separator");
+    const statusBadge = within(header).getByText("in progress");
+    const draftBadge = within(header).getByText("Draft");
+
+    expect(panel).toHaveClass("flex", "flex-col", "overflow-hidden");
+    expect(header).toHaveClass("shrink-0");
+    expect(conversation).toHaveClass("min-h-0", "flex-1", "overflow-y-auto");
+    expect(metadataDivider).toHaveClass("hidden", "w-px", "sm:block");
+    expect(within(header).queryByRole("combobox", { name: "Priority" })).not.toBeInTheDocument();
+    expect(statusBadge).toHaveClass("h-6", "px-2.5", "text-sm");
+    expect(draftBadge).toHaveClass("h-6", "px-2.5", "text-sm");
+  });
+
   it("does not resolve an unscoped direct-route id from full mail fixtures", () => {
     render(<MailThreadPanel initialThreadId="thread-success-01" />);
 
@@ -36,7 +101,9 @@ describe("MailThreadPanel", () => {
     );
 
     expect(await screen.findByText("No conversation selected")).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Finance-only conversation" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Finance-only conversation" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Booking confirmation" })).not.toBeInTheDocument();
   });
 
@@ -92,23 +159,28 @@ describe("MailThreadPanel", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Urgent booking request" })).toBeVisible();
-    expect(screen.getByText("Shared sender: operations@example.test")).toBeVisible();
-    expect(screen.getByText("Recipient: Jordan Lee <jordan.lee@example.test>")).toBeVisible();
-    expect(screen.getByText("Version 1")).toBeVisible();
+    expect(within(screen.getAllByRole("banner")[0]).getByRole("group")).toHaveTextContent(
+      "operations@example.test",
+    );
+    expect(screen.getByText("jordan.lee@example.test")).toBeVisible();
+    expect(screen.getByText("v1")).toBeVisible();
     expect(screen.getByText("<script>unsafe message</script>")).toBeVisible();
     expect(screen.getByText("Authenticated author: Avery Staff")).toBeVisible();
-    expect(screen.getByText("2026-09-04T08:00:00.000Z", { selector: "time" }))
-      .toHaveAttribute("dateTime", "2026-09-04T08:00:00.000Z");
-    expect(screen.getByText("2026-09-04T09:00:00.000Z", { selector: "time" }))
-      .toHaveAttribute("dateTime", "2026-09-04T09:00:00.000Z");
+    expect(screen.getByText("2026-09-04T08:00:00.000Z", { selector: "time" })).toHaveAttribute(
+      "dateTime",
+      "2026-09-04T08:00:00.000Z",
+    );
+    expect(screen.getByText("2026-09-04T09:00:00.000Z", { selector: "time" })).toHaveAttribute(
+      "dateTime",
+      "2026-09-04T09:00:00.000Z",
+    );
 
     await user.click(screen.getByRole("button", { name: "Open booking.pdf" }));
     expect(openedAttachments).toEqual(["attachment-1"]);
   });
 
-  it("emits priority and resolution intents only for the current assignee", async () => {
+  it("emits resolution intents only for the current assignee", async () => {
     const user = userEvent.setup();
-    const priorityChanges: string[] = [];
     let resolved = false;
     const thread = createMailThreadFixture({ assigneeId: "staff-01", status: "in_progress" });
 
@@ -118,19 +190,14 @@ describe("MailThreadPanel", () => {
         mailbox={operationsMailbox}
         currentUserId="staff-01"
         permissions={ownThreadPermissions}
-        onPriorityChange={(priority) => {
-          priorityChanges.push(priority);
-        }}
         onResolve={() => {
           resolved = true;
         }}
       />,
     );
 
-    await user.selectOptions(screen.getByLabelText("Priority"), "urgent");
     await user.click(screen.getByRole("button", { name: "Mark resolved" }));
 
-    expect(priorityChanges).toEqual(["urgent"]);
     expect(resolved).toBe(true);
   });
 
@@ -148,8 +215,8 @@ describe("MailThreadPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Read-only: assigned to staff-02")).toBeVisible();
-    expect(screen.getByLabelText("Priority")).toBeDisabled();
+    expect(screen.getByText("Read-only")).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Priority" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mark resolved" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Reassign thread" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Release to unassigned" })).not.toBeInTheDocument();
@@ -193,10 +260,12 @@ describe("MailThreadPanel", () => {
     await user.type(screen.getByLabelText("Business reason"), "Coverage for the late shift");
     await user.click(screen.getByRole("button", { name: "Confirm reassignment" }));
 
-    await waitFor(() => expect(reassignment).toEqual({
-      targetUserId: "staff-03",
-      reason: "Coverage for the late shift",
-    }));
+    await waitFor(() =>
+      expect(reassignment).toEqual({
+        targetUserId: "staff-03",
+        reason: "Coverage for the late shift",
+      }),
+    );
     expect(trigger).toHaveFocus();
   });
 
@@ -271,7 +340,7 @@ describe("MailThreadPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Assignment refreshed. This thread is now read-only.",
     );
-    expect(screen.getByText("Read-only: assigned to staff-02")).toBeVisible();
+    expect(screen.getByText("Read-only")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Take thread" })).not.toBeInTheDocument();
   });
 
@@ -296,9 +365,8 @@ describe("MailThreadPanel", () => {
     await user.selectOptions(screen.getByLabelText("Assign to"), "manager-01");
     await user.type(screen.getByLabelText("Business reason"), "Own the customer escalation");
     await user.click(screen.getByRole("button", { name: "Confirm reassignment" }));
-    await waitFor(() => expect(screen.getByText("Assignee: manager-01")).toBeVisible());
+    await waitFor(() => expect(screen.getByText("manager-01")).toBeVisible());
 
-    await user.selectOptions(screen.getByLabelText("Priority"), "urgent");
     await user.click(screen.getByRole("button", { name: "Mark resolved" }));
     await user.click(screen.getByRole("button", { name: "Release to unassigned" }));
     await user.type(screen.getByLabelText("Release reason"), "Escalation complete");
@@ -308,14 +376,16 @@ describe("MailThreadPanel", () => {
     expect(updated).toMatchObject({
       assigneeId: null,
       status: "unassigned",
-      priority: "urgent",
-      version: 5,
+      priority: "normal",
+      version: 4,
     });
-    expect(updated?.assignmentHistory.map((event) => ({
-      type: event.type,
-      targetUserId: event.targetUserId,
-      reason: event.reason,
-    }))).toEqual([
+    expect(
+      updated?.assignmentHistory.map((event) => ({
+        type: event.type,
+        targetUserId: event.targetUserId,
+        reason: event.reason,
+      })),
+    ).toEqual([
       {
         type: "reassign",
         targetUserId: "manager-01",
@@ -339,7 +409,9 @@ describe("MailThreadPanel", () => {
     const repository = createMailMockRepository([thread]);
     render(<ComposerWorkspaceThreadPanel repository={repository} initialThreadId={thread.id} />);
 
-    await user.selectOptions(await screen.findByLabelText("From shared mailbox"), "mailbox-support");
+    await user.click(await screen.findByRole("button", { name: "Reply" }));
+    await user.click(await screen.findByRole("combobox", { name: "From shared mailbox" }));
+    await user.click(await screen.findByRole("option", { name: /Customer Support/ }));
     await user.type(screen.getByLabelText("Reply message"), "The pickup is scheduled for Tuesday.");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(async () =>
@@ -396,11 +468,7 @@ const managerUser = {
   email: "manager@example.test",
   name: "Riley Manager",
   role: "MANAGER" as const,
-  permissions: [
-    "mail:read",
-    "mail:thread:reassign",
-    "mail:thread:unassign",
-  ],
+  permissions: ["mail:read", "mail:thread:reassign", "mail:thread:unassign"],
   isAuthenticated: true,
 };
 
@@ -417,6 +485,12 @@ type RichThreadPanelProps = {
   onReassign?: (targetUserId: string, reason: string) => Promise<void> | void;
   onUnassign?: (reason: string) => Promise<void> | void;
   onAttachmentOpen?: (attachment: { id: string }) => void;
+  composerMailboxes?: readonly MailMailbox[];
+  canCreateDraft?: boolean;
+  canSend?: boolean;
+  allowMockAttachments?: boolean;
+  onSaveDraft?: (body: string) => Promise<void> | void;
+  onSendMessage?: (message: { senderAddress: string; bodyText: string }) => Promise<void> | void;
 };
 
 const ThreadPanel = MailThreadPanel as unknown as (
@@ -435,15 +509,16 @@ function WorkspaceThreadPanel({
   accessibleMailboxIds?: readonly string[];
 }) {
   const user = useMemo(
-    () => suppliedUser ?? ({
-      userId: "staff-01",
-      tenantId: "tenant-01",
-      email: "avery.staff@example.test",
-      name: "Avery Staff",
-      role: "STAFF" as const,
-      permissions: ["mail:read", "mail:thread:claim"],
-      isAuthenticated: true,
-    }),
+    () =>
+      suppliedUser ?? {
+        userId: "staff-01",
+        tenantId: "tenant-01",
+        email: "avery.staff@example.test",
+        name: "Avery Staff",
+        role: "STAFF" as const,
+        permissions: ["mail:read", "mail:thread:claim"],
+        isAuthenticated: true,
+      },
     [suppliedUser],
   );
   const workspace = useMailWorkspace({
@@ -476,7 +551,9 @@ function WorkspaceThreadPanel({
       }
       onResolve={() => workspace.markResolved(workspace.selectedThread!.id).then(() => undefined)}
       onReassign={(targetUserId, reason) =>
-        workspace.reassignThread(workspace.selectedThread!.id, targetUserId, reason).then(() => undefined)
+        workspace
+          .reassignThread(workspace.selectedThread!.id, targetUserId, reason)
+          .then(() => undefined)
       }
       onUnassign={(reason) =>
         workspace.unassignThread(workspace.selectedThread!.id, reason).then(() => undefined)
@@ -525,7 +602,9 @@ function ComposerWorkspaceThreadPanel({
       composerMailboxes={[operationsMailbox, supportMailbox]}
       canCreateDraft={workspace.selectedThreadPermissions.canCreateDraft}
       canSend={workspace.selectedThreadPermissions.canSend}
-      onSaveDraft={(body) => workspace.saveDraft(workspace.selectedThread!.id, body).then(() => undefined)}
+      onSaveDraft={(body) =>
+        workspace.saveDraft(workspace.selectedThread!.id, body).then(() => undefined)
+      }
       onSendMessage={(message) =>
         workspace.sendMessage(workspace.selectedThread!.id, message).then(() => undefined)
       }

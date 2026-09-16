@@ -21,7 +21,7 @@ vi.mock("@/hooks/queries/auth/use-current-user-query", () => ({
       email: "ops@acme.com",
       name: "Operations Staff",
       role: "STAFF",
-      permissions: ["shipments:read", "route_planning:read", "mail:read"],
+      permissions: ["shipments:read", "route_planning:read", "mail:read", "mail:quarantine:read"],
       isAuthenticated: true,
     },
     isLoading: false,
@@ -41,12 +41,20 @@ describe("AppSidebar", () => {
     useSidebarStore.setState({ isExpanded: true });
   });
 
-  it("declares Mail as a direct-capability navigation item", () => {
+  it("declares Mail as an expandable capability navigation item", () => {
     expect(staffNavigation).toContainEqual(
       expect.objectContaining({
         label: "Mail",
         href: "/mail",
         capability: "mail:read",
+        children: expect.arrayContaining([
+          expect.objectContaining({ label: "Mail exchange", href: "/mail" }),
+          expect.objectContaining({
+            label: "Quarantine",
+            href: "/mail/quarantine",
+            capability: "mail:quarantine:read",
+          }),
+        ]),
       }),
     );
   });
@@ -65,8 +73,21 @@ describe("AppSidebar", () => {
     expect(sidebar).toHaveClass("z-50");
     expect(within(sidebar).getByText("Overview")).toBeInTheDocument();
 
-    const mailLink = within(sidebar).getByRole("link", { name: "Mail" });
-    expect(mailLink).toHaveAttribute("href", "/mail");
+    const mailToggle = within(sidebar).getByRole("button", { name: "Mail" });
+    expect(mailToggle).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(mailToggle);
+
+    expect(mailToggle).toHaveAttribute("aria-expanded", "true");
+    expect(within(sidebar).getByRole("link", { name: "Mail exchange" })).toHaveAttribute(
+      "href",
+      "/mail",
+    );
+    expect(within(sidebar).getByRole("link", { name: "Quarantine" })).toHaveAttribute(
+      "href",
+      "/mail/quarantine",
+    );
+    expect(within(sidebar).queryByText("History")).not.toBeInTheDocument();
 
     const collapseButton = screen.getByRole("button", {
       name: "Collapse sidebar",
@@ -74,8 +95,6 @@ describe("AppSidebar", () => {
     await user.click(collapseButton);
 
     expect(sidebar).toHaveClass("w-[64px]");
-    expect(
-      screen.getByRole("button", { name: "Expand sidebar" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
   });
 });

@@ -12,12 +12,15 @@ export function MessageTimeline({
   onAttachmentOpen,
 }: MessageTimelineProps): React.JSX.Element {
   return (
-    <section aria-label="Conversation timeline" className="grid gap-3">
-      <h2 className="font-heading text-base font-semibold">Conversation</h2>
+    <section
+      aria-label="Conversation timeline"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1"
+    >
+      <h2 className="font-heading shrink-0 text-base font-semibold">Conversation</h2>
       {messages.length === 0 ? (
         <p className="text-sm text-muted-foreground">No messages in this conversation.</p>
       ) : (
-        <ol className="grid gap-3">
+        <ol className="grid gap-2">
           {messages.map((message) => (
             <li key={message.id}>
               {message.direction === "inbound" ? (

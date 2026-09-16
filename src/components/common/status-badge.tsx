@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const statusStyles = {
   neutral: "border-slate-200 bg-slate-50 text-slate-600",
@@ -14,12 +15,14 @@ export type StatusIntent = keyof typeof statusStyles;
 export function StatusBadge({
   label,
   intent = "neutral",
+  className,
 }: {
   label: string;
   intent?: StatusIntent;
+  className?: string;
 }) {
   return (
-    <Badge variant="outline" className={statusStyles[intent]}>
+    <Badge variant="outline" className={cn(statusStyles[intent], className)}>
       {label}
     </Badge>
   );

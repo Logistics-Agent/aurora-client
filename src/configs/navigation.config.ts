@@ -5,10 +5,12 @@ import {
   Bot,
   ClipboardCheck,
   FileText,
+  Inbox,
   LayoutDashboard,
   Mail,
   Map,
   Settings,
+  ShieldAlert,
   Truck,
   Upload,
 } from "lucide-react";
@@ -20,6 +22,7 @@ export type NavigationItem = {
   href: string;
   icon: LucideIcon;
   capability?: string;
+  children?: readonly NavigationItem[];
 };
 
 export const staffNavigation: NavigationItem[] = [
@@ -71,6 +74,15 @@ export const staffNavigation: NavigationItem[] = [
     href: "/mail",
     icon: Mail,
     capability: PERMISSIONS.MAIL.READ,
+    children: [
+      { label: "Mail exchange", href: "/mail", icon: Inbox },
+      {
+        label: "Quarantine",
+        href: "/mail/quarantine",
+        icon: ShieldAlert,
+        capability: PERMISSIONS.MAIL.QUARANTINE_READ,
+      },
+    ],
   },
   {
     label: "AI Assistant",
