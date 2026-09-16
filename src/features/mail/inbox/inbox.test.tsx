@@ -95,30 +95,24 @@ function QueueInbox({
 }) {
   const [filters, setFilters] = useState<MailListFilters>(initialFilters);
   const [selectedThreadId, setSelectedThreadId] = useState("thread-unassigned");
-  const scopedMailboxes = useMemo(
-    () => selectVisibleMailboxes(mailboxes, resourceScope),
-    [],
-  );
+  const scopedMailboxes = useMemo(() => selectVisibleMailboxes(mailboxes, resourceScope), []);
   const visibleThreads = useMemo(
     () => selectVisibleThreads(threads, filters, currentUserId, resourceScope),
     [filters],
   );
   const queueCounts = useMemo(
     () =>
-      (Object.keys({
-        unassigned: true,
-        mine: true,
-        all: true,
-        drafts: true,
-      }) as MailQueueScope[]).reduce<Record<MailQueueScope, number>>(
+      (
+        Object.keys({
+          unassigned: true,
+          mine: true,
+          all: true,
+          drafts: true,
+        }) as MailQueueScope[]
+      ).reduce<Record<MailQueueScope, number>>(
         (counts, queue) => ({
           ...counts,
-          [queue]: selectVisibleThreads(
-            threads,
-            { queue },
-            currentUserId,
-            resourceScope,
-          ).length,
+          [queue]: selectVisibleThreads(threads, { queue }, currentUserId, resourceScope).length,
         }),
         { unassigned: 0, mine: 0, all: 0, drafts: 0 },
       ),
@@ -174,9 +168,7 @@ describe("MailInbox", () => {
   });
 
   it("falls back to Unassigned when the All Threads capability is removed", async () => {
-    const { rerender } = render(
-      <QueueInbox showAllThreads initialFilters={{ queue: "all" }} />,
-    );
+    const { rerender } = render(<QueueInbox showAllThreads initialFilters={{ queue: "all" }} />);
     expect(screen.getByRole("tab", { name: "All Threads 3" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -203,12 +195,15 @@ describe("MailInbox", () => {
     render(<QueueInbox showAllThreads />);
 
     await user.click(screen.getByRole("tab", { name: "All Threads 3" }));
-    await user.selectOptions(screen.getByLabelText("Mailbox"), "mailbox-support");
+    await user.click(screen.getByRole("combobox", { name: "Mailbox" }));
+    await user.click(await screen.findByRole("option", { name: "Customer Support" }));
     expect(screen.getByText("My resolved shipment update")).toBeVisible();
     expect(screen.queryByText("Urgent booking confirmation")).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Status"), "resolved");
-    await user.selectOptions(screen.getByLabelText("Priority"), "high");
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.click(await screen.findByRole("option", { name: "Resolved" }));
+    await user.click(screen.getByRole("combobox", { name: "Priority" }));
+    await user.click(await screen.findByRole("option", { name: "High" }));
     await user.type(screen.getByRole("searchbox", { name: "Search threads" }), "shipment");
 
     expect(screen.getByText("My resolved shipment update")).toBeVisible();
@@ -230,7 +225,9 @@ describe("MailInbox", () => {
     expect(within(thread!).getByText("Urgent")).toBeVisible();
     expect(within(thread!).getByText("Unassigned")).toBeVisible();
     expect(within(thread!).getByText("v1")).toBeVisible();
-    expect(within(thread!).getByText("Customer: Jordan Lee <jordan.lee@example.test>")).toBeVisible();
+    expect(
+      within(thread!).getByText("Customer: Jordan Lee <jordan.lee@example.test>"),
+    ).toBeVisible();
     expect(within(thread!).getByText("Last message: 2h ago")).toBeVisible();
     expect(within(thread!).getByText("Assignee: Unassigned")).toBeVisible();
     expect(within(thread!).getByText("operations@example.test")).toBeVisible();
@@ -261,7 +258,9 @@ describe("MailInbox", () => {
   it("selects rows with Enter and Space through their selection buttons", async () => {
     const user = userEvent.setup();
     const selectedThreadIds: string[] = [];
-    render(<QueueInbox showAllThreads onThreadSelect={(threadId) => selectedThreadIds.push(threadId)} />);
+    render(
+      <QueueInbox showAllThreads onThreadSelect={(threadId) => selectedThreadIds.push(threadId)} />,
+    );
 
     await user.click(screen.getByRole("tab", { name: "All Threads 3" }));
     const mine = screen.getByRole("button", { name: "Select My resolved shipment update" });
@@ -296,10 +295,7 @@ describe("MailInbox", () => {
     ).not.toBeInTheDocument();
 
     rerender(
-      <QueueInbox
-        key="empty-queue"
-        initialFilters={{ queue: "unassigned", status: "resolved" }}
-      />,
+      <QueueInbox key="empty-queue" initialFilters={{ queue: "unassigned", status: "resolved" }} />,
     );
     expect(screen.getByText("No threads in this queue")).toBeVisible();
   });
@@ -316,7 +312,9 @@ describe("MailInbox", () => {
     rerender(<QueueInbox error={new Error("Mailbox unavailable")} />);
     expect(screen.getByText("Mail threads unavailable")).toBeVisible();
     let retried = false;
-    rerender(<QueueInbox error={new Error("Mailbox unavailable")} onRetry={() => (retried = true)} />);
+    rerender(
+      <QueueInbox error={new Error("Mailbox unavailable")} onRetry={() => (retried = true)} />,
+    );
     await user.click(screen.getByRole("button", { name: "Retry mail threads" }));
     expect(retried).toBe(true);
   });

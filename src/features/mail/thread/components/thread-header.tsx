@@ -1,5 +1,7 @@
 import type { RefObject } from "react";
 
+import { Check, History } from "lucide-react";
+
 import { MailboxIdentity } from "@/components/common/mail";
 import { StatusBadge } from "@/components/common";
 import { Button } from "@/components/ui/button";
@@ -42,7 +44,6 @@ export function ThreadHeader({
   currentUserId,
   permissions,
   onClaim,
-  onPriorityChange,
   onResolve,
   onReassign,
   onUnassign,
@@ -55,51 +56,68 @@ export function ThreadHeader({
     Boolean(thread.assigneeId) && thread.assigneeId !== currentUserId && !permissions.canReassign;
 
   return (
-    <header className="grid gap-4 border-b border-border pb-4">
-      <div className="grid gap-1">
-        <h1 className="font-heading text-xl font-semibold">{thread.subject}</h1>
-        <p className="text-sm text-muted-foreground">Version {thread.version}</p>
-      </div>
-      <div className="grid gap-2 text-sm">
-        {mailbox ? (
-          <div>
-            <p>Shared sender: {mailbox.senderAddress}</p>
-            <MailboxIdentity address={mailbox.senderAddress} label="Shared sender" />
-          </div>
-        ) : null}
-        <div>
-          {thread.participants.map((participant) => (
-            <p key={participant.email}>
-              Recipient: {participant.name} &lt;{participant.email}&gt;
-            </p>
-          ))}
+    <header className="grid shrink-0 gap-3 border-b border-border pb-3">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="font-heading truncate text-xl font-semibold">{thread.subject}</h1>
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">
+            v{thread.version}
+          </span>
         </div>
-        <p>Assignee: {thread.assigneeId ?? "Unassigned"}</p>
-        {readOnly ? <p>Read-only: assigned to {thread.assigneeId}</p> : null}
       </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge
           label={thread.status.replaceAll("_", " ")}
           intent={statusIntent[thread.status]}
+          className="h-6 px-2.5 text-sm"
         />
-        <label className="flex items-center gap-2" htmlFor={`thread-${thread.id}-priority`}>
-          <span>Priority</span>
-          <select
-            id={`thread-${thread.id}-priority`}
-            value={thread.priority}
-            disabled={!permissions.canSetPriority}
-            onChange={(event) => onPriorityChange?.(event.target.value as MailPriority)}
-          >
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </select>
-        </label>
+        {thread.draft ? (
+          <StatusBadge label="Draft" intent="neutral" className="h-6 px-2.5 text-sm" />
+        ) : null}
       </div>
+
+      <div className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3 text-sm sm:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
+        <div className="grid gap-3">
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">From</span>
+            {mailbox ? (
+              <MailboxIdentity address={mailbox.senderAddress} label="Shared sender" />
+            ) : null}
+          </div>
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">To</span>
+            <div className="grid gap-0.5">
+              {thread.participants.map((participant) => (
+                <span key={participant.email} className="break-all">
+                  {participant.email}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          className="hidden w-px bg-border sm:block"
+        />
+        <div className="grid gap-3">
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Assignee</span>
+            <span className="font-medium">{thread.assigneeId ?? "Unassigned"}</span>
+            {readOnly ? <span className="text-xs text-muted-foreground">Read-only</span> : null}
+          </div>
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Message ID</span>
+            <span className="text-xs break-all text-muted-foreground">{thread.id}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {permissions.canClaim ? <Button onClick={onClaim}>Take thread</Button> : null}
         <Button variant="outline" disabled={!permissions.canResolve} onClick={onResolve}>
+          <Check />
           Mark resolved
         </Button>
         {permissions.canReassign ? (
@@ -112,7 +130,8 @@ export function ThreadHeader({
             Release to unassigned
           </Button>
         ) : null}
-        <Button ref={historyButtonRef} variant="ghost" onClick={onHistory}>
+        <Button ref={historyButtonRef} variant="outline" onClick={onHistory}>
+          <History />
           View assignment history
         </Button>
       </div>

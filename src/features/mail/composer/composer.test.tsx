@@ -43,7 +43,26 @@ describe("ReplyComposer", () => {
       />,
     );
 
-    await user.selectOptions(screen.getByLabelText("From shared mailbox"), "mailbox-support");
+    const composer = screen.getByRole("region", { name: "Reply composer" });
+    expect(composer).toHaveClass(
+      "fixed",
+      "z-50",
+      "flex",
+      "min-h-0",
+      "flex-col",
+      "overflow-hidden",
+      "shadow-2xl",
+      "animate-in",
+      "fade-in-0",
+      "slide-in-from-bottom-4",
+      "motion-reduce:animate-none",
+      "sm:h-[min(560px,calc(100vh-1rem))]",
+      "sm:w-[min(620px,calc(100vw-1rem))]",
+    );
+    expect(screen.getByRole("button", { name: "Send outbound" })).toBeVisible();
+
+    await user.click(screen.getByRole("combobox", { name: "From shared mailbox" }));
+    await user.click(await screen.findByRole("option", { name: /Customer Support/ }));
     await user.click(screen.getByRole("button", { name: "Insert AI suggestion" }));
     const body = screen.getByLabelText("Reply message");
     expect(body).toHaveValue("We can offer USD 1,250 for this shipment.");
@@ -142,7 +161,9 @@ describe("ReplyComposer", () => {
     expect(screen.getByLabelText("Reply message")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Send outbound" })).toBeDisabled();
-    expect(screen.getByText("You do not have permission to compose replies for this thread.")).toBeVisible();
+    expect(
+      screen.getByText("You do not have permission to compose replies for this thread."),
+    ).toBeVisible();
   });
 
   it("requires an explicit claim before it enables an unassigned reply", async () => {

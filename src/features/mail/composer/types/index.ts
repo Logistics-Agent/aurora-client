@@ -4,4 +4,12 @@ export interface MailDraftFormValues {
   attachmentIds: readonly string[];
 }
 
+export interface RealAttachmentItem {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  contentBase64: string;
+}
+
 export type MailDraftValidationResult = { valid: true } | { valid: false; error: string };

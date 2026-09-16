@@ -2,6 +2,13 @@
 
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { MailListFilters, MailMailbox, MailPriority, MailThreadStatus } from "../../types";
 
 export interface ThreadFiltersProps {
@@ -23,6 +30,8 @@ const priorities: readonly { value: MailPriority; label: string }[] = [
   { value: "urgent", label: "Urgent" },
 ];
 
+const ALL_FILTER_VALUE = "__all__";
+
 export function ThreadFilters({
   filters,
   mailboxes,
@@ -33,12 +42,12 @@ export function ThreadFilters({
       <legend className="sr-only">Filter mail threads</legend>
       <label className="relative block text-xs font-medium text-muted-foreground">
         <span className="sr-only">Search threads</span>
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
           aria-label="Search threads"
           placeholder="Search subject, sender, or preview…"
-          className="h-8 pl-8 text-xs bg-secondary/40"
+          className="h-8 bg-secondary/40 pl-8 text-xs"
           value={filters.search ?? ""}
           onChange={(event) =>
             onFiltersChange({ ...filters, search: event.target.value || undefined })
@@ -48,66 +57,90 @@ export function ThreadFilters({
       <div className="grid grid-cols-3 gap-2">
         <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
           <span className="truncate">Mailbox</span>
-          <select
-            aria-label="Mailbox"
-            className="h-8 w-full min-w-0 truncate rounded-lg border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={filters.mailboxId ?? ""}
-            onChange={(event) =>
+          <Select
+            value={filters.mailboxId ?? ALL_FILTER_VALUE}
+            onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
-                mailboxId: event.target.value || undefined,
+                mailboxId: value === ALL_FILTER_VALUE ? undefined : value,
               })
             }
           >
-            <option value="">All mailboxes</option>
-            {mailboxes.map((mailbox) => (
-              <option key={mailbox.id} value={mailbox.id}>
-                {mailbox.displayName}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="mailbox-filter"
+              aria-label="Mailbox"
+              size="sm"
+              className="h-8 w-full min-w-0 bg-background text-xs"
+            >
+              <SelectValue placeholder="All mailboxes" />
+            </SelectTrigger>
+            <SelectContent position="popper" align="start" className="duration-150 ease-out">
+              <SelectItem value={ALL_FILTER_VALUE}>All mailboxes</SelectItem>
+              {mailboxes.map((mailbox) => (
+                <SelectItem key={mailbox.id} value={mailbox.id}>
+                  {mailbox.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
         <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
           <span className="truncate">Status</span>
-          <select
-            aria-label="Status"
-            className="h-8 w-full min-w-0 truncate rounded-lg border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={filters.status ?? ""}
-            onChange={(event) =>
+          <Select
+            value={filters.status ?? ALL_FILTER_VALUE}
+            onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
-                status: (event.target.value || undefined) as MailThreadStatus | undefined,
+                status: value === ALL_FILTER_VALUE ? undefined : (value as MailThreadStatus),
               })
             }
           >
-            <option value="">All statuses</option>
-            {statuses.map((status) => (
-              <option key={status.value} value={status.value}>
-                {status.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="status-filter"
+              aria-label="Status"
+              size="sm"
+              className="h-8 w-full min-w-0 bg-background text-xs"
+            >
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent position="popper" align="start" className="duration-150 ease-out">
+              <SelectItem value={ALL_FILTER_VALUE}>All statuses</SelectItem>
+              {statuses.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
         <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
           <span className="truncate">Priority</span>
-          <select
-            aria-label="Priority"
-            className="h-8 w-full min-w-0 truncate rounded-lg border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={filters.priority ?? ""}
-            onChange={(event) =>
+          <Select
+            value={filters.priority ?? ALL_FILTER_VALUE}
+            onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
-                priority: (event.target.value || undefined) as MailPriority | undefined,
+                priority: value === ALL_FILTER_VALUE ? undefined : (value as MailPriority),
               })
             }
           >
-            <option value="">All priorities</option>
-            {priorities.map((priority) => (
-              <option key={priority.value} value={priority.value}>
-                {priority.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="priority-filter"
+              aria-label="Priority"
+              size="sm"
+              className="h-8 w-full min-w-0 bg-background text-xs"
+            >
+              <SelectValue placeholder="All priorities" />
+            </SelectTrigger>
+            <SelectContent position="popper" align="start" className="duration-150 ease-out">
+              <SelectItem value={ALL_FILTER_VALUE}>All priorities</SelectItem>
+              {priorities.map((priority) => (
+                <SelectItem key={priority.value} value={priority.value}>
+                  {priority.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
       </div>
     </fieldset>

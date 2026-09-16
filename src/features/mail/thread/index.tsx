@@ -1,8 +1,10 @@
 "use client";
 
+import { Reply as ReplyIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { EmptyState } from "@/components/common";
+import { Button } from "@/components/ui/button";
 import { ReassignThreadDialog } from "../dialogs/reassign-thread-dialog";
 import { ReturnToQueueDialog } from "../dialogs/return-to-queue-dialog";
 import type { MailAssigneeOption } from "../dialogs/types";
@@ -66,6 +68,7 @@ export function MailThreadPanel({
   const [isReassignOpen, setReassignOpen] = useState(false);
   const [isReleaseOpen, setReleaseOpen] = useState(false);
   const [isHistoryOpen, setHistoryOpen] = useState(false);
+  const [isReplyOpen, setReplyOpen] = useState(false);
   const [mutationError, setMutationError] = useState<unknown>(null);
   const reassignButtonRef = useRef<HTMLButtonElement>(null);
   const releaseButtonRef = useRef<HTMLButtonElement>(null);
@@ -106,7 +109,7 @@ export function MailThreadPanel({
   return (
     <section
       aria-label="Mail thread"
-      className="grid min-w-0 gap-5 rounded-xl border border-border bg-card p-4"
+      className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border bg-card p-3 lg:h-full lg:p-4"
     >
       <ThreadHeader
         thread={thread}
@@ -126,34 +129,44 @@ export function MailThreadPanel({
       <ConflictOrForbiddenAlert error={currentError} />
       <MessageTimeline messages={thread.messages} onAttachmentOpen={onAttachmentOpen} />
       {availableComposerMailboxes.length > 0 && (onSaveDraft || onSendMessage) ? (
-        <ReplyComposer
-          key={thread.id}
-          thread={thread}
-          mailboxes={availableComposerMailboxes}
-          canCreateDraft={canCreateDraft}
-          canSend={canSend}
-          allowMockAttachments={allowMockAttachments}
-          canClaim={permissions.canClaim}
-          onClaim={onClaim}
-          onSave={(draft) => {
-            if (!onSaveDraft) {
-              throw new Error("Draft saving is unavailable for this thread.");
-            }
-            return onSaveDraft(draft.body);
-          }}
-          onSend={(draft) => {
-            const senderMailbox = availableComposerMailboxes.find(
-              (candidate) => candidate.id === draft.senderMailboxId,
-            );
-            if (!senderMailbox || !onSendMessage) {
-              throw new Error("A shared sender mailbox is required to send this reply.");
-            }
-            return onSendMessage({
-              senderAddress: senderMailbox.senderAddress,
-              bodyText: draft.body,
-            });
-          }}
-        />
+        <div className="h-9 shrink-0">
+          {isReplyOpen ? (
+            <ReplyComposer
+              key={thread.id}
+              thread={thread}
+              mailboxes={availableComposerMailboxes}
+              canCreateDraft={canCreateDraft}
+              canSend={canSend}
+              allowMockAttachments={allowMockAttachments}
+              canClaim={permissions.canClaim}
+              onClaim={onClaim}
+              onClose={() => setReplyOpen(false)}
+              onSave={(draft) => {
+                if (!onSaveDraft) {
+                  throw new Error("Draft saving is unavailable for this thread.");
+                }
+                return onSaveDraft(draft.body);
+              }}
+              onSend={(draft) => {
+                const senderMailbox = availableComposerMailboxes.find(
+                  (candidate) => candidate.id === draft.senderMailboxId,
+                );
+                if (!senderMailbox || !onSendMessage) {
+                  throw new Error("A shared sender mailbox is required to send this reply.");
+                }
+                return onSendMessage({
+                  senderAddress: senderMailbox.senderAddress,
+                  bodyText: draft.body,
+                });
+              }}
+            />
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={() => setReplyOpen(true)}>
+              <ReplyIcon aria-hidden="true" />
+              Reply
+            </Button>
+          )}
+        </div>
       ) : null}
       <ReassignThreadDialog
         open={isReassignOpen}
