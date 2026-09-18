@@ -173,7 +173,7 @@ const releaseQuarantineResponseDto = z.object({
 
 const outboundMessageResponseDto = z.object({
   processedMessageId: z.string().min(1),
-  stalwartQueueId: z.string().min(1),
+  stalwartQueueId: z.string(),
   submittedAt: timestamp,
 });
 

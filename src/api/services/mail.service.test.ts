@@ -97,4 +97,26 @@ describe("mail API service", () => {
       idempotencyKey: "send-request-01",
     });
   });
+
+  it("accepts a successful outbound response without a provider queue id", async () => {
+    vi.spyOn(api, "post").mockResolvedValue({
+      processedMessageId: "processed-02",
+      stalwartQueueId: "",
+      submittedAt: timestamp,
+    } as never);
+
+    await expect(
+      mailService.submitOutboundMessage({
+        senderAddress: "operations@guardm.space",
+        recipientAddresses: ["customer@example.com"],
+        subject: "Re: Shipment update",
+        bodyText: "Reply",
+        idempotencyKey: "send-request-02",
+      }),
+    ).resolves.toEqual({
+      processedMessageId: "processed-02",
+      stalwartQueueId: "",
+      submittedAt: timestamp,
+    });
+  });
 });
