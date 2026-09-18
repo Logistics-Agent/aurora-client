@@ -144,6 +144,47 @@ describe("ReplyComposer", () => {
     await waitFor(() => expect(savedAttachmentIds).toEqual(["mock-attachment-1"]));
   });
 
+  it("includes selected file content when sending a reply", async () => {
+    const user = userEvent.setup();
+    let sentAttachments: readonly unknown[] | undefined;
+    render(
+      <ReplyComposer
+        thread={createMailThreadFixture({ assigneeId: "staff-01", status: "in_progress" })}
+        mailboxes={mailboxes}
+        canCreateDraft
+        canSend
+        canClaim={false}
+        onSave={() => undefined}
+        onSend={(draft) => {
+          sentAttachments = draft.attachments;
+        }}
+      />,
+    );
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(fileInput).not.toBeNull();
+    if (!fileInput) return;
+
+    await user.upload(
+      fileInput,
+      new File(["test attachment"], "test-mail.md", { type: "text/markdown" }),
+    );
+    expect(await screen.findByText("test-mail.md")).toBeVisible();
+
+    await user.type(screen.getByLabelText("Reply message"), "Please see the attached document.");
+    await user.click(screen.getByRole("button", { name: "Send outbound" }));
+
+    await waitFor(() =>
+      expect(sentAttachments).toEqual([
+        expect.objectContaining({
+          fileName: "test-mail.md",
+          contentType: "text/markdown",
+          contentBase64: "dGVzdCBhdHRhY2htZW50",
+        }),
+      ]),
+    );
+  });
+
   it("disables compose controls without direct draft and send permissions", () => {
     render(
       <ReplyComposer

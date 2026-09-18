@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { MailMailbox } from "../../types";
 import type { RealAttachmentItem } from "../types";
+import { readFileAsBase64 } from "../utils/read-file-as-base64";
 import { RichTextEditor } from "./rich-text-editor";
 
 export interface GmailComposeWindowProps {
@@ -583,17 +584,4 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const res = reader.result as string;
-      const base64 = res.includes(",") ? res.split(",")[1] : res;
-      resolve(base64);
-    };
-    reader.onerror = (err) => reject(err);
-    reader.readAsDataURL(file);
-  });
 }

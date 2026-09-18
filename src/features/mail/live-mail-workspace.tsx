@@ -43,6 +43,7 @@ const DEFAULT_FILTERS: MailListFilters = { queue: "unassigned" };
 type LiveSendMailMessageInput = {
   senderAddress: string;
   bodyText: string;
+  attachments?: readonly RealAttachmentItem[];
 };
 
 export interface LiveMailWorkspaceProps {
@@ -193,13 +194,15 @@ export function LiveMailWorkspace({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors cursor-pointer"
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
               aria-label="Làm mới dữ liệu"
               title="Làm mới dữ liệu"
               onClick={() => void workspace.refresh()}
               disabled={workspace.isLoading}
             >
-              <RefreshCw className={`size-4 ${workspace.isLoading ? "animate-spin text-primary" : ""}`} />
+              <RefreshCw
+                className={`size-4 ${workspace.isLoading ? "animate-spin text-primary" : ""}`}
+              />
               <span className="hidden sm:inline">Làm mới</span>
             </button>
             {viewportMode === "mid" ? (
@@ -560,6 +563,11 @@ function useLiveMailWorkspace({
         recipientAddresses: thread.participants.map((participant) => participant.email),
         subject: thread.subject.startsWith("Re:") ? thread.subject : `Re: ${thread.subject}`,
         bodyText: message.bodyText,
+        attachments: message.attachments?.map((attachment) => ({
+          filename: attachment.fileName,
+          contentType: attachment.contentType || "application/octet-stream",
+          contentBase64: attachment.contentBase64,
+        })),
         threadId,
         replyToMessageId: thread.messages.at(-1)?.id,
         idempotencyKey: createIdempotencyKey(),
@@ -637,10 +645,7 @@ function mapThreadDetail(
   existingSummary?: MailThread | null,
 ): MailThread {
   const fallbackSnippet =
-    detail.messages.at(-1)?.bodyPreview ||
-    existingSummary?.preview ||
-    detail.subject ||
-    "";
+    detail.messages.at(-1)?.bodyPreview || existingSummary?.preview || detail.subject || "";
 
   const summary = mapThreadSummary(
     {
@@ -665,9 +670,7 @@ function mapThreadDetail(
   if (messages.length === 0) {
     const sender =
       detail.participants.find(
-        (p) =>
-          !p.toLowerCase().includes("ops@") &&
-          !p.toLowerCase().includes("operations@"),
+        (p) => !p.toLowerCase().includes("ops@") && !p.toLowerCase().includes("operations@"),
       ) ??
       detail.participants[0] ??
       "Customer";

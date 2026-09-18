@@ -1,17 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  FileText,
-  Paperclip,
-  Reply as ReplyIcon,
-  Send,
-  Trash2,
-  X,
-} from "lucide-react";
+import { FileText, Paperclip, Reply as ReplyIcon, Send, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -20,7 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { MailMailbox, MailThread } from "../../types";
-import type { MailDraftFormValues } from "../types";
+import type { MailDraftFormValues, RealAttachmentItem } from "../types";
+import { readFileAsBase64 } from "../utils/read-file-as-base64";
 import { validateMailDraft } from "../utils/validate-mail-draft";
 import { AiDraftSuggestion } from "./ai-draft-suggestion";
 import { RichTextEditor } from "./rich-text-editor";
@@ -72,6 +65,7 @@ export function ReplyComposer({
   const [bodyHtml, setBodyHtml] = useState(thread.draft?.body ?? "");
   const [attachmentIds, setAttachmentIds] = useState<readonly string[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; size: number }>>([]);
+  const [attachments, setAttachments] = useState<RealAttachmentItem[]>([]);
   const [isSaving, setSaving] = useState(false);
   const [isSending, setSending] = useState(false);
   const [isClaiming, setClaiming] = useState(false);
@@ -83,7 +77,7 @@ export function ReplyComposer({
   const canEdit = canCreateDraft && !requiresClaim;
   const canSubmit = canEdit && canSend;
   const isBusy = isSaving || isSending || isClaiming;
-  const draft: MailDraftFormValues = { senderMailboxId, body, attachmentIds };
+  const draft: MailDraftFormValues = { senderMailboxId, body, attachmentIds, attachments };
 
   function validate(): boolean {
     const result = validateMailDraft(
@@ -124,6 +118,7 @@ export function ReplyComposer({
       setBodyHtml("");
       setAttachmentIds([]);
       setAttachedFiles([]);
+      setAttachments([]);
       setStatus("Outbound message sent.");
       onClose?.();
     } catch {
@@ -148,25 +143,42 @@ export function ReplyComposer({
     }
   }
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     const newAttachments: string[] = [];
     const newAttachedFiles: Array<{ name: string; size: number }> = [];
+    const newAttachmentItems: RealAttachmentItem[] = [];
 
-    Array.from(files).forEach((file) => {
-      newAttachments.push(`attachment-${Date.now()}-${file.name}`);
-      newAttachedFiles.push({ name: file.name, size: file.size });
-    });
+    try {
+      for (const file of Array.from(files)) {
+        const id = ["attachment", Date.now(), file.name].join("-");
+        newAttachments.push(id);
+        newAttachedFiles.push({ name: file.name, size: file.size });
+        newAttachmentItems.push({
+          id,
+          fileName: file.name,
+          contentType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+          contentBase64: await readFileAsBase64(file),
+        });
+      }
+    } catch {
+      setError("Unable to read the selected attachment.");
+      return;
+    }
 
     setAttachmentIds((current) => [...current, ...newAttachments]);
     setAttachedFiles((current) => [...current, ...newAttachedFiles]);
+    setAttachments((current) => [...current, ...newAttachmentItems]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeAttachment = (index: number) => {
+    const attachment = attachments[index];
     setAttachmentIds((current) => current.filter((_, i) => i !== index));
     setAttachedFiles((current) => current.filter((_, i) => i !== index));
+    setAttachments((current) => current.filter((item) => item.id !== attachment?.id));
   };
 
   const containerClasses = inline
@@ -174,17 +186,14 @@ export function ReplyComposer({
     : "fixed inset-x-2 bottom-2 z-50 flex h-[min(560px,calc(100vh-1rem))] min-h-0 animate-in flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl duration-200 ease-out fade-in-0 slide-in-from-bottom-4 motion-reduce:animate-none sm:inset-x-auto sm:right-4 sm:bottom-0 sm:h-[min(560px,calc(100vh-1rem))] sm:w-[min(620px,calc(100vw-1rem))] sm:rounded-b-none";
 
   return (
-    <section
-      aria-label="Reply composer"
-      className={containerClasses}
-    >
+    <section aria-label="Reply composer" className={containerClasses}>
       {/* Header bar */}
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-3.5 py-2">
         <div className="flex items-center gap-2">
           <ReplyIcon aria-hidden="true" className="size-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">
             {inline ? "Trả lời trực tiếp (Inline Reply)" : "Reply"} —{" "}
-            <span className="text-muted-foreground font-normal">Re: {thread.subject}</span>
+            <span className="font-normal text-muted-foreground">Re: {thread.subject}</span>
           </h2>
         </div>
         {onClose ? (
@@ -201,7 +210,7 @@ export function ReplyComposer({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3.5 space-y-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3.5">
         {/* Recipient & Subject Header */}
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="grid gap-1">
@@ -219,7 +228,9 @@ export function ReplyComposer({
           </div>
 
           <div className="grid gap-1">
-            <span className="text-xs font-medium text-muted-foreground">Gửi từ hòm thư chung (From):</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Gửi từ hòm thư chung (From):
+            </span>
             <Select
               value={senderMailboxId}
               disabled={!canEdit || isBusy || mailboxes.length === 0}
@@ -272,7 +283,11 @@ export function ReplyComposer({
               }
             }}
           >
-            <SelectTrigger aria-label="Mẫu thư logistics" size="sm" className="w-auto text-xs gap-1.5 h-7">
+            <SelectTrigger
+              aria-label="Mẫu thư logistics"
+              size="sm"
+              className="h-7 w-auto gap-1.5 text-xs"
+            >
               <FileText className="size-3.5 text-muted-foreground" />
               <span>Chèn mẫu thư Logistics</span>
             </SelectTrigger>
@@ -335,13 +350,14 @@ export function ReplyComposer({
             type="file"
             multiple
             className="hidden"
+            aria-label="Attach files"
             onChange={handleFileUpload}
           />
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 text-xs gap-1.5"
+            className="h-7 gap-1.5 text-xs"
             disabled={!canEdit || isBusy}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -357,10 +373,7 @@ export function ReplyComposer({
               className="h-7 text-xs text-muted-foreground"
               disabled={!canEdit || isBusy}
               onClick={() =>
-                setAttachmentIds((current) => [
-                  ...current,
-                  `mock-attachment-${current.length + 1}`,
-                ])
+                setAttachmentIds((current) => [...current, `mock-attachment-${current.length + 1}`])
               }
             >
               Add mock attachment
@@ -379,7 +392,7 @@ export function ReplyComposer({
               </span>
               <button
                 type="button"
-                className="text-muted-foreground hover:text-destructive cursor-pointer ml-1"
+                className="ml-1 cursor-pointer text-muted-foreground hover:text-destructive"
                 onClick={() => removeAttachment(idx)}
               >
                 <Trash2 className="size-3" />
@@ -400,7 +413,7 @@ export function ReplyComposer({
           </p>
         ) : null}
         {status ? (
-          <p role="status" aria-live="polite" className="text-xs text-emerald-600 font-medium">
+          <p role="status" aria-live="polite" className="text-xs font-medium text-emerald-600">
             {status}
           </p>
         ) : null}
@@ -437,7 +450,7 @@ export function ReplyComposer({
           <Button
             type="button"
             size="sm"
-            className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-8 gap-1.5 bg-primary text-xs text-primary-foreground hover:bg-primary/90"
             disabled={!canSubmit || isBusy}
             onClick={() => void sendOutbound()}
           >

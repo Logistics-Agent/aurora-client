@@ -8,6 +8,7 @@ import { createMailMockRepository } from "../mock/mail-repository";
 import { useMailWorkspace } from "../hooks/use-mail-workspace";
 import type { MailMailbox, MailThread } from "../types";
 import { MailThreadPanel } from "./index";
+import type { RealAttachmentItem } from "../composer/types";
 
 afterEach(cleanup);
 
@@ -44,6 +45,50 @@ describe("MailThreadPanel", () => {
     await user.click(screen.getByRole("button", { name: "Close reply composer" }));
     expect(screen.getByRole("button", { name: "Reply" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Reply composer" })).not.toBeInTheDocument();
+  });
+
+  it("forwards a selected reply attachment to the outbound message callback", async () => {
+    const user = userEvent.setup();
+    let outboundAttachments: readonly RealAttachmentItem[] | undefined;
+    const thread = createMailThreadFixture({
+      assigneeId: "staff-01",
+      status: "in_progress",
+    });
+
+    render(
+      <ThreadPanel
+        thread={thread}
+        mailbox={operationsMailbox}
+        currentUserId="staff-01"
+        permissions={ownThreadPermissions}
+        composerMailboxes={[operationsMailbox]}
+        canCreateDraft
+        canSend
+        onSaveDraft={() => undefined}
+        onSendMessage={(message) => {
+          outboundAttachments = message.attachments;
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Reply" }));
+    const composer = screen.getByRole("region", { name: "Reply composer" });
+    await user.upload(
+      within(composer).getByLabelText("Attach files"),
+      new File(["thread attachment"], "reply.md", { type: "text/markdown" }),
+    );
+    await user.type(within(composer).getByLabelText("Reply message"), "See the attachment.");
+    await user.click(within(composer).getByRole("button", { name: "Send outbound" }));
+
+    await waitFor(() =>
+      expect(outboundAttachments).toEqual([
+        expect.objectContaining({
+          fileName: "reply.md",
+          contentType: "text/markdown",
+          contentBase64: "dGhyZWFkIGF0dGFjaG1lbnQ=",
+        }),
+      ]),
+    );
   });
 
   it("keeps the thread header fixed while only the conversation timeline scrolls", () => {
@@ -489,7 +534,11 @@ type RichThreadPanelProps = {
   canSend?: boolean;
   allowMockAttachments?: boolean;
   onSaveDraft?: (body: string) => Promise<void> | void;
-  onSendMessage?: (message: { senderAddress: string; bodyText: string }) => Promise<void> | void;
+  onSendMessage?: (message: {
+    senderAddress: string;
+    bodyText: string;
+    attachments?: readonly RealAttachmentItem[];
+  }) => Promise<void> | void;
 };
 
 const ThreadPanel = MailThreadPanel as unknown as (
