@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 
 import { mailKeys } from "@/api/query-keys/mail.keys";
 import { useMailMutations } from "@/hooks/mutations/mail/use-mail-mutations";
@@ -28,6 +29,8 @@ import type {
 } from "./types";
 import { MailInbox } from "./inbox";
 import { MailThreadPanel } from "./thread";
+import { GmailComposeWindow } from "./composer/components/gmail-compose-window";
+import type { RealAttachmentItem } from "./composer/types";
 import type {
   MailWorkspace,
   MailWorkspacePermissions,
@@ -60,10 +63,39 @@ export function LiveMailWorkspace({
   const [queueExpanded, setQueueExpanded] = useState(false);
   const [viewportMode, setViewportMode] = useState<"desktop" | "mid" | "mobile">("desktop");
   const [mutationStatus, setMutationStatus] = useState<string | null>(null);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
 
   const workspace = useLiveMailWorkspace({ user, resourceScope, initialThreadId: routeThreadId });
   const scopedMailboxes = workspace.mailboxes;
   const { selectThread } = workspace;
+  const { submitOutboundMessage } = useMailMutations();
+
+  const handleSendNewOutbound = async (message: {
+    senderAddress: string;
+    recipientAddresses: string[];
+    ccAddresses?: string[];
+    bccAddresses?: string[];
+    subject: string;
+    bodyText: string;
+    bodyHtml: string;
+    attachments?: RealAttachmentItem[];
+  }) => {
+    await submitOutboundMessage.mutateAsync({
+      senderAddress: message.senderAddress,
+      recipientAddresses: message.recipientAddresses,
+      subject: message.subject,
+      bodyText: message.bodyText,
+      bodyHtml: message.bodyHtml,
+      attachments: message.attachments?.map((a) => ({
+        filename: a.fileName,
+        contentType: a.contentType || "application/octet-stream",
+        contentBase64: a.contentBase64 || "",
+      })),
+    });
+    setMutationStatus("Thư mới đã được gửi thành công");
+    setIsComposeOpen(false);
+    void workspace.refresh();
+  };
 
   useEffect(() => {
     const updateViewport = () => setViewportMode(readViewportMode());
@@ -111,10 +143,12 @@ export function LiveMailWorkspace({
     setMutationStatus(null);
     try {
       const result = await operation();
-      setMutationStatus(`${label}.`);
+      setMutationStatus(label);
       return result;
     } catch (error) {
-      setMutationStatus(`${label} failed.`);
+      setMutationStatus(
+        error instanceof Error && error.message ? error.message : "Mail action failed",
+      );
       throw error;
     }
   }, []);
@@ -124,8 +158,14 @@ export function LiveMailWorkspace({
     viewportMode === "desktop" ||
     (viewportMode === "mid" && queueExpanded) ||
     (viewportMode === "mobile" && mobilePane === "queue");
-  const showThreadList = viewportMode !== "mobile" || mobilePane === "list";
-  const showThreadDetail = viewportMode !== "mobile" || mobilePane === "thread";
+  const showThreadList =
+    viewportMode === "desktop" ||
+    viewportMode === "mid" ||
+    (viewportMode === "mobile" && mobilePane === "list");
+  const showThreadDetail =
+    viewportMode === "desktop" ||
+    viewportMode === "mid" ||
+    (viewportMode === "mobile" && mobilePane === "thread");
   const layoutClass =
     viewportMode === "desktop"
       ? "xl:grid-cols-[minmax(580px,0.85fr)_minmax(0,1.15fr)]"
@@ -150,16 +190,29 @@ export function LiveMailWorkspace({
               Shared mailbox work, clearly attributed to each human operator.
             </p>
           </div>
-          {viewportMode === "mid" ? (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="rounded-lg border border-border px-3 py-2 text-sm font-medium"
-              aria-label={queueExpanded ? "Hide mail queues" : "Show mail queues"}
-              onClick={() => setQueueExpanded((current) => !current)}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors cursor-pointer"
+              aria-label="Làm mới dữ liệu"
+              title="Làm mới dữ liệu"
+              onClick={() => void workspace.refresh()}
+              disabled={workspace.isLoading}
             >
-              {queueExpanded ? "Hide queues" : "Show queues"}
+              <RefreshCw className={`size-4 ${workspace.isLoading ? "animate-spin text-primary" : ""}`} />
+              <span className="hidden sm:inline">Làm mới</span>
             </button>
-          ) : null}
+            {viewportMode === "mid" ? (
+              <button
+                type="button"
+                className="rounded-lg border border-border px-3 py-2 text-sm font-medium"
+                aria-label={queueExpanded ? "Hide mail queues" : "Show mail queues"}
+                onClick={() => setQueueExpanded((current) => !current)}
+              >
+                {queueExpanded ? "Hide queues" : "Show queues"}
+              </button>
+            ) : null}
+          </div>
         </header>
 
         {viewportMode === "mobile" && mobilePane === "queue" ? (
@@ -218,6 +271,7 @@ export function LiveMailWorkspace({
                 onFiltersChange={workspace.setFilters}
                 onRetry={() => void workspace.refresh()}
                 onThreadSelect={navigateToThread}
+                onComposeClick={() => setIsComposeOpen(true)}
                 queueCounts={workspace.queueCounts}
                 selectedThreadId={selectedThreadId}
                 showAllThreads={workspace.permissions.canReadAll}
@@ -319,6 +373,13 @@ export function LiveMailWorkspace({
           {mutationStatus}
         </p>
       </div>
+
+      <GmailComposeWindow
+        isOpen={isComposeOpen}
+        onClose={() => setIsComposeOpen(false)}
+        mailboxes={scopedMailboxes}
+        onSend={handleSendNewOutbound}
+      />
     </>
   );
 }
@@ -379,9 +440,10 @@ function useLiveMailWorkspace({
       ),
     [draftThreadIds, threadsQuery.data?.threads],
   );
+  const existingSummary = summaryThreads.find((thread) => thread.id === selectedId) ?? null;
   const selectedThread = detailQuery.data
-    ? mapThreadDetail(detailQuery.data)
-    : (summaryThreads.find((thread) => thread.id === selectedId) ?? null);
+    ? mapThreadDetail(detailQuery.data, existingSummary)
+    : existingSummary;
   const visibleThreads = useMemo(
     () => selectVisibleThreads(summaryThreads, filters, user?.userId ?? "", effectiveScope),
     [effectiveScope, filters, summaryThreads, user?.userId],
@@ -570,28 +632,68 @@ function mapThreadSummary(summary: ThreadSummaryApiDto, hasDraft = false): MailT
   };
 }
 
-function mapThreadDetail(detail: ThreadDetailApiResponse): MailThread {
-  const summary = mapThreadSummary({
-    threadId: detail.threadId,
-    mailboxId: detail.mailboxId,
-    subject: detail.subject,
-    participants: detail.participants,
-    lastMessageAt: detail.updatedAt,
-    messageCount: detail.messages.length,
-    draftCount: detail.drafts.length,
-    hasUnread: false,
-    snippet: detail.messages.at(-1)?.bodyPreview ?? "",
-    primaryAssigneeUserId: detail.primaryAssigneeUserId,
-    assignedAt: detail.assignedAt,
-    status: detail.status,
-    priority: detail.priority,
-  });
+function mapThreadDetail(
+  detail: ThreadDetailApiResponse,
+  existingSummary?: MailThread | null,
+): MailThread {
+  const fallbackSnippet =
+    detail.messages.at(-1)?.bodyPreview ||
+    existingSummary?.preview ||
+    detail.subject ||
+    "";
+
+  const summary = mapThreadSummary(
+    {
+      threadId: detail.threadId,
+      mailboxId: detail.mailboxId,
+      subject: detail.subject,
+      participants: detail.participants,
+      lastMessageAt: detail.updatedAt,
+      messageCount: detail.messages.length > 0 ? detail.messages.length : 1,
+      draftCount: detail.drafts.length,
+      hasUnread: false,
+      snippet: fallbackSnippet,
+      primaryAssigneeUserId: detail.primaryAssigneeUserId,
+      assignedAt: detail.assignedAt,
+      status: detail.status,
+      priority: detail.priority,
+    },
+    detail.drafts.length > 0,
+  );
+
+  let messages = detail.messages.map(mapMessage);
+  if (messages.length === 0) {
+    const sender =
+      detail.participants.find(
+        (p) =>
+          !p.toLowerCase().includes("ops@") &&
+          !p.toLowerCase().includes("operations@"),
+      ) ??
+      detail.participants[0] ??
+      "Customer";
+
+    messages = [
+      {
+        id: `synthetic-${detail.threadId}`,
+        direction: "inbound",
+        authorId: null,
+        authorName: sender.split("@")[0] ?? sender,
+        senderAddress: sender,
+        bodyText: fallbackSnippet || detail.subject || "(Nội dung email trống)",
+        attachments: [],
+        sentAt: detail.createdAt,
+        deliveryStatus: "delivered",
+      },
+    ];
+  }
+
   return {
     ...summary,
+    preview: fallbackSnippet,
     createdAt: detail.createdAt,
     updatedAt: detail.updatedAt,
     lastMessageAt: detail.messages.at(-1)?.sentAt ?? detail.updatedAt,
-    messages: detail.messages.map(mapMessage),
+    messages,
     assignmentHistory: (detail.assignmentHistory ?? []).map((event) => ({
       id: event.id,
       type:

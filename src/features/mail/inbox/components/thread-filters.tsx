@@ -1,6 +1,7 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -15,6 +16,8 @@ export interface ThreadFiltersProps {
   filters: MailListFilters;
   mailboxes: readonly MailMailbox[];
   onFiltersChange: (filters: MailListFilters) => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 const statuses: readonly { value: MailThreadStatus; label: string }[] = [
@@ -36,24 +39,43 @@ export function ThreadFilters({
   filters,
   mailboxes,
   onFiltersChange,
+  onRefresh,
+  isRefreshing,
 }: ThreadFiltersProps): React.JSX.Element {
   return (
     <fieldset className="space-y-2 border-b border-border p-3">
       <legend className="sr-only">Filter mail threads</legend>
-      <label className="relative block text-xs font-medium text-muted-foreground">
-        <span className="sr-only">Search threads</span>
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          aria-label="Search threads"
-          placeholder="Search subject, sender, or preview…"
-          className="h-8 bg-secondary/40 pl-8 text-xs"
-          value={filters.search ?? ""}
-          onChange={(event) =>
-            onFiltersChange({ ...filters, search: event.target.value || undefined })
-          }
-        />
-      </label>
+      <div className="flex items-center gap-2">
+        <label className="relative flex-1 block text-xs font-medium text-muted-foreground">
+          <span className="sr-only">Search threads</span>
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            aria-label="Search threads"
+            placeholder="Search subject, sender, or preview…"
+            className="h-8 bg-secondary/40 pl-8 text-xs"
+            value={filters.search ?? ""}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, search: event.target.value || undefined })
+            }
+          />
+        </label>
+        {onRefresh ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label="Làm mới danh sách thư"
+            title="Làm mới danh sách thư"
+            className="h-8 px-2.5 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin text-primary" : ""}`} />
+            <span className="hidden sm:inline">Làm mới</span>
+          </Button>
+        ) : null}
+      </div>
       <div className="grid grid-cols-3 gap-2">
         <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
           <span className="truncate">Mailbox</span>

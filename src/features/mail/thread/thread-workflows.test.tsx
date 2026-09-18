@@ -37,7 +37,6 @@ describe("MailThreadPanel", () => {
     await user.click(screen.getByRole("button", { name: "Reply" }));
     expect(screen.getByRole("region", { name: "Reply composer" })).toBeVisible();
     expect(screen.getByRole("region", { name: "Reply composer" }).parentElement).toHaveClass(
-      "h-9",
       "shrink-0",
     );
     expect(screen.getByLabelText("Reply message")).toBeVisible();

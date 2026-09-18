@@ -11,6 +11,7 @@ import type { MailAssigneeOption } from "../dialogs/types";
 import { AssignmentHistoryDrawer } from "../drawers/assignment-history-drawer";
 import { ReplyComposer } from "../composer";
 import type { MailAttachment, MailMailbox, MailPriority, MailThread } from "../types";
+import { cn } from "@/utils/cn";
 import { MessageTimeline } from "./components/message-timeline";
 import { ThreadHeader, type ThreadHeaderPermissions } from "./components/thread-header";
 
@@ -129,7 +130,7 @@ export function MailThreadPanel({
       <ConflictOrForbiddenAlert error={currentError} />
       <MessageTimeline messages={thread.messages} onAttachmentOpen={onAttachmentOpen} />
       {availableComposerMailboxes.length > 0 && (onSaveDraft || onSendMessage) ? (
-        <div className="h-9 shrink-0">
+        <div className={isReplyOpen ? "shrink-0 min-h-0 pt-1" : "h-9 shrink-0"}>
           {isReplyOpen ? (
             <ReplyComposer
               key={thread.id}
@@ -137,6 +138,7 @@ export function MailThreadPanel({
               mailboxes={availableComposerMailboxes}
               canCreateDraft={canCreateDraft}
               canSend={canSend}
+              inline={true}
               allowMockAttachments={allowMockAttachments}
               canClaim={permissions.canClaim}
               onClaim={onClaim}
@@ -161,8 +163,15 @@ export function MailThreadPanel({
               }}
             />
           ) : (
-            <Button type="button" variant="outline" size="sm" onClick={() => setReplyOpen(true)}>
-              <ReplyIcon aria-hidden="true" />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shadow-sm hover:bg-accent"
+              aria-label="Reply"
+              onClick={() => setReplyOpen(true)}
+            >
+              <ReplyIcon aria-hidden="true" className="size-4" />
               Reply
             </Button>
           )}
