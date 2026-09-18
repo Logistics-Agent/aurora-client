@@ -22,6 +22,7 @@ export interface MailAttachment {
   fileName: string;
   contentType: string;
   sizeBytes: number;
+  url?: string | null;
 }
 
 export interface MailMessage {
@@ -31,6 +32,7 @@ export interface MailMessage {
   authorName: string;
   senderAddress: string;
   bodyText: string;
+  bodyHtml?: string | null;
   attachments: readonly MailAttachment[];
   sentAt: string;
   deliveryStatus: MailDeliveryStatus;

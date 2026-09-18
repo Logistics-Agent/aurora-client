@@ -19,4 +19,5 @@ export interface MailInboxProps {
   showQueueNavigation?: boolean;
   showThreadList?: boolean;
   threads: readonly MailThread[];
+  onComposeClick?: () => void;
 }

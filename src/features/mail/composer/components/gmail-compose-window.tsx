@@ -470,6 +470,7 @@ export function GmailComposeWindow({
           <RichTextEditor
             initialHtml={bodyHtml}
             placeholder="Kính gửi Quý Khách hàng / Đối tác,..."
+            onAttach={() => fileInputRef.current?.click()}
             onChange={(html, text) => {
               setBodyHtml(html);
               setBodyText(text);

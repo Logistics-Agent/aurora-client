@@ -26,7 +26,7 @@ export function MessageTimeline({
               {message.direction === "inbound" ? (
                 <InboundMessage message={message} onAttachmentOpen={onAttachmentOpen} />
               ) : (
-                <OutboundMessage message={message} />
+                <OutboundMessage message={message} onAttachmentOpen={onAttachmentOpen} />
               )}
             </li>
           ))}
