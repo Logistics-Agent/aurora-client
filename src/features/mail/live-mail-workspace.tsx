@@ -650,12 +650,33 @@ function mapThreadDetail(
     detail.subject ||
     "";
 
+  // Merge participants from detail.participants and actual message senders/recipients
+  const participantEmails = new Set<string>();
+  if (Array.isArray(detail.participants)) {
+    for (const p of detail.participants) {
+      if (p && typeof p === "string" && p.trim()) participantEmails.add(p.trim());
+    }
+  }
+  if (Array.isArray(detail.messages)) {
+    for (const m of detail.messages) {
+      if (m.senderAddress && typeof m.senderAddress === "string" && m.senderAddress.trim()) {
+        participantEmails.add(m.senderAddress.trim());
+      }
+      if (Array.isArray(m.recipientAddresses)) {
+        for (const r of m.recipientAddresses) {
+          if (r && typeof r === "string" && r.trim()) participantEmails.add(r.trim());
+        }
+      }
+    }
+  }
+  const mergedParticipants = Array.from(participantEmails);
+
   const summary = mapThreadSummary(
     {
       threadId: detail.threadId,
       mailboxId: detail.mailboxId,
       subject: detail.subject,
-      participants: detail.participants,
+      participants: mergedParticipants,
       lastMessageAt: detail.updatedAt,
       messageCount: detail.messages.length > 0 ? detail.messages.length : 1,
       draftCount: detail.drafts.length,
@@ -729,7 +750,14 @@ function mapMessage(message: ThreadMessageApiDto): MailMessage {
     authorName: message.senderAddress.split("@")[0] ?? message.senderAddress,
     senderAddress: message.senderAddress,
     bodyText: message.bodyText || message.bodyPreview,
-    attachments: [],
+    bodyHtml: message.bodyHtml,
+    attachments: (message.attachments ?? []).map((a) => ({
+      id: a.id || a.fileName,
+      fileName: a.fileName,
+      contentType: a.contentType,
+      sizeBytes: a.sizeBytes,
+      url: a.url,
+    })),
     sentAt: message.sentAt ?? message.receivedAt ?? new Date().toISOString(),
     deliveryStatus: "delivered",
   };

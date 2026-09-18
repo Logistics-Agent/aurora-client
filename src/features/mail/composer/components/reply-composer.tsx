@@ -334,6 +334,7 @@ export function ReplyComposer({
             initialHtml={bodyHtml}
             placeholder="Soạn nội dung phản hồi khách hàng (hỗ trợ in đậm, gạch chân, đổi màu, mẫu thư...)..."
             disabled={!canEdit || isBusy}
+            onAttach={() => fileInputRef.current?.click()}
             onChange={(html, plainText) => {
               setBodyHtml(html);
               setBody(plainText);
@@ -354,71 +355,64 @@ export function ReplyComposer({
           />
         </div>
 
-        {/* File Attachments */}
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1.5"
-            disabled={!canEdit || isBusy}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Paperclip aria-hidden="true" className="size-3.5" />
-            Đính kèm tệp
-          </Button>
+        {/* Hidden File Input for Toolbar Paperclip */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleFileUpload}
+        />
 
-          {allowMockAttachments ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-muted-foreground"
-              disabled={!canEdit || isBusy}
-              onClick={() =>
-                setAttachmentIds((current) => [
-                  ...current,
-                  `mock-attachment-${current.length + 1}`,
-                ])
-              }
-            >
-              Add mock attachment
-            </Button>
-          ) : null}
-
-          {attachedFiles.map((file, idx) => (
-            <span
-              key={idx}
-              className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 text-xs text-foreground"
-            >
-              <Paperclip className="size-3 text-muted-foreground" />
-              <span>{file.name}</span>
-              <span className="text-[10px] text-muted-foreground">
-                ({Math.round(file.size / 1024)} KB)
-              </span>
-              <button
+        {/* Attached Files List & Mock Button (if in mock mode) */}
+        {(attachedFiles.length > 0 || attachmentIds.length > 0 || allowMockAttachments) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {allowMockAttachments ? (
+              <Button
                 type="button"
-                className="text-muted-foreground hover:text-destructive cursor-pointer ml-1"
-                onClick={() => removeAttachment(idx)}
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[11px] text-muted-foreground hover:text-foreground"
+                disabled={!canEdit || isBusy}
+                onClick={() =>
+                  setAttachmentIds((current) => [
+                    ...current,
+                    `mock-attachment-${current.length + 1}`,
+                  ])
+                }
               >
-                <Trash2 className="size-3" />
-              </button>
-            </span>
-          ))}
+                Add mock attachment
+              </Button>
+            ) : null}
 
-          {attachmentIds.length > 0 && attachedFiles.length === 0 ? (
-            <span className="text-xs text-muted-foreground">
-              {attachmentIds.length} mock attachment{attachmentIds.length === 1 ? "" : "s"} ready
-            </span>
-          ) : null}
-        </div>
+            {attachedFiles.map((file, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 py-1 text-xs text-foreground font-medium shadow-2xs"
+              >
+                <Paperclip className="size-3 text-primary" />
+                <span className="truncate max-w-[200px]">{file.name}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  ({Math.round(file.size / 1024)} KB)
+                </span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-destructive cursor-pointer ml-0.5 p-0.5"
+                  onClick={() => removeAttachment(idx)}
+                  title={`Xóa ${file.name}`}
+                >
+                  <Trash2 className="size-3" />
+                </button>
+              </span>
+            ))}
+
+            {attachmentIds.length > 0 && attachedFiles.length === 0 ? (
+              <span className="text-xs text-muted-foreground">
+                {attachmentIds.length} mock attachment{attachmentIds.length === 1 ? "" : "s"} ready
+              </span>
+            ) : null}
+          </div>
+        )}
 
         {error ? (
           <p role="alert" className="text-xs text-destructive">

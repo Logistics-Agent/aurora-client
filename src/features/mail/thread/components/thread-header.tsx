@@ -55,12 +55,21 @@ export function ThreadHeader({
   const readOnly =
     Boolean(thread.assigneeId) && thread.assigneeId !== currentUserId && !permissions.canReassign;
 
-  const recipients = useMemo(() => {
-    const filtered = thread.participants.filter(
-      (p) => !mailbox || p.email.toLowerCase() !== mailbox.senderAddress.toLowerCase(),
-    );
-    return filtered.length > 0 ? filtered : thread.participants;
-  }, [thread.participants, mailbox]);
+  const customerEmails = useMemo(() => {
+    const fromMessages = thread.messages
+      .filter((m) => !mailbox || m.senderAddress.toLowerCase() !== mailbox.senderAddress.toLowerCase())
+      .map((m) => m.senderAddress);
+
+    const fromParticipants = thread.participants
+      .filter((p) => !mailbox || p.email.toLowerCase() !== mailbox.senderAddress.toLowerCase())
+      .map((p) => p.email);
+
+    const merged = Array.from(new Set([...fromMessages, ...fromParticipants]));
+    return merged.length > 0 ? merged : (thread.participants[0]?.email ? [thread.participants[0].email] : []);
+  }, [thread.messages, thread.participants, mailbox]);
+
+  const firstMessage = thread.messages[0];
+  const isInbound = firstMessage ? firstMessage.direction === "inbound" : true;
 
   const formattedDateTime = useMemo(() => {
     const raw = thread.lastMessageAt || thread.updatedAt || thread.createdAt;
@@ -151,23 +160,47 @@ export function ThreadHeader({
       {/* Compact metadata info bar */}
       <div className="grid gap-2 rounded-lg border border-border/70 bg-muted/20 p-2.5 text-xs sm:grid-cols-[minmax(0,1fr)_1px_minmax(0,auto)]">
         <div className="flex flex-wrap items-center gap-y-1.5 gap-x-4">
-          {mailbox ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground font-medium">From</span>
-              <MailboxIdentity address={mailbox.senderAddress} label="Shared sender" />
-            </div>
-          ) : null}
+          {isInbound ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">From</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {customerEmails.map((email) => (
+                    <span key={email} className="font-semibold text-foreground break-all">
+                      {email}
+                    </span>
+                  ))}
+                </div>
+              </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground font-medium">To</span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {recipients.map((participant) => (
-                <span key={participant.email} className="font-medium text-foreground break-all">
-                  {participant.email}
-                </span>
-              ))}
-            </div>
-          </div>
+              {mailbox ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground font-medium">To</span>
+                  <MailboxIdentity address={mailbox.senderAddress} label="Shared mailbox" />
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              {mailbox ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground font-medium">From</span>
+                  <MailboxIdentity address={mailbox.senderAddress} label="Shared sender" />
+                </div>
+              ) : null}
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">To</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {customerEmails.map((email) => (
+                    <span key={email} className="font-semibold text-foreground break-all">
+                      {email}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div

@@ -165,14 +165,10 @@ describe("MailThreadPanel", () => {
     expect(screen.getByText("v1")).toBeVisible();
     expect(screen.getByText("<script>unsafe message</script>")).toBeVisible();
     expect(screen.getByText("Authenticated author: Avery Staff")).toBeVisible();
-    expect(screen.getByText("2026-09-04T08:00:00.000Z", { selector: "time" })).toHaveAttribute(
-      "dateTime",
-      "2026-09-04T08:00:00.000Z",
-    );
-    expect(screen.getByText("2026-09-04T09:00:00.000Z", { selector: "time" })).toHaveAttribute(
-      "dateTime",
-      "2026-09-04T09:00:00.000Z",
-    );
+    const inboundTime = document.querySelector('time[dateTime="2026-09-04T08:00:00.000Z"]');
+    expect(inboundTime).toBeInTheDocument();
+    const outboundTime = document.querySelector('time[dateTime="2026-09-04T09:00:00.000Z"]');
+    expect(outboundTime).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Open booking.pdf" }));
     expect(openedAttachments).toEqual(["attachment-1"]);

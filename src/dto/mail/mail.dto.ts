@@ -33,6 +33,14 @@ const threadSummaryDto = z.object({
   priority: nullableString.optional(),
 });
 
+const threadAttachmentDto = z.object({
+  id: z.string(),
+  fileName: z.string(),
+  contentType: z.string(),
+  sizeBytes: z.number(),
+  url: z.string().optional().nullable(),
+});
+
 const threadMessageDto = z.object({
   messageId: z.string().min(1),
   direction: z.string().min(1),
@@ -40,10 +48,12 @@ const threadMessageDto = z.object({
   recipientAddresses: z.array(z.string().min(1)),
   subject: z.string(),
   bodyText: z.string(),
+  bodyHtml: nullableString.optional(),
   bodyPreview: z.string(),
   replyToMessageId: nullableString.optional(),
   receivedAt: nullableTimestamp,
   sentAt: nullableTimestamp,
+  attachments: z.array(threadAttachmentDto).optional().nullable(),
 });
 
 const draftDto = z.object({

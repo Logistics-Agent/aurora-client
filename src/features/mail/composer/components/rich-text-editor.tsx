@@ -21,6 +21,7 @@ import {
   Redo,
   ChevronDown,
   Check,
+  Paperclip,
 } from "lucide-react";
 
 export interface RichTextEditorProps {
@@ -30,6 +31,7 @@ export interface RichTextEditorProps {
   onChange?: (html: string, plainText: string) => void;
   className?: string;
   minHeight?: string;
+  onAttach?: () => void;
 }
 
 export interface FontFamilyOption {
@@ -78,6 +80,7 @@ export function RichTextEditor({
   onChange,
   className = "",
   minHeight = "min-h-[220px]",
+  onAttach,
 }: RichTextEditorProps): React.JSX.Element {
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -496,6 +499,20 @@ export function RichTextEditor({
         >
           <LinkIcon className="size-3.5" />
         </button>
+
+        {/* Attach File Button in Toolbar */}
+        {onAttach && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onAttach}
+            className="rounded p-1.5 text-slate-700 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-40 transition-colors"
+            title="Đính kèm tệp (Attach files)"
+            aria-label="Đính kèm tệp"
+          >
+            <Paperclip className="size-3.5" />
+          </button>
+        )}
 
         {/* More formatting tools dropdown (Gmail-style arrow) */}
         <div className="relative">
