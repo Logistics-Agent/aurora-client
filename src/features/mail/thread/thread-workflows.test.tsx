@@ -489,7 +489,12 @@ type RichThreadPanelProps = {
   canSend?: boolean;
   allowMockAttachments?: boolean;
   onSaveDraft?: (body: string) => Promise<void> | void;
-  onSendMessage?: (message: { senderAddress: string; bodyText: string }) => Promise<void> | void;
+  onSendMessage?: (message: {
+    senderAddress: string;
+    bodyText: string;
+    bodyHtml?: string;
+    attachments?: Array<{ id: string; fileName: string; contentType: string; sizeBytes: number; contentBase64: string }>;
+  }) => Promise<void> | void;
 };
 
 const ThreadPanel = MailThreadPanel as unknown as (

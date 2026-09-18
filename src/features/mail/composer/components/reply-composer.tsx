@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { MailMailbox, MailThread } from "../../types";
-import type { MailDraftFormValues } from "../types";
+import type { MailDraftFormValues, RealAttachmentItem } from "../types";
 import { validateMailDraft } from "../utils/validate-mail-draft";
 import { AiDraftSuggestion } from "./ai-draft-suggestion";
 import { RichTextEditor } from "./rich-text-editor";
@@ -72,6 +72,7 @@ export function ReplyComposer({
   const [bodyHtml, setBodyHtml] = useState(thread.draft?.body ?? "");
   const [attachmentIds, setAttachmentIds] = useState<readonly string[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; size: number }>>([]);
+  const [attachments, setAttachments] = useState<RealAttachmentItem[]>([]);
   const [isSaving, setSaving] = useState(false);
   const [isSending, setSending] = useState(false);
   const [isClaiming, setClaiming] = useState(false);
@@ -83,7 +84,14 @@ export function ReplyComposer({
   const canEdit = canCreateDraft && !requiresClaim;
   const canSubmit = canEdit && canSend;
   const isBusy = isSaving || isSending || isClaiming;
-  const draft: MailDraftFormValues = { senderMailboxId, body, attachmentIds };
+  const computedHtml = bodyHtml || (body ? `<p>${body.replace(/\n/g, "<br/>")}</p>` : "");
+  const draft: MailDraftFormValues = {
+    senderMailboxId,
+    body,
+    bodyHtml: computedHtml,
+    attachmentIds,
+    attachments,
+  };
 
   function validate(): boolean {
     const result = validateMailDraft(
@@ -124,6 +132,7 @@ export function ReplyComposer({
       setBodyHtml("");
       setAttachmentIds([]);
       setAttachedFiles([]);
+      setAttachments([]);
       setStatus("Outbound message sent.");
       onClose?.();
     } catch {
@@ -148,25 +157,42 @@ export function ReplyComposer({
     }
   }
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
-    const newAttachments: string[] = [];
+    const newAttachmentIds: string[] = [];
     const newAttachedFiles: Array<{ name: string; size: number }> = [];
+    const newRealAttachments: RealAttachmentItem[] = [];
 
-    Array.from(files).forEach((file) => {
-      newAttachments.push(`attachment-${Date.now()}-${file.name}`);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const id = `attachment-${Date.now()}-${i}-${file.name}`;
+      newAttachmentIds.push(id);
       newAttachedFiles.push({ name: file.name, size: file.size });
-    });
+      try {
+        const base64 = await readFileAsBase64(file);
+        newRealAttachments.push({
+          id,
+          fileName: file.name,
+          contentType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+          contentBase64: base64,
+        });
+      } catch {
+        setError(`Lỗi khi đọc tệp đính kèm ${file.name}`);
+      }
+    }
 
-    setAttachmentIds((current) => [...current, ...newAttachments]);
+    setAttachmentIds((current) => [...current, ...newAttachmentIds]);
     setAttachedFiles((current) => [...current, ...newAttachedFiles]);
+    setAttachments((current) => [...current, ...newRealAttachments]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeAttachment = (index: number) => {
     setAttachmentIds((current) => current.filter((_, i) => i !== index));
     setAttachedFiles((current) => current.filter((_, i) => i !== index));
+    setAttachments((current) => current.filter((_, i) => i !== index));
   };
 
   const containerClasses = inline
@@ -453,3 +479,17 @@ export function ReplyComposer({
 function defaultMailboxId(thread: MailThread, mailboxes: readonly MailMailbox[]): string {
   return mailboxes.find((mailbox) => mailbox.id === thread.mailboxId)?.id ?? mailboxes[0]?.id ?? "";
 }
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = reader.result as string;
+      const base64 = res.includes(",") ? res.split(",")[1] : res;
+      resolve(base64);
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+

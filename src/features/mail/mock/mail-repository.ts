@@ -7,11 +7,15 @@ import type {
   MailThread,
 } from "../types";
 
+import type { RealAttachmentItem } from "../composer/types";
+
 export interface SendMailMessageInput {
   authorId: string;
   authorName: string;
   senderAddress: string;
   bodyText: string;
+  bodyHtml?: string;
+  attachments?: RealAttachmentItem[];
 }
 
 export interface MailMockRepository {

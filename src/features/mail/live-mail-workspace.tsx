@@ -43,6 +43,8 @@ const DEFAULT_FILTERS: MailListFilters = { queue: "unassigned" };
 type LiveSendMailMessageInput = {
   senderAddress: string;
   bodyText: string;
+  bodyHtml?: string;
+  attachments?: RealAttachmentItem[];
 };
 
 export interface LiveMailWorkspaceProps {
@@ -560,6 +562,12 @@ function useLiveMailWorkspace({
         recipientAddresses: thread.participants.map((participant) => participant.email),
         subject: thread.subject.startsWith("Re:") ? thread.subject : `Re: ${thread.subject}`,
         bodyText: message.bodyText,
+        bodyHtml: message.bodyHtml || `<p>${message.bodyText.replace(/\n/g, "<br/>")}</p>`,
+        attachments: message.attachments?.map((a) => ({
+          filename: a.fileName,
+          contentType: a.contentType || "application/octet-stream",
+          contentBase64: a.contentBase64 || "",
+        })),
         threadId,
         replyToMessageId: thread.messages.at(-1)?.id,
         idempotencyKey: createIdempotencyKey(),

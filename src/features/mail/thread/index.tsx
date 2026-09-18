@@ -10,6 +10,7 @@ import { ReturnToQueueDialog } from "../dialogs/return-to-queue-dialog";
 import type { MailAssigneeOption } from "../dialogs/types";
 import { AssignmentHistoryDrawer } from "../drawers/assignment-history-drawer";
 import { ReplyComposer } from "../composer";
+import type { RealAttachmentItem } from "../composer/types";
 import type { MailAttachment, MailMailbox, MailPriority, MailThread } from "../types";
 import { cn } from "@/utils/cn";
 import { MessageTimeline } from "./components/message-timeline";
@@ -34,7 +35,12 @@ export interface MailThreadPanelProps {
   canSend?: boolean;
   allowMockAttachments?: boolean;
   onSaveDraft?: (body: string) => Promise<void> | void;
-  onSendMessage?: (message: { senderAddress: string; bodyText: string }) => Promise<void> | void;
+  onSendMessage?: (message: {
+    senderAddress: string;
+    bodyText: string;
+    bodyHtml?: string;
+    attachments?: RealAttachmentItem[];
+  }) => Promise<void> | void;
 }
 
 const noActions: ThreadHeaderPermissions = {
@@ -159,6 +165,8 @@ export function MailThreadPanel({
                 return onSendMessage({
                   senderAddress: senderMailbox.senderAddress,
                   bodyText: draft.body,
+                  bodyHtml: draft.bodyHtml,
+                  attachments: draft.attachments,
                 });
               }}
             />

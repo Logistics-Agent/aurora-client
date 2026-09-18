@@ -1,7 +1,9 @@
 export interface MailDraftFormValues {
   senderMailboxId: string;
   body: string;
+  bodyHtml?: string;
   attachmentIds: readonly string[];
+  attachments?: RealAttachmentItem[];
 }
 
 export interface RealAttachmentItem {
