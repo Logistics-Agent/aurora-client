@@ -183,7 +183,8 @@ const releaseQuarantineResponseDto = z.object({
 
 const outboundMessageResponseDto = z.object({
   processedMessageId: z.string().min(1),
-  stalwartQueueId: z.string().min(1),
+  // Brevo deliveries do not have a Stalwart queue id and return an empty string.
+  stalwartQueueId: z.string(),
   submittedAt: timestamp,
 });
 

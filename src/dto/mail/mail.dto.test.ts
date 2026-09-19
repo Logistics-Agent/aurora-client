@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   parseMailboxListResponseDto,
+  parseOutboundMessageResponseDto,
   parseProcessedMessageListResponseDto,
   parseQuarantineListResponseDto,
   parseThreadDetailResponseDto,
@@ -119,5 +120,15 @@ describe("mail DTO parsers", () => {
 
   it("rejects malformed external mail data", () => {
     expect(() => parseThreadListResponseDto({ threads: [{ threadId: 1 }] })).toThrow();
+  });
+
+  it("accepts a Brevo outbound response without a Stalwart queue id", () => {
+    const result = parseOutboundMessageResponseDto({
+      processedMessageId: "01a0b916-d981-7a5b-878a-bb2c6a3325dc",
+      stalwartQueueId: "",
+      submittedAt: timestamp,
+    });
+
+    expect(result.stalwartQueueId).toBe("");
   });
 });
