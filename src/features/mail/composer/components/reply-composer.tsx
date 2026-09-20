@@ -1,17 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  FileText,
-  Paperclip,
-  Reply as ReplyIcon,
-  Send,
-  Trash2,
-  X,
-} from "lucide-react";
+import { FileText, Paperclip, Reply as ReplyIcon, Send, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -196,21 +188,18 @@ export function ReplyComposer({
   };
 
   const containerClasses = inline
-    ? "flex min-h-[380px] max-h-[500px] flex-col rounded-xl border border-primary/30 bg-card shadow-sm mt-2 overflow-hidden animate-in fade-in-0 duration-200"
+    ? "relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-primary/30 bg-card shadow-sm mt-2 animate-in fade-in-0 duration-200"
     : "fixed inset-x-2 bottom-2 z-50 flex h-[min(560px,calc(100vh-1rem))] min-h-0 animate-in flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl duration-200 ease-out fade-in-0 slide-in-from-bottom-4 motion-reduce:animate-none sm:inset-x-auto sm:right-4 sm:bottom-0 sm:h-[min(560px,calc(100vh-1rem))] sm:w-[min(620px,calc(100vw-1rem))] sm:rounded-b-none";
 
   return (
-    <section
-      aria-label="Reply composer"
-      className={containerClasses}
-    >
+    <section aria-label="Reply composer" className={containerClasses}>
       {/* Header bar */}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-3.5 py-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-muted/95 px-3.5 py-2">
         <div className="flex items-center gap-2">
           <ReplyIcon aria-hidden="true" className="size-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">
             {inline ? "Trả lời trực tiếp (Inline Reply)" : "Reply"} —{" "}
-            <span className="text-muted-foreground font-normal">Re: {thread.subject}</span>
+            <span className="font-normal text-muted-foreground">Re: {thread.subject}</span>
           </h2>
         </div>
         {onClose ? (
@@ -227,7 +216,10 @@ export function ReplyComposer({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3.5 space-y-3">
+      <div
+        data-testid="reply-composer-scroll"
+        className={`min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3.5 ${inline ? "pb-20" : ""}`}
+      >
         {/* Recipient & Subject Header */}
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="grid gap-1">
@@ -245,7 +237,9 @@ export function ReplyComposer({
           </div>
 
           <div className="grid gap-1">
-            <span className="text-xs font-medium text-muted-foreground">Gửi từ hòm thư chung (From):</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Gửi từ hòm thư chung (From):
+            </span>
             <Select
               value={senderMailboxId}
               disabled={!canEdit || isBusy || mailboxes.length === 0}
@@ -298,7 +292,11 @@ export function ReplyComposer({
               }
             }}
           >
-            <SelectTrigger aria-label="Mẫu thư logistics" size="sm" className="w-auto text-xs gap-1.5 h-7">
+            <SelectTrigger
+              aria-label="Mẫu thư logistics"
+              size="sm"
+              className="h-7 w-auto gap-1.5 text-xs"
+            >
               <FileText className="size-3.5 text-muted-foreground" />
               <span>Chèn mẫu thư Logistics</span>
             </SelectTrigger>
@@ -388,16 +386,16 @@ export function ReplyComposer({
             {attachedFiles.map((file, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 py-1 text-xs text-foreground font-medium shadow-2xs"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium text-foreground shadow-2xs"
               >
                 <Paperclip className="size-3 text-primary" />
-                <span className="truncate max-w-[200px]">{file.name}</span>
+                <span className="max-w-[200px] truncate">{file.name}</span>
                 <span className="text-[10px] text-muted-foreground">
                   ({Math.round(file.size / 1024)} KB)
                 </span>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-destructive cursor-pointer ml-0.5 p-0.5"
+                  className="ml-0.5 cursor-pointer p-0.5 text-muted-foreground hover:text-destructive"
                   onClick={() => removeAttachment(idx)}
                   title={`Xóa ${file.name}`}
                 >
@@ -420,14 +418,16 @@ export function ReplyComposer({
           </p>
         ) : null}
         {status ? (
-          <p role="status" aria-live="polite" className="text-xs text-emerald-600 font-medium">
+          <p role="status" aria-live="polite" className="text-xs font-medium text-emerald-600">
             {status}
           </p>
         ) : null}
       </div>
 
-      {/* Footer Actions */}
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border/60 bg-muted/20 px-3.5 py-2.5">
+      <div
+        data-testid="reply-composer-actions"
+        className={`flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border/60 bg-card px-3.5 py-2.5 ${inline ? "absolute inset-x-0 bottom-0 z-30 shadow-[0_-4px_12px_rgba(15,23,42,0.08)]" : ""}`}
+      >
         <div className="flex items-center gap-1.5">
           {onClose ? (
             <Button
@@ -457,7 +457,7 @@ export function ReplyComposer({
           <Button
             type="button"
             size="sm"
-            className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-8 gap-1.5 bg-primary text-xs text-primary-foreground hover:bg-primary/90"
             disabled={!canSubmit || isBusy}
             onClick={() => void sendOutbound()}
           >
@@ -486,4 +486,3 @@ function readFileAsBase64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-

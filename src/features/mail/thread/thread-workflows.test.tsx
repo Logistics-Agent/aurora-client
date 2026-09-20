@@ -35,11 +35,36 @@ describe("MailThreadPanel", () => {
     expect(screen.queryByRole("region", { name: "Reply composer" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Reply" }));
-    expect(screen.getByRole("region", { name: "Reply composer" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Reply composer" }).parentElement).toHaveClass(
-      "shrink-0",
+    const composer = screen.getByRole("region", { name: "Reply composer" });
+    const panel = screen.getByRole("region", { name: "Mail thread" });
+    expect(composer).toBeVisible();
+    expect(panel).toHaveClass("relative", "min-h-0", "overflow-hidden", "lg:h-full");
+    expect(composer).toHaveClass(
+      "relative",
+      "h-full",
+      "min-h-0",
+      "flex",
+      "flex-col",
+      "overflow-hidden",
+    );
+    expect(composer.parentElement).toHaveClass(
+      "absolute",
+      "inset-x-3",
+      "top-24",
+      "bottom-3",
+      "z-20",
+      "flex",
+      "min-h-0",
     );
     expect(screen.getByLabelText("Reply message")).toBeVisible();
+    const scrollRegion = within(composer).getByTestId("reply-composer-scroll");
+    const actions = within(composer).getByTestId("reply-composer-actions");
+    expect(scrollRegion).toHaveClass("min-h-0", "overflow-y-auto", "overscroll-contain");
+    expect(scrollRegion).toHaveClass("pb-20");
+    expect(scrollRegion).not.toContainElement(actions);
+    expect(actions.parentElement).toBe(composer);
+    expect(actions).toHaveClass("absolute", "inset-x-0", "bottom-0", "z-30");
+    expect(within(actions).getByRole("button", { name: "Send outbound" })).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Close reply composer" }));
     expect(screen.getByRole("button", { name: "Reply" })).toBeVisible();
@@ -489,7 +514,13 @@ type RichThreadPanelProps = {
     senderAddress: string;
     bodyText: string;
     bodyHtml?: string;
-    attachments?: Array<{ id: string; fileName: string; contentType: string; sizeBytes: number; contentBase64: string }>;
+    attachments?: Array<{
+      id: string;
+      fileName: string;
+      contentType: string;
+      sizeBytes: number;
+      contentBase64: string;
+    }>;
   }) => Promise<void> | void;
 };
 

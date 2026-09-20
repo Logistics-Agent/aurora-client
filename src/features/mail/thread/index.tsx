@@ -12,7 +12,6 @@ import { AssignmentHistoryDrawer } from "../drawers/assignment-history-drawer";
 import { ReplyComposer } from "../composer";
 import type { RealAttachmentItem } from "../composer/types";
 import type { MailAttachment, MailMailbox, MailPriority, MailThread } from "../types";
-import { cn } from "@/utils/cn";
 import { MessageTimeline } from "./components/message-timeline";
 import { ThreadHeader, type ThreadHeaderPermissions } from "./components/thread-header";
 
@@ -116,7 +115,7 @@ export function MailThreadPanel({
   return (
     <section
       aria-label="Mail thread"
-      className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border bg-card p-3 lg:h-full lg:p-4"
+      className="relative flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border bg-card p-3 lg:h-full lg:p-4"
     >
       <ThreadHeader
         thread={thread}
@@ -136,7 +135,13 @@ export function MailThreadPanel({
       <ConflictOrForbiddenAlert error={currentError} />
       <MessageTimeline messages={thread.messages} onAttachmentOpen={onAttachmentOpen} />
       {availableComposerMailboxes.length > 0 && (onSaveDraft || onSendMessage) ? (
-        <div className={isReplyOpen ? "shrink-0 min-h-0 pt-1" : "h-9 shrink-0"}>
+        <div
+          className={
+            isReplyOpen
+              ? "absolute inset-x-3 top-24 bottom-3 z-20 flex min-h-0 flex-col"
+              : "h-9 shrink-0"
+          }
+        >
           {isReplyOpen ? (
             <ReplyComposer
               key={thread.id}
