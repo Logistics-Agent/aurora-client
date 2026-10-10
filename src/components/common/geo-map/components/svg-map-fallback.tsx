@@ -7,6 +7,8 @@ import type {
 } from "../../logistics-map";
 import type { LogisticsGeoMarker, LogisticsGeoRoute } from "../types";
 
+import type { MapHealthState } from "../types/map-health";
+
 function projectFallbackPoint(
   longitude: number,
   latitude: number,
@@ -26,22 +28,26 @@ export function SvgMapFallback({
   selectedRouteId,
   selectedMarkerId,
   onMarkerSelect,
+  onRouteSelect,
   loading,
   unavailable,
   onRetry,
   className,
   children,
+  healthState,
 }: {
   routes: LogisticsGeoRoute[];
   markers: LogisticsGeoMarker[];
   selectedRouteId?: string;
   selectedMarkerId?: string;
   onMarkerSelect?: (markerId: string) => void;
+  onRouteSelect?: (routeId: string) => void;
   loading?: boolean;
   unavailable?: boolean;
   onRetry?: () => void;
   className?: string;
   children?: React.ReactNode;
+  healthState?: MapHealthState;
 }) {
   const points = [
     ...routes.flatMap((route) => route.coordinates),
@@ -101,14 +107,35 @@ export function SvgMapFallback({
       selectedRouteId={selectedRouteId}
       selectedMarkerId={selectedMarkerId}
       onMarkerSelect={onMarkerSelect}
+      onRouteSelect={onRouteSelect}
       loading={loading}
       unavailable={unavailable}
       onRetry={onRetry}
       className={className}
     >
-      <span className="absolute left-3 top-3 z-40 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">
-        3D map fallback
-      </span>
+      <div className="absolute left-3 top-3 z-40 flex items-center gap-2">
+        <span
+          className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800"
+          data-health-state={healthState}
+          aria-label={
+            healthState
+              ? `3D map fallback due to ${healthState}`
+              : "3D map fallback"
+          }
+        >
+          3D map fallback
+        </span>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-full border border-amber-300 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-amber-900 shadow-sm transition-colors hover:bg-amber-50"
+            aria-label="Retry map"
+          >
+            Retry
+          </button>
+        )}
+      </div>
       {children}
     </LogisticsMap>
   );

@@ -13,15 +13,17 @@ export function useAuthLogout() {
 
   return useMutation({
     mutationFn: async () => {
-      const deviceDisabled = await disable();
-      if (!deviceDisabled) {
-        throw new Error("Unable to disable browser notifications.");
+      try {
+        await disable();
+      } catch {
+        // Best-effort device notification cleanup
       }
 
       await authService.logout();
     },
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
+      queryClient.clear();
       router.push("/login");
     },
   });

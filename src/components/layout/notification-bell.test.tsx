@@ -41,7 +41,7 @@ describe("NotificationBell", () => {
     render(<NotificationBell />);
 
     expect(screen.getByLabelText(/notifications, 3 unread/i)).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("3")).toHaveClass("bg-critical");
     expect(screen.getByRole("button")).toBeInTheDocument();
   });
 

@@ -14,8 +14,6 @@ mkdirSync(destination, { recursive: true });
 for (const filename of [
   "maplibre-gl-worker.mjs",
   "maplibre-gl-shared.mjs",
-  "maplibre-gl-worker.mjs.map",
-  "maplibre-gl-shared.mjs.map",
 ]) {
   copyFileSync(
     path.join(maplibreDist, filename),

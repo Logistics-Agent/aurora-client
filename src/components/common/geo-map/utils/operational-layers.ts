@@ -5,14 +5,16 @@ import type {
   LogisticsGeoRouteKind,
 } from "../types";
 import {
+  getDomMarkerIds,
   markersToFeatureCollection,
   routesToFeatureCollection,
 } from "./geojson";
 import { getBuildingLayerTarget } from "./map-style";
-
 const ROUTE_SOURCE_ID = "aurora-operational-routes";
 const MARKER_SOURCE_ID = "aurora-operational-markers";
 const BUILDING_LAYER_ID = "aurora-3d-buildings";
+const HIGHLIGHT_CASING_LAYER_ID = "aurora-route-highlight-casing";
+const HIGHLIGHT_CORE_LAYER_ID = "aurora-route-highlight-core";
 
 export function setBuildingLayersVisibility(
   map: MapLibreMap,
@@ -33,7 +35,9 @@ export function setBuildingLayersVisibility(
   );
 
   buildingLayerIds.forEach((layerId) => {
-    map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    if (typeof map.getLayer !== "function" || map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    }
   });
 }
 
@@ -52,9 +56,11 @@ export function syncOperationalLayers(
   map: MapLibreMap,
   routes: LogisticsGeoRoute[],
   markers: LogisticsGeoMarker[],
+  domMarkerIds = getDomMarkerIds(markers),
+  selectedRouteId?: string,
 ) {
   const routeData = routesToFeatureCollection(routes);
-  const markerData = markersToFeatureCollection(markers);
+  const markerData = markersToFeatureCollection(markers, domMarkerIds);
   const routeSource = map.getSource(ROUTE_SOURCE_ID) as
     | GeoJSONSource
     | undefined;
@@ -68,24 +74,84 @@ export function syncOperationalLayers(
   if (markerSource) markerSource.setData(markerData);
   else map.addSource(MARKER_SOURCE_ID, { type: "geojson", data: markerData });
 
+  const opacityExp = selectedRouteId
+    ? (["case", ["==", ["get", "id"], selectedRouteId], 1.0, 0.35] as unknown as number)
+    : 0.92;
+
   (Object.keys(routePaint) as LogisticsGeoRouteKind[]).forEach((kind) => {
     const layerId = `aurora-route-${kind}`;
-    if (map.getLayer(layerId)) return;
     const paint = routePaint[kind];
-    map.addLayer({
-      id: layerId,
-      type: "line",
-      source: ROUTE_SOURCE_ID,
-      filter: ["==", ["get", "kind"], kind],
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: {
-        "line-color": paint.color,
-        "line-width": paint.width,
-        "line-opacity": 0.92,
-        ...(paint.dash ? { "line-dasharray": paint.dash } : {}),
-      },
-    });
+
+    if (!map.getLayer(layerId)) {
+      map.addLayer({
+        id: layerId,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        filter: ["==", ["get", "kind"], kind],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": paint.color,
+          "line-width": paint.width,
+          "line-opacity": opacityExp,
+          ...(paint.dash ? { "line-dasharray": paint.dash } : {}),
+        },
+      });
+    } else {
+      map.setPaintProperty(layerId, "line-opacity", opacityExp);
+    }
   });
+
+  const markerBeforeId = map.getLayer("aurora-markers")
+    ? "aurora-markers"
+    : undefined;
+
+  // Selected route casing (outer halo for high-contrast visibility)
+  if (!map.getLayer(HIGHLIGHT_CASING_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: HIGHLIGHT_CASING_LAYER_ID,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        filter: ["==", ["get", "id"], selectedRouteId ?? ""],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 11,
+          "line-opacity": 0.95,
+        },
+      },
+      markerBeforeId,
+    );
+  } else {
+    map.setFilter(
+      HIGHLIGHT_CASING_LAYER_ID,
+      ["==", ["get", "id"], selectedRouteId ?? ""],
+    );
+  }
+
+  // Selected route core line (vibrant Google Maps style prominent blue)
+  if (!map.getLayer(HIGHLIGHT_CORE_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: HIGHLIGHT_CORE_LAYER_ID,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        filter: ["==", ["get", "id"], selectedRouteId ?? ""],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#2563eb",
+          "line-width": 7,
+          "line-opacity": 1.0,
+        },
+      },
+      markerBeforeId,
+    );
+  } else {
+    map.setFilter(
+      HIGHLIGHT_CORE_LAYER_ID,
+      ["==", ["get", "id"], selectedRouteId ?? ""],
+    );
+  }
 
   if (!map.getLayer("aurora-markers")) {
     map.addLayer({
@@ -96,11 +162,7 @@ export function syncOperationalLayers(
         "circle-radius": ["case", ["==", ["get", "tone"], "current"], 9, 7],
         "circle-opacity": [
           "case",
-          [
-            "all",
-            ["!=", ["get", "mode"], ""],
-            ["!=", ["get", "status"], ""],
-          ],
+          ["==", ["get", "hasDomMarker"], true],
           0,
           1,
         ],
@@ -127,6 +189,11 @@ export function addBuildingExtrusions(map: MapLibreMap) {
   const target = getBuildingLayerTarget(map.getStyle());
   if (!target) return false;
 
+  const beforeLayerId =
+    target.beforeLayerId && map.getLayer(target.beforeLayerId)
+      ? target.beforeLayerId
+      : undefined;
+
   map.addLayer(
     {
       id: BUILDING_LAYER_ID,
@@ -151,13 +218,17 @@ export function addBuildingExtrusions(map: MapLibreMap) {
         "fill-extrusion-opacity": 0.48,
       },
     },
-    target.beforeLayerId,
+    beforeLayerId,
   );
   return true;
 }
-
 export function addTerrain(map: MapLibreMap, terrainUrl?: string) {
-  if (!terrainUrl) return false;
+  if (!terrainUrl) {
+    if (typeof map.setTerrain === "function") {
+      map.setTerrain(null);
+    }
+    return false;
+  }
   if (!map.getSource("aurora-terrain")) {
     map.addSource("aurora-terrain", {
       type: "raster-dem",
@@ -166,6 +237,8 @@ export function addTerrain(map: MapLibreMap, terrainUrl?: string) {
       maxzoom: 14,
     });
   }
-  map.setTerrain({ source: "aurora-terrain", exaggeration: 1.15 });
+  if (typeof map.setTerrain === "function") {
+    map.setTerrain({ source: "aurora-terrain", exaggeration: 1.15 });
+  }
   return true;
 }

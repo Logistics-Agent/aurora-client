@@ -33,11 +33,14 @@ export class ApiError extends Error {
 type ErrorEnvelope = {
   code?: string;
   details?: unknown;
+  detail?: string;
   error?: string;
   fieldErrors?: ApiFieldErrors;
   message?: string | string[];
   statusCode?: number;
   success?: boolean;
+  requiresInvitationCompletion?: boolean;
+  session?: string;
 };
 
 const FALLBACK_MESSAGES: Record<number, string> = {
@@ -49,13 +52,23 @@ const FALLBACK_MESSAGES: Record<number, string> = {
   500: "Something went wrong. Please try again later.",
 };
 
-function normalizeMessage(message: ErrorEnvelope["message"], status: number) {
+function cleanErrorMessage(raw: string): string {
+  const trimmed = raw.trim();
+  // Match Detail="..." or Detail='...' inside gRPC Status(...) or standalone
+  const detailMatch = trimmed.match(/Detail\s*=\s*["']([^"']+)["']/i);
+  if (detailMatch && detailMatch[1]) {
+    return detailMatch[1].trim();
+  }
+  return trimmed;
+}
+
+function normalizeMessage(message: ErrorEnvelope["message"] | string, status: number) {
   if (Array.isArray(message)) {
-    return message.join(", ");
+    return message.map(cleanErrorMessage).join(", ");
   }
 
   if (typeof message === "string" && message.trim()) {
-    return message;
+    return cleanErrorMessage(message);
   }
 
   return FALLBACK_MESSAGES[status] ?? "Request failed. Please try again.";
@@ -68,7 +81,7 @@ function fromEnvelope(error: ErrorEnvelope) {
     code: error.code ?? error.error,
     details: error.details,
     fieldErrors: error.fieldErrors,
-    message: normalizeMessage(error.message, status),
+    message: normalizeMessage(error.message ?? error.detail, status),
     status,
   });
 }
@@ -93,9 +106,9 @@ export function toApiError(error: unknown): ApiError {
 
     return new ApiError({
       code: data?.code ?? data?.error,
-      details: data?.details,
+      details: data?.details ?? data,
       fieldErrors: data?.fieldErrors,
-      message: normalizeMessage(data?.message, status),
+      message: normalizeMessage(data?.message ?? data?.detail, status),
       status,
     });
   }

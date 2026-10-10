@@ -6,13 +6,22 @@ import {
   LogisticsGeoMap,
   MetricCard,
   WorkspaceCard,
+  type LogisticsGeoMarker,
 } from "@/components/common";
 import { PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { shipmentTrackingFixtures, trackingDeviationRoute } from "./mock";
+import { useCurrentLocationQuery } from "@/hooks/queries/tracking/use-current-location-query";
+import {
+  gpsSimulatorRoute,
+  shipmentTrackingFixtures,
+  trackingDeviationRoute,
+} from "./mock";
 import { useShipmentTrackingStore } from "./stores/use-shipment-tracking-store";
 import { RealtimeBanner } from "../components/realtime-banner";
 import { RealtimeFixtureControls } from "../components/realtime-fixture-controls";
+
+const SHIPMENT_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function ShipmentTrackingPage({
   shipmentId = "SHP-2026-00128",
@@ -41,33 +50,63 @@ export function ShipmentTrackingPage({
   const setTrackingException = useShipmentTrackingStore(
     (state) => state.setTrackingException,
   );
+
+  const { data: liveLocation = null } = useCurrentLocationQuery(
+    shipmentId,
+    "vehicle",
+    1_000,
+  );
+
   const fixture = shipmentTrackingFixtures[shipmentId];
+  const isSimulatorShipment = SHIPMENT_UUID_PATTERN.test(shipmentId);
   const routes =
     fixture && trackingException === "deviation"
       ? [...fixture.map.routes, trackingDeviationRoute]
-      : (fixture?.map.routes ?? []);
-  const isCurrentSnapshot = realtimeState === "live";
+      : (fixture?.map.routes ?? [gpsSimulatorRoute]);
+  const effectiveRealtimeState = fixture
+    ? realtimeState
+    : liveLocation
+      ? "live"
+      : "reconnecting";
+  const isCurrentSnapshot = effectiveRealtimeState === "live";
   const hasLastKnownPosition = ["live", "stale", "reconnecting"].includes(
-    realtimeState,
-  );
-  const hasRetainedProgress = ["live", "stale", "reconnecting"].includes(
-    realtimeState,
+    effectiveRealtimeState,
   );
   const telemetry = fixture?.telemetry;
-  const mapMarkers =
-    fixture?.map.markers.map((marker) =>
-      marker.id === "tracking-current" && !isCurrentSnapshot
-        ? {
-            ...marker,
-            label: "Last-known GPS position",
-            detail:
-              realtimeState === "stale"
-                ? "Last update 18 mins ago · movement unavailable"
-                : "Movement unavailable",
-            tone: "alert" as const,
-          }
-        : marker,
-    ) ?? [];
+  const hasRetainedProgress =
+    Boolean(telemetry) &&
+    ["live", "stale", "reconnecting"].includes(effectiveRealtimeState);
+
+  const baseMarkers = fixture?.map.markers ?? [];
+  const mapMarkers: LogisticsGeoMarker[] = liveLocation
+    ? [
+        {
+          id: "tracking-current",
+          position: {
+            latitude: liveLocation.latitude,
+            longitude: liveLocation.longitude,
+          },
+          label: "Active Vehicle GPS",
+          detail: `${Math.round(liveLocation.speedKph ?? 50)} km/h · Heading ${Math.round(liveLocation.headingDegrees ?? 0)}°`,
+          shipmentId,
+          heading: liveLocation.headingDegrees,
+          tone: "current",
+        },
+        ...baseMarkers.filter((m) => m.id !== "tracking-current"),
+      ]
+    : baseMarkers.map((marker) =>
+        marker.id === "tracking-current" && !isCurrentSnapshot
+          ? {
+              ...marker,
+              label: "Last-known GPS position",
+              detail:
+                effectiveRealtimeState === "stale"
+                  ? "Last update 18 mins ago · movement unavailable"
+                  : "Movement unavailable",
+              tone: "alert" as const,
+            }
+          : marker,
+      );
 
   function reconnect() {
     setRealtimeState("reconnecting");
@@ -81,7 +120,7 @@ export function ShipmentTrackingPage({
         description={
           fixture
             ? `${shipmentId} · HCM → Singapore`
-            : `${shipmentId} · tracking fixture unavailable`
+            : `${shipmentId} · San Jose CR to Panama City PA`
         }
         actions={
           fixture ? (
@@ -105,7 +144,7 @@ export function ShipmentTrackingPage({
           ) : undefined
         }
       />
-      {!fixture ? (
+      {!fixture && !isSimulatorShipment ? (
         <WorkspaceCard title="No tracking fixture">
           <p className="text-sm text-muted-foreground">
             No tracking fixture exists for {shipmentId}. Telemetry from another
@@ -117,7 +156,7 @@ export function ShipmentTrackingPage({
         </WorkspaceCard>
       ) : (
         <>
-          {trackingException === "deviation" && (
+          {fixture && trackingException === "deviation" && (
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
               <div>
                 <p className="font-semibold">
@@ -152,44 +191,52 @@ export function ShipmentTrackingPage({
               }
             >
               <p className="text-xl font-semibold tabular-nums">
-                {hasLastKnownPosition && telemetry
-                  ? telemetry.coordinates
-                  : "Unavailable"}
+                {liveLocation
+                  ? `${liveLocation.latitude.toFixed(4)}, ${liveLocation.longitude.toFixed(4)}`
+                  : hasLastKnownPosition && telemetry
+                    ? telemetry.coordinates
+                    : "Unavailable"}
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <MetricCard
                   label="Speed"
                   value={
-                    isCurrentSnapshot && telemetry
-                      ? telemetry.speed
-                      : "Unavailable"
+                    liveLocation?.speedKph !== undefined
+                      ? `${Math.round(liveLocation.speedKph)} km/h`
+                      : isCurrentSnapshot && telemetry
+                        ? telemetry.speed
+                        : "Unavailable"
                   }
                 />
                 <MetricCard
                   label="Heading"
                   value={
-                    isCurrentSnapshot && telemetry
-                      ? telemetry.heading
-                      : "Unavailable"
+                    liveLocation?.headingDegrees !== undefined
+                      ? `${Math.round(liveLocation.headingDegrees)}°`
+                      : isCurrentSnapshot && telemetry
+                        ? telemetry.heading
+                        : "Unavailable"
                   }
                 />
                 <MetricCard
                   label="Last GPS"
                   value={
-                    realtimeState === "stale"
-                      ? "Last update 18 mins ago"
-                      : realtimeState === "live"
-                        ? telemetry?.lastGps
-                        : "Signal unavailable"
+                    liveLocation?.recordedAt
+                      ? new Date(liveLocation.recordedAt).toLocaleTimeString()
+                      : effectiveRealtimeState === "stale"
+                        ? "Last update 18 mins ago"
+                        : effectiveRealtimeState === "live"
+                          ? telemetry?.lastGps
+                          : "Signal unavailable"
                   }
-                  meta={telemetry?.source}
+                  meta={liveLocation ? "Aurora GPS Streamer" : telemetry?.source}
                 />
                 <MetricCard
                   label="ETA"
                   value={
                     isCurrentSnapshot && telemetry
                       ? telemetry.eta
-                      : realtimeState === "stale" && telemetry
+                      : effectiveRealtimeState === "stale" && telemetry
                         ? `Last calculated ${telemetry.eta}`
                         : "Unavailable"
                   }
@@ -233,7 +280,7 @@ export function ShipmentTrackingPage({
           </div>
           <div className="mt-4">
             <RealtimeBanner
-              state={realtimeState}
+              state={effectiveRealtimeState}
               shipmentId={shipmentId}
               onReconnect={reconnect}
             />

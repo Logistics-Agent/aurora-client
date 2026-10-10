@@ -1,14 +1,15 @@
 import { PageHeader } from "@/components/layout";
-import { DocumentReview } from "../components/document-review";
 
-export function UploadDocumentPage() {
+import { DocumentUploadForm } from "./components/document-upload-form";
+
+export function UploadDocumentPage({ shipmentId }: { shipmentId?: string }) {
   return (
     <>
       <PageHeader
         title="Upload Document"
-        description="Select a local fixture before backend upload integration."
+        description="Upload a document to object storage and start OCR processing."
       />
-      <DocumentReview showUpload />
+      <DocumentUploadForm initialShipmentId={shipmentId} />
     </>
   );
 }

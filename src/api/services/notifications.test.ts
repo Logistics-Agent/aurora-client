@@ -43,9 +43,15 @@ describe("notification API service", () => {
       count: 3,
     } as never);
 
-    await expect(notificationService.getUnreadNotificationCount()).resolves.toBe(
-      3,
-    );
+    await expect(notificationService.getUnreadNotificationCount()).resolves.toBe(3);
+  });
+
+  it("accepts the legacy unreadCount response field", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      unreadCount: 4,
+    } as never);
+
+    await expect(notificationService.getUnreadNotificationCount()).resolves.toBe(4);
   });
 
   it("normalizes protobuf timestamp objects returned by the BFF", async () => {
@@ -73,18 +79,16 @@ describe("notification API service", () => {
 
     const result = await notificationService.getNotifications();
 
-    expect(result.notifications[0].createdAt).toBe(
-      "1970-01-01T00:00:00.000Z",
-    );
-    expect(result.notifications[0].readAt).toBe(
-      "1970-01-01T00:00:01.500Z",
-    );
+    expect(result.notifications[0].createdAt).toBe("1970-01-01T00:00:00.000Z");
+    expect(result.notifications[0].readAt).toBe("1970-01-01T00:00:01.500Z");
     expect(result.notifications[0].shipmentId).toBeNull();
   });
 
   it("registers a Web device without tenant or user fields", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({
-      id: "device-1", platform: "Web", isActive: true,
+      id: "device-1",
+      platform: "Web",
+      isActive: true,
     } as never);
 
     await notificationService.registerNotificationDevice({

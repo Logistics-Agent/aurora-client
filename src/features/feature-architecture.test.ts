@@ -12,12 +12,6 @@ const nestedPageIndexes = [
   "shipment/shipment-detail/index.tsx",
   "shipment/create-shipment/index.tsx",
   "shipment/import-shipments/index.tsx",
-  "administration/users/index.tsx",
-  "administration/roles/index.tsx",
-  "administration/tenant-settings/index.tsx",
-  "administration/audit-log/index.tsx",
-  "administration/ai-operations/index.tsx",
-  "administration/ai-execution-detail/index.tsx",
   "commercial/cost-estimate/index.tsx",
   "commercial/negotiations/index.tsx",
   "commercial/negotiation-detail/index.tsx",
@@ -28,8 +22,6 @@ const nestedPageIndexes = [
   "documents/ocr-review/index.tsx",
   "compliance/compliance-center/index.tsx",
   "compliance/compliance-detail/index.tsx",
-  "email-agent/inbox/index.tsx",
-  "email-agent/email-detail/index.tsx",
   "notifications/notification-center/index.tsx",
   "route-tracking/route-planning/index.tsx",
   "route-tracking/live-map/index.tsx",
@@ -45,9 +37,13 @@ const nestedPageIndexes = [
   "customer-portal/notifications/index.tsx",
 ] as const;
 
+const mailCompositionIndexes = [
+  ["mail/inbox/index.tsx", "MailInbox"],
+  ["mail/thread/index.tsx", "MailThreadPanel"],
+] as const;
+
 const forbiddenMonoliths = [
   "shipment/components/shipment-workspace.tsx",
-  "administration/components/admin-workspace.tsx",
   "commercial/components/commercial-workspace.tsx",
   "documents/components/document-workspace.tsx",
   "compliance/components/compliance-workspace.tsx",
@@ -78,6 +74,12 @@ const dynamicRouteAdapters = [
   "src/app/(staff)/shipments/[shipmentId]/tracking/page.tsx",
   "src/app/(customer)/portal/shipments/[shipmentId]/page.tsx",
   "src/app/(customer)/portal/shipments/[shipmentId]/tracking/page.tsx",
+] as const;
+
+const removedEmailAgentPaths = [
+  "src/features/email-agent",
+  "src/app/(staff)/email-agent/page.tsx",
+  "src/app/(staff)/email-agent/[emailId]/page.tsx",
 ] as const;
 
 const routeTrackingLocalOwnership = [
@@ -115,6 +117,21 @@ describe("feature ownership architecture", () => {
     }
   });
 
+  it.each(mailCompositionIndexes)(
+    "owns Mail composition %s",
+    (relativePath, componentName) => {
+      const path = featurePath(relativePath);
+      expect(existsSync(path), `${relativePath} must exist`).toBe(true);
+
+      if (existsSync(path)) {
+        const source = readFileSync(path, "utf8");
+        expect(source).toMatch(
+          new RegExp(`export function ${componentName}`),
+        );
+      }
+    },
+  );
+
   it.each(forbiddenMonoliths)(
     "does not retain route monolith %s",
     (relativePath) => {
@@ -136,6 +153,13 @@ describe("feature ownership architecture", () => {
     expect(source).toMatch(/params: Promise<\{ shipmentId: string \}>/);
     expect(source).toMatch(/shipmentId=\{shipmentId\}/);
   });
+
+  it.each(removedEmailAgentPaths)(
+    "does not retain the replaced Email Agent path %s",
+    (relativePath) => {
+      expect(existsSync(resolve(projectRoot, relativePath))).toBe(false);
+    },
+  );
 
   it.each(routeTrackingLocalOwnership)(
     "keeps route/tracking ownership local at %s",

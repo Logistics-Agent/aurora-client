@@ -1,5 +1,20 @@
 import "@testing-library/jest-dom/vitest";
 
+if (typeof HTMLElement !== "undefined") {
+  if (!HTMLElement.prototype.hasPointerCapture) {
+    HTMLElement.prototype.hasPointerCapture = () => false;
+  }
+  if (!HTMLElement.prototype.setPointerCapture) {
+    HTMLElement.prototype.setPointerCapture = () => undefined;
+  }
+  if (!HTMLElement.prototype.releasePointerCapture) {
+    HTMLElement.prototype.releasePointerCapture = () => undefined;
+  }
+  if (!HTMLElement.prototype.scrollIntoView) {
+    HTMLElement.prototype.scrollIntoView = () => undefined;
+  }
+}
+
 if (typeof window !== "undefined" && !window.localStorage) {
   const values = new Map<string, string>();
   const storage: Storage = {

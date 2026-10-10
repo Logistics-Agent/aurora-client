@@ -1,5 +1,6 @@
 import { StatusBadge } from "@/components/common";
 import { PageHeader } from "@/components/layout";
+
 import { DocumentReview } from "../components/document-review";
 
 export function OcrReviewPage({ documentId }: { documentId: string }) {

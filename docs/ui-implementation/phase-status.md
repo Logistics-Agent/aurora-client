@@ -1,5 +1,4 @@
 # UI Implementation Phase Status
-
 | Phase | Status   | Routes/screens                                                   | Figma nodes                          | Validation                     |
 | ----- | -------- | ---------------------------------------------------------------- | ------------------------------------ | ------------------------------ |
 | 00    | Complete | Preflight contract                                               | `56:2`, `56:3` → `58:10`, `65:2`     | baseline lint/typecheck passed |
@@ -104,3 +103,19 @@
 - The Three.js selected-shipment model now runs only when WebGL2 exists; a WebGL1-only canvas keeps the real map running without the model. Removed the model layer's unconditional repaint loop to reduce unnecessary GPU work.
 - Focused map regression after the compatibility change: 6 files and 18/18 tests passed. Full validation is recorded after the final QA rerun.
 - In-app localhost visual verification was attempted but blocked by the environment's saved browser permission. No browser-visual pass is claimed for this follow-up.
+
+## MapLibre Stability & Asset Hardening — 05 Sep 2026
+
+- **Library and Worker Contract:** Pinned `maplibre-gl` to exact `6.6.0` in `package.json`. Configured `scripts/copy-maplibre-worker.mjs` before `dev` and `build` to copy only runtime `.mjs` artifacts (`maplibre-gl-worker.mjs`, `maplibre-gl-shared.mjs`) to `public/maplibre/`, removing sourcemaps and typing files.
+- **Worker Configuration & Preflight:** Implemented base-path-aware worker URL resolution and pre-mount `checkMapLibreWorkerAssets` probing in `src/components/common/geo-map/utils/`. The map fails fast into fallback if assets return non-200 rather than hanging the worker threads.
+- **Postbuild Validation:** Added `scripts/check-maplibre-assets.mjs` wired to `postbuild` and `check:maplibre-assets`. Validates presence, non-emptiness, and JavaScript syntax.
+- **Independent Fallback Configuration:** Documented `NEXT_PUBLIC_MAP_FALLBACK_STYLE_URL` in `.env.example` with host-isolation warnings. Implemented multi-stage fallback cascade (`primary -> independent -> resilient vector-lite -> SVG`).
+- **Error Classification & Retry:** Structured `classifyMapLibreError` categorizes asset failures, WebGL loss, unsupported hardware, style failures, and tile errors. `SvgMapFallback` displays error cause, semantic `data-health-state`, and an accessible retry button with nonce teardown.
+- **Style Compatibility:** Hardened `map-style.ts` and `operational-layers.ts` for styles lacking symbol layers, absent building sources, or missing terrain URLs.
+- **Fleet-Scale Density:** Added `HTML_MARKER_LIMIT = 100` threshold where non-selected fleet markers render via GPU circle layers with full opacity, reserving DOM markers for the selected vehicle and active current markers. Selection changes dynamically promote/demote DOM markers.
+- **Automated Validation:**
+  - `pnpm typecheck`: 0 errors
+  - `pnpm lint`: 0 errors
+  - `pnpm test`: 66 test suites, 347 tests passed after regression coverage for fallback and marker promotion
+  - `pnpm build`: passed (`next build` succeeded, `postbuild` asset check verified)
+  - Browser UI smoke: not rerun in this validation because the repository has no Playwright server configuration; production build and local filesystem asset validation passed.

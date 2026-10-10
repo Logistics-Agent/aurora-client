@@ -66,15 +66,9 @@ const nullableStringDtoValidator = z.preprocess(
 const validDateStringDtoValidator = z
   .string()
   .min(1)
-  .refine(
-    (value) => !Number.isNaN(Date.parse(value)),
-    "Expected a valid notification timestamp",
-  );
+  .refine((value) => !Number.isNaN(Date.parse(value)), "Expected a valid notification timestamp");
 
-function preprocessTimestampDto(
-  value: unknown,
-  context: z.RefinementCtx,
-): unknown {
+function preprocessTimestampDto(value: unknown, context: z.RefinementCtx): unknown {
   if (value === null || value === "") return null;
   if (typeof value === "string") return value;
 
@@ -83,11 +77,7 @@ function preprocessTimestampDto(
     const seconds = Number(timestamp.seconds);
     const nanos = Number(timestamp.nanos ?? 0);
 
-    if (
-      Number.isFinite(seconds) &&
-      Number.isFinite(nanos) &&
-      Number.isInteger(nanos)
-    ) {
+    if (Number.isFinite(seconds) && Number.isFinite(nanos) && Number.isInteger(nanos)) {
       return new Date(seconds * 1000 + nanos / 1_000_000).toISOString();
     }
   }
@@ -137,13 +127,16 @@ const deviceResponseDtoValidator = z.object({
   isActive: z.boolean(),
 });
 
-const unreadNotificationCountResponseDtoValidator = z.object({
-  count: z.number().int().nonnegative(),
-});
+const unreadNotificationCountResponseDtoValidator = z
+  .union([
+    z.object({ count: z.number().int().nonnegative() }),
+    z.object({ unreadCount: z.number().int().nonnegative() }),
+  ])
+  .transform((value) => ({
+    count: "count" in value ? value.count : value.unreadCount,
+  }));
 
-export function parseNotificationListResponseDto(
-  value: unknown,
-): NotificationListResponseDto {
+export function parseNotificationListResponseDto(value: unknown): NotificationListResponseDto {
   return notificationListResponseDtoValidator.parse(value);
 }
 

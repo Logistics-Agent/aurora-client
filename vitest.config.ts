@@ -1,5 +1,5 @@
 import path from "node:path";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
@@ -8,6 +8,7 @@ export default defineConfig({
     environment: "jsdom",
     environmentOptions: { jsdom: { url: "http://localhost" } },
     setupFiles: ["./vitest.setup.ts"],
+    exclude: [...configDefaults.exclude, "tests/e2e/**", ".superpowers/**"],
   },
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
 });

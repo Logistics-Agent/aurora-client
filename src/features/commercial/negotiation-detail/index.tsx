@@ -20,7 +20,7 @@ export function NegotiationDetailPage({
       />
       <CommercialSummary />
       <div className="mt-5">
-        <NegotiationOffers />
+        <NegotiationOffers negotiationId={negotiationId} />
       </div>
     </>
   );

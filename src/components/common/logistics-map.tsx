@@ -69,6 +69,7 @@ export function LogisticsMap({
   selectedRouteId,
   selectedMarkerId,
   onMarkerSelect,
+  onRouteSelect,
   unavailable = false,
   loading = false,
   onRetry,
@@ -80,6 +81,7 @@ export function LogisticsMap({
   selectedRouteId?: string;
   selectedMarkerId?: string;
   onMarkerSelect?: (markerId: string) => void;
+  onRouteSelect?: (routeId: string) => void;
   unavailable?: boolean;
   loading?: boolean;
   onRetry?: () => void;
@@ -173,19 +175,36 @@ export function LogisticsMap({
             const style = routeStyles[route.kind];
             const selected = route.id === selectedRouteId;
             return (
-              <path
+              <g
                 key={route.id}
-                d={route.path}
-                fill="none"
-                stroke={style.stroke}
-                strokeDasharray={style.dash}
-                strokeLinecap="round"
-                strokeWidth={selected ? 7 : route.kind === "planned" ? 5 : 4}
-                opacity={selected || !selectedRouteId ? 1 : 0.5}
-                className={cn("transition-[opacity,stroke-width] duration-200")}
+                onClick={() => onRouteSelect?.(route.id)}
+                className={cn(
+                  onRouteSelect && "cursor-pointer",
+                  "transition-[opacity] duration-200",
+                )}
               >
-                <title>{route.label}</title>
-              </path>
+                {selected && (
+                  <path
+                    d={route.path}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeLinecap="round"
+                    strokeWidth={11}
+                    opacity={0.95}
+                  />
+                )}
+                <path
+                  d={route.path}
+                  fill="none"
+                  stroke={selected ? "#2563eb" : style.stroke}
+                  strokeDasharray={selected ? undefined : style.dash}
+                  strokeLinecap="round"
+                  strokeWidth={selected ? 7 : route.kind === "planned" ? 5 : 4}
+                  opacity={selected || !selectedRouteId ? 1 : 0.35}
+                >
+                  <title>{route.label}</title>
+                </path>
+              </g>
             );
           })}
         </svg>

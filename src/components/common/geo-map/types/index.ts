@@ -43,3 +43,5 @@ export type LogisticsGeoMarker = {
 };
 
 export type GeoMapAvailability = "available" | "loading" | "unavailable";
+
+export const HTML_MARKER_LIMIT = 100;

@@ -1,0 +1,1 @@
+export const DEFAULT_REGULATION_TYPE = 1;

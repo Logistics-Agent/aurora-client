@@ -10,5 +10,5 @@ export type RouteMapFixture = {
 };
 
 export type RouteMapAvailability = "available" | "loading" | "unavailable";
-export type RouteCalculationState = "ready" | "failed";
+export type RouteCalculationState = "ready" | "loading" | "calculating" | "failed";
 export type RouteRealtimeState = RealtimeState;

@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useFcmNotification } from "../hooks/use-fcm-notification";
 
 export function FcmPermissionControl() {
-  const { state, errorMessage, fcmToken, enable, disable } =
-    useFcmNotification();
+  const { state, errorMessage, fcmToken, enable, disable } = useFcmNotification();
   const [copied, setCopied] = useState(false);
 
   if (state === "disabled") {
@@ -19,9 +18,7 @@ export function FcmPermissionControl() {
 
   if (state === "unsupported") {
     return (
-      <p className="text-sm text-muted-foreground">
-        This browser does not support notifications.
-      </p>
+      <p className="text-sm text-muted-foreground">This browser does not support notifications.</p>
     );
   }
 
@@ -29,14 +26,14 @@ export function FcmPermissionControl() {
     return (
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-emerald-700" aria-live="polite">
-          Notifications enabled
+          In-app and desktop notifications enabled
         </p>
         <Button
           type="button"
           size="sm"
           variant="outline"
           onClick={() => void disable()}
-          aria-label="Disable browser notifications"
+          aria-label="Disable desktop notifications"
         >
           Disable
         </Button>
@@ -46,9 +43,12 @@ export function FcmPermissionControl() {
 
   if (state === "denied") {
     return (
-      <p className="text-sm text-amber-700" role="alert">
-        Permission blocked in browser settings.
-      </p>
+      <div className="space-y-1">
+        <p className="text-sm text-amber-700" role="alert">
+          Desktop notification permission is blocked in browser settings.
+        </p>
+        <p className="text-xs text-muted-foreground">In-app notifications remain available.</p>
+      </div>
     );
   }
 
@@ -56,19 +56,25 @@ export function FcmPermissionControl() {
 
   return (
     <div className="space-y-2">
+      <div>
+        <p className="text-sm font-medium text-foreground">In-app notifications are always on.</p>
+        <p className="text-xs text-muted-foreground">
+          Enable desktop notifications only if you want updates while Aurora is in the background.
+        </p>
+      </div>
       {state === "error" && (
         <p className="text-sm text-red-700" role="alert">
-          {errorMessage ?? "Unable to enable browser notifications."}
+          {errorMessage ?? "Unable to enable desktop notifications."}
         </p>
       )}
       {state === "error" && fcmToken && process.env.NODE_ENV !== "production" && (
         <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
           <p className="text-xs text-amber-900">
-            Firebase created the browser token, but the backend device
-            registration failed. You can copy it for a local gRPC test.
+            Firebase created the browser token, but the backend device registration failed. You can
+            copy it for a local gRPC test.
           </p>
           <code
-            className="block max-h-16 overflow-auto break-all rounded bg-white p-2 text-[11px] text-slate-700"
+            className="block max-h-16 overflow-auto rounded bg-white p-2 text-[11px] break-all text-slate-700"
             data-testid="fcm-token"
           >
             {fcmToken}
@@ -92,9 +98,9 @@ export function FcmPermissionControl() {
         size="sm"
         disabled={isBusy}
         onClick={() => void enable()}
-        aria-label="Enable browser notifications"
+        aria-label="Enable desktop notifications"
       >
-        {isBusy ? "Enabling notifications…" : "Enable browser notifications"}
+        {isBusy ? "Enabling desktop notifications…" : "Enable desktop notifications"}
       </Button>
     </div>
   );
