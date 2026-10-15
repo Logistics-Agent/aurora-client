@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import {
   type DocumentUploadOptions,
   documentUploadService,
+  resolveFileMimeType,
 } from "@/api/services/document-upload.service";
 
 export interface UploadDocumentInput extends DocumentUploadOptions {
@@ -22,10 +23,11 @@ export function useDocumentUploadMutation() {
       signal,
       onProgress,
     }: UploadDocumentInput) => {
+      const mimeType = resolveFileMimeType(file);
       const session = await documentUploadService.createUploadSession({
         idempotencyKey,
         fileName: file.name,
-        mimeType: file.type,
+        mimeType,
         sizeBytes: file.size,
         ...(contentSha256 ? { contentSha256 } : {}),
       });

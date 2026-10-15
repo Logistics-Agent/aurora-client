@@ -34,22 +34,22 @@ describe("live map mock markers", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: "shp-128-route-origin",
-          label: "Cat Lai Port",
+          label: "San José Central Cargo Hub",
           shipmentId: "SHP-2026-00128",
           tone: "origin",
           metadata: expect.objectContaining({
-            customer: "Acme",
+            customer: "Acme Latin America",
             status: "In transit",
             risk: "low",
           }),
-          position: { longitude: 106.785, latitude: 10.756 },
+          position: { longitude: -84.0833, latitude: 9.9333 },
         }),
         expect.objectContaining({
           id: "shp-135-route-origin",
-          label: "Hai Phong Port",
+          label: "Puerto Cortés Atlantic Deep Sea Terminal",
           shipmentId: "SHP-2026-00135",
           tone: "origin",
-          position: { longitude: 106.774, latitude: 20.8449 },
+          position: { longitude: -87.9353, latitude: 15.8278 },
         }),
       ]),
     );

@@ -88,6 +88,19 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
   const [restrictionsVisible, setRestrictionsVisible] = useState(true);
   const [buildingsVisible, setBuildingsVisible] = useState(true);
   const capability = useWebglCapability();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/map-tile-sw.js")
+        .catch((err) => {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[LogisticsGeoMap] ServiceWorker registration skipped:", err);
+          }
+        });
+    }
+  }, []);
+
   const selectedMarker = markers.find(
     (marker) => marker.id === selectedMarkerId,
   );
@@ -110,6 +123,12 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
     () => getOperationalBounds(visibleRoutes, markers, selectedRouteId),
     [markers, selectedRouteId, visibleRoutes],
   );
+  const structuralKey = useMemo(
+    () =>
+      `${selectedRouteId || ""}|${visibleRoutes.map((r) => r.id).join(",")}|${markers.map((m) => m.id).join(",")}`,
+    [markers, selectedRouteId, visibleRoutes],
+  );
+  const previousStructuralKeyRef = useRef<string | undefined>(undefined);
   const operationalDataKey = useMemo(
     () =>
       JSON.stringify({
@@ -128,7 +147,6 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
       }),
     [markers, selectedRouteId, visibleRoutes],
   );
-  const previousOperationalDataKeyRef = useRef<string | undefined>(undefined);
   const lastFocusedMarkerIdRef = useRef<string | undefined>(undefined);
   const latestDataRef = useRef({
     bounds,
@@ -162,15 +180,27 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
 
   const resetView = useCallback(() => {
     const currentBounds = latestDataRef.current.bounds;
-    if (!mapRef.current || !currentBounds) return;
-    mapRef.current.fitBounds(currentBounds, {
-      padding: 70,
-      pitch: getResponsivePitch(),
-      bearing: -18,
-      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? 0
-        : 700,
-    });
+    if (!mapRef.current) return;
+    if (currentBounds) {
+      mapRef.current.fitBounds(currentBounds, {
+        padding: 70,
+        pitch: getResponsivePitch(),
+        bearing: -18,
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? 0
+          : 700,
+      });
+    } else {
+      mapRef.current.easeTo({
+        center: [-85.0, 13.0],
+        zoom: 5.5,
+        pitch: getResponsivePitch(),
+        bearing: -18,
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? 0
+          : 700,
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -207,8 +237,8 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
           const map = new maplibre.Map({
             container: containerRef.current,
             style: MAP_RUNTIME_CONFIG.styleUrl,
-            center: [105.2, 6.1],
-            zoom: 4.8,
+            center: [-85.0, 13.0],
+            zoom: 5.5,
             pitch: getResponsivePitch(),
             bearing: -18,
             canvasContextAttributes: {
@@ -217,6 +247,8 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
             },
             attributionControl: {},
             cooperativeGestures: true,
+            maxTileCacheSize: 500,
+            renderWorldCopies: false,
           });
           let hasLoadedStyle = false;
           let hasRenderedMap = false;
@@ -434,17 +466,18 @@ export function LogisticsGeoMap(props: LogisticsGeoMapProps) {
       latest.domMarkerIds,
       latest.selectedRouteId,
     );
-    const hasOperationalDataChanged =
-      previousOperationalDataKeyRef.current !== undefined &&
-      previousOperationalDataKeyRef.current !== operationalDataKey;
-    previousOperationalDataKeyRef.current = operationalDataKey;
-    if (hasOperationalDataChanged && latest.bounds) resetView();
+    const hasStructuralDataChanged =
+      previousStructuralKeyRef.current !== undefined &&
+      previousStructuralKeyRef.current !== structuralKey;
+    previousStructuralKeyRef.current = structuralKey;
+    if (hasStructuralDataChanged && latest.bounds) resetView();
   }, [
     mapReady,
     operationalDataKey,
     resetView,
     selectedMarkerId,
     selectedRouteId,
+    structuralKey,
   ]);
 
   useEffect(() => {

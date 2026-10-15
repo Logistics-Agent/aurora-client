@@ -400,6 +400,11 @@ export function mapBackendShipmentToPlanningItem(
     markers,
     assignedRouteId:
       shipment.routeId || (shipment.status === "Ready" || shipment.status === "Active" ? candidateRoutes[0]?.id : undefined),
+    vehicleId: shipment.vehicleId || shipment.assignedVehicleId,
+    assignedVehicleId: shipment.assignedVehicleId || shipment.vehicleId,
+    cargoItems: shipment.cargoItems || [],
+    documents: shipment.documents || [],
+    milestones: shipment.milestones || [],
     aiRecommendation: {
       recommendedRouteId: candidateRoutes[0]?.id || "",
       confidence: 96,

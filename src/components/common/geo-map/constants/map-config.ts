@@ -3,7 +3,7 @@ import type { StyleSpecification } from "maplibre-gl";
 export const DEFAULT_MAP_STYLE_URL =
   "https://tiles.openfreemap.org/styles/liberty";
 
-export const MAP_STYLE_LOAD_TIMEOUT_MS = 8_000;
+export const MAP_STYLE_LOAD_TIMEOUT_MS = 2_500;
 
 export const OPENFREEMAP_LITE_STYLE = {
   version: 8,

@@ -175,4 +175,34 @@ export const corpusService = {
       await api.get<unknown>(CONTROLLERS.corpus.knowledgeDocumentStatus(id)),
       parseCorpusVersionStatus,
     ),
+  updateRegulatorySource: async (
+    id: string,
+    payload: {
+      authority: string;
+      title: string;
+      jurisdictionCode: string;
+      regulationType: number;
+      languageCode?: string;
+      canonicalSourceUri?: string;
+    },
+  ): Promise<void> => {
+    await api.put(CONTROLLERS.corpus.regulatorySource(id), payload);
+  },
+  deleteRegulatorySource: async (id: string): Promise<void> => {
+    await api.delete(CONTROLLERS.corpus.regulatorySource(id));
+  },
+  updateKnowledgeDocument: async (
+    id: string,
+    payload: {
+      title: string;
+      category: string;
+      sourceReference?: string;
+      languageCode?: string;
+    },
+  ): Promise<void> => {
+    await api.put(CONTROLLERS.corpus.knowledgeDocument(id), payload);
+  },
+  deleteKnowledgeDocument: async (id: string): Promise<void> => {
+    await api.delete(CONTROLLERS.corpus.knowledgeDocument(id));
+  },
 };

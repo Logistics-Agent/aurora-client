@@ -55,10 +55,10 @@ export function FindingReview({ initialEvaluationId = "" }: FindingReviewProps) 
       {evaluation && (
         <>
           <EvaluationSummary evaluation={evaluation} />
-          {evaluation.externalShipmentId && (
-            <Button asChild variant="outline">
+          {evaluation.evaluationId && (
+            <Button asChild variant="outline" className="gap-2">
               <Link
-                href={`/assistant?shipmentId=${encodeURIComponent(evaluation.externalShipmentId)}&evaluationId=${encodeURIComponent(evaluation.evaluationId)}`}
+                href={`/assistant?${evaluation.externalShipmentId ? `shipmentId=${encodeURIComponent(evaluation.externalShipmentId)}&` : ""}evaluationId=${encodeURIComponent(evaluation.evaluationId)}&q=${encodeURIComponent(`Đánh giá chi tiết các rủi ro tuân thủ và giải pháp xử lý cho đợt kiểm tra ${evaluation.evaluationId}.`)}`}
               >
                 Ask AI about this evaluation
               </Link>

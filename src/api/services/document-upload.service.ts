@@ -29,6 +29,57 @@ function createAbortError(): DOMException {
   return new DOMException("Document upload was cancelled.", "AbortError");
 }
 
+export function resolveFileMimeType(file: File): string {
+  if (file.name.toLowerCase().endsWith(".md")) return "text/markdown";
+  if (file.type && file.type.trim()) return file.type.trim();
+
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "pdf":
+      return "application/pdf";
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
+    case "docx":
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    case "doc":
+      return "application/msword";
+    case "txt":
+      return "text/plain";
+    case "json":
+      return "application/json";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+export function buildPresignedPutHeaders(
+  declaredMimeType?: string,
+  requiredHeaders?: Record<string, string>,
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+  let targetMimeType = declaredMimeType?.trim() || "";
+  let contentTypeKey = "Content-Type";
+
+  if (requiredHeaders) {
+    for (const [key, value] of Object.entries(requiredHeaders)) {
+      if (key.toLowerCase() === "content-type") {
+        contentTypeKey = key;
+        if (value) targetMimeType = value.trim();
+      } else {
+        headers[key] = value;
+      }
+    }
+  }
+
+  headers[contentTypeKey] = targetMimeType || "application/octet-stream";
+  return headers;
+}
+
 function uploadObject(
   session: DocumentUploadSession,
   file: File,
@@ -46,7 +97,8 @@ function uploadObject(
 
     request.open("PUT", session.writeUrl);
     request.withCredentials = false;
-    Object.entries(session.requiredHeaders).forEach(([name, value]) => {
+    const putHeaders = buildPresignedPutHeaders(session.mimeType, session.requiredHeaders);
+    Object.entries(putHeaders).forEach(([name, value]) => {
       request.setRequestHeader(name, value);
     });
     request.upload.onprogress = (event) => {

@@ -20,6 +20,7 @@ export function ShipmentTable() {
   const [shipments, setShipments] = useState<
     Array<{
       id: string;
+      shipmentNo: string;
       customer: string;
       lane: string;
       status: string;
@@ -36,7 +37,8 @@ export function ShipmentTable() {
       if (response?.shipments && response.shipments.length > 0) {
         setShipments(
           response.shipments.map((s) => ({
-            id: s.shipmentNo || s.id,
+            id: s.id,
+            shipmentNo: s.shipmentNo || s.id,
             customer: s.customerName || "Enterprise Logistics Customer",
             lane: `${s.originAddress || "Origin"} → ${s.destinationAddress || "Destination"}`,
             status: s.status || "In Transit",
@@ -126,7 +128,7 @@ export function ShipmentTable() {
                     className="font-semibold text-primary hover:underline focus:outline-none"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {item.id}
+                    {item.shipmentNo}
                   </Link>
                 </td>
                 <td className="px-4 py-4 font-medium text-foreground">{item.customer}</td>

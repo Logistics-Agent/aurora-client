@@ -8,20 +8,22 @@ import { useAssistantQueryMutation } from "@/hooks/mutations/assistant/use-assis
 import { ASSISTANT_QUERY_DEFAULTS } from "../constants/assistant.constants";
 
 function readVerifiedContextFromUrl() {
-  if (typeof window === "undefined") return { shipmentId: "", evaluationId: "" };
+  if (typeof window === "undefined") return { shipmentId: "", evaluationId: "", question: "", jurisdiction: "" };
   const params = new URLSearchParams(window.location.search);
   return {
     shipmentId: params.get("shipmentId") ?? "",
     evaluationId: params.get("evaluationId") ?? "",
+    question: params.get("q") ?? params.get("prompt") ?? params.get("question") ?? "",
+    jurisdiction: params.get("jurisdiction") ?? params.get("jurisdictionCode") ?? "",
   };
 }
 
 export function useAssistantWorkspace() {
   const initialContext = useState(readVerifiedContextFromUrl)[0];
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(initialContext.question);
   const [mode, setMode] = useState<AssistantMode>(ASSISTANT_QUERY_DEFAULTS.mode);
   const [jurisdictionCode, setJurisdictionCode] = useState<string>(
-    ASSISTANT_QUERY_DEFAULTS.jurisdictionCode,
+    initialContext.jurisdiction || ASSISTANT_QUERY_DEFAULTS.jurisdictionCode,
   );
   const [shipmentId, setShipmentId] = useState(initialContext.shipmentId);
   const [evaluationId, setEvaluationId] = useState(initialContext.evaluationId);
