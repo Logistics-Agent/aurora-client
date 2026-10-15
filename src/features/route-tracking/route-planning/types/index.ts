@@ -76,6 +76,11 @@ export type ShipmentPlanningItem = {
   mapRoutes: LogisticsGeoRoute[];
   markers: LogisticsGeoMarker[];
   assignedRouteId?: string;
+  vehicleId?: string;
+  assignedVehicleId?: string;
+  cargoItems?: any[];
+  documents?: any[];
+  milestones?: any[];
   aiRecommendation: {
     recommendedRouteId: string;
     confidence: number;

@@ -48,6 +48,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { shipmentService, type ShipmentDto, type ShipmentDocumentDto } from "@/api/services/shipment.service";
+import { buildPresignedPutHeaders, resolveFileMimeType } from "@/api/services/document-upload.service";
 import { complianceService, type ComplianceEvaluationResponse } from "@/api/services/compliance.service";
 import { trackingService, type CurrentLocationDto } from "@/api/services/tracking.service";
 import { ShipmentNotificationSubscription } from "./components/shipment-notification-subscription";
@@ -65,13 +66,19 @@ const DETAIL_TABS = [
 ] as const;
 type DetailTab = (typeof DETAIL_TABS)[number];
 
-function formatTimelineDate(val: any, fallback = "11/09/2026, 08:15:00"): string {
+function formatTimelineDate(val: any, fallback = "Chờ ghi nhận"): string {
   if (!val) return fallback;
   try {
     let d: Date | null = null;
     if (typeof val === "object" && val !== null) {
       if ("seconds" in val) {
-        d = new Date(Number(val.seconds) * 1000 + Math.floor((val.nanos || 0) / 1e6));
+        const secs = typeof val.seconds === "object" && val.seconds !== null && "low" in val.seconds
+          ? Number(val.seconds.low)
+          : Number(val.seconds);
+        const nanos = typeof val.nanos === "object" && val.nanos !== null && "low" in val.nanos
+          ? Number(val.nanos.low)
+          : Number(val.nanos || 0);
+        d = new Date(secs * 1000 + Math.floor(nanos / 1e6));
       } else if (val instanceof Date) {
         d = val;
       }
@@ -106,12 +113,19 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
   const [shipment, setShipment] = useState<ShipmentDto | null>(null);
   const [currentGps, setCurrentGps] = useState<CurrentLocationDto | null>(null);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [updateDialogTab, setUpdateDialogTab] = useState<"general" | "cargo" | "status">("general");
+
+  // Timeline State
+  const [timelineItems, setTimelineItems] = useState<any[]>([]);
+  const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
 
   // Document Management State
   const [isAddDocDialogOpen, setIsAddDocDialogOpen] = useState(false);
   const [docFileName, setDocFileName] = useState("");
   const [docType, setDocType] = useState("Commercial Invoice");
   const [docStorageUrl, setDocStorageUrl] = useState("");
+  const [selectedDocFile, setSelectedDocFile] = useState<File | null>(null);
+  const [uploadDocProgress, setUploadDocProgress] = useState("");
   const [isSubmittingDoc, setIsSubmittingDoc] = useState(false);
 
   // Sync route planning store data
@@ -130,48 +144,142 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
     );
   }, [planningShipments, shipmentId]);
 
-  // Load shipment details from API
-  const loadShipmentData = () => {
-    shipmentService
-      .getShipment(shipmentId)
-      .then((data) => {
-        if (data) setShipment(data);
-      })
-      .catch(() => {
-        // Keep fallback fixtures if any
-      });
+  const loadTimeline = async (id: string) => {
+    setIsLoadingTimeline(true);
+    try {
+      const res = await shipmentService.getTimeline(id);
+      if (res?.items && Array.isArray(res.items)) {
+        setTimelineItems(res.items);
+      }
+    } catch {
+      // Ignored
+    } finally {
+      setIsLoadingTimeline(false);
+    }
+  };
+
+  // Load shipment details from API with fallback to listShipments if shipmentId is a shipmentNo
+  const loadShipmentData = async () => {
+    try {
+      let data: ShipmentDto | null = null;
+      try {
+        data = await shipmentService.getShipment(shipmentId);
+      } catch {
+        // Fallback to list lookup if direct getShipment failed
+      }
+
+      if (!data) {
+        try {
+          const listRes = await shipmentService.listShipments({ shipmentNo: shipmentId, limit: 1 });
+          if (listRes?.shipments?.[0]) {
+            const matched = listRes.shipments[0];
+            try {
+              data = await shipmentService.getShipment(matched.id);
+            } catch {
+              data = matched;
+            }
+          }
+        } catch {
+          // Ignored
+        }
+      }
+
+      if (data) {
+        setShipment(data);
+        loadTimeline(data.id || shipmentId);
+      }
+    } catch (err) {
+      console.warn("loadShipmentData failed", err);
+    }
   };
 
   const handleAttachDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!docFileName.trim()) {
-      toast.warning("Vui lòng nhập tên chứng từ / tập tin");
+    if (!docFileName.trim() && !selectedDocFile) {
+      toast.warning("Vui lòng nhập tên chứng từ hoặc chọn tệp tải lên");
       return;
     }
     setIsSubmittingDoc(true);
+    setUploadDocProgress("");
     try {
+      let finalStorageUrl = docStorageUrl.trim();
+      const isVehicle = docType === "VehiclePhoto";
+      const category = isVehicle ? "vehicles" : "documents";
+      const effectiveFileName = (selectedDocFile?.name || docFileName).trim();
+
+      // Nếu có tệp đính kèm, tải trực tiếp lên Cloudflare R2 với format chuẩn của Shipment:
+      // - Xe/phương tiện: tenants/{tenantId}/shipments/{shipmentId}/vehicles/{uploadId}_{fileName}
+      // - Chứng từ lô hàng: tenants/{tenantId}/shipments/{shipmentId}/documents/{uploadId}_{fileName}
+      if (selectedDocFile) {
+        setUploadDocProgress("Đang tạo phiên upload Cloudflare R2...");
+        try {
+          const session = await shipmentService.createUploadSession(shipmentId, {
+            fileName: selectedDocFile.name,
+            mimeType: selectedDocFile.type || "application/octet-stream",
+            fileSize: selectedDocFile.size,
+            category,
+          });
+
+          setUploadDocProgress("Đang tải tệp lên Cloudflare R2...");
+          let putSuccess = false;
+          try {
+            const resolvedMime = resolveFileMimeType(selectedDocFile);
+            const putHeaders = buildPresignedPutHeaders(
+              resolvedMime,
+              session.requiredHeaders,
+            );
+            const putRes = await fetch(session.writeUrl, {
+              method: "PUT",
+              body: selectedDocFile,
+              headers: putHeaders,
+            });
+            if (putRes.ok) {
+              putSuccess = true;
+              finalStorageUrl = session.storageReference;
+            }
+          } catch (putErr) {
+            console.warn("Direct R2 PUT failed (CORS/network), relaying via BFF:", putErr);
+          }
+
+          if (!putSuccess) {
+            setUploadDocProgress("Đang truyền tệp qua BFF an toàn...");
+            const directRes = await shipmentService.uploadDirect(shipmentId, selectedDocFile, category);
+            finalStorageUrl = directRes.storageReference || directRes.storageUrl;
+          }
+        } catch (sessErr) {
+          console.warn("Upload session error, trying BFF direct relay:", sessErr);
+          const directRes = await shipmentService.uploadDirect(shipmentId, selectedDocFile, category);
+          finalStorageUrl = directRes.storageReference || directRes.storageUrl;
+        }
+      }
+
+      if (!finalStorageUrl) {
+        finalStorageUrl = `tenants/${shipment?.tenantId || "default"}/shipments/${shipmentId}/${category}/${Date.now()}_${encodeURIComponent(effectiveFileName)}`;
+      }
+
       const payload = {
-        fileName: docFileName.trim(),
+        fileName: effectiveFileName,
         documentType: docType,
-        storageUrl:
-          docStorageUrl.trim() ||
-          `https://storage.aurora.internal/docs/${shipmentId}/${encodeURIComponent(docFileName.trim())}`,
-        ocrStatus: "Verified",
+        storageUrl: finalStorageUrl,
+        ocrStatus: "Completed",
         ocrConfidence: 0.98,
         extractedDataJson: JSON.stringify({
           documentType: docType,
           verifiedAt: new Date().toISOString(),
           issuer: "Customs Clearance & Trade Registry",
+          storageReference: finalStorageUrl,
         }),
       };
 
       const updated = await shipmentService.attachDocument(shipmentId, payload);
       toast.success("Đã đính kèm chứng từ thành công", {
-        description: `Tài liệu "${docFileName}" (${docType}) đã được lưu và quét OCR.`,
+        description: `Tài liệu "${effectiveFileName}" (${docType}) đã được lưu trữ an toàn trên R2.`,
         duration: 4000,
       });
       setDocFileName("");
       setDocStorageUrl("");
+      setSelectedDocFile(null);
+      setUploadDocProgress("");
       setIsAddDocDialogOpen(false);
       if (updated) setShipment(updated);
       loadShipmentData();
@@ -182,6 +290,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
       });
     } finally {
       setIsSubmittingDoc(false);
+      setUploadDocProgress("");
     }
   };
 
@@ -203,6 +312,17 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
   const [complianceEvaluation, setComplianceEvaluation] = useState<ComplianceEvaluationResponse | null>(null);
   const [isEvaluatingCompliance, setIsEvaluatingCompliance] = useState(false);
   const [copiedEvaluationId, setCopiedEvaluationId] = useState(false);
+
+  useEffect(() => {
+    if (effectiveShipment?.id && !complianceEvaluation) {
+      try {
+        const saved = localStorage.getItem(`compliance_eval_${effectiveShipment.id}`);
+        if (saved) {
+          setComplianceEvaluation(JSON.parse(saved));
+        }
+      } catch {}
+    }
+  }, [effectiveShipment?.id, complianceEvaluation]);
 
   const handleEvaluateCompliance = async () => {
     setIsEvaluatingCompliance(true);
@@ -267,6 +387,11 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
 
       const result = await complianceService.evaluateCompliance(payload);
       setComplianceEvaluation(result);
+      if (effectiveShipment?.id) {
+        try {
+          localStorage.setItem(`compliance_eval_${effectiveShipment.id}`, JSON.stringify(result));
+        } catch {}
+      }
       setTab("compliance");
 
       if (result.status === "COMPLETED" || result.riskLevel === "LOW") {
@@ -426,8 +551,76 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
     return baseMarkers;
   }, [activeRoute, planningItem, currentGps]);
 
+  const effectiveVehicleId = useMemo(() => {
+    if (shipment?.vehicleId && shipment.vehicleId.trim()) {
+      return shipment.vehicleId.trim();
+    }
+    if (shipment?.assignedVehicleId && shipment.assignedVehicleId.trim()) {
+      return shipment.assignedVehicleId.trim();
+    }
+    const vehicleDoc = (shipment?.documents || []).find(
+      (d) => d.documentType === "VehiclePhoto" || d.documentType === "6"
+    );
+    if (vehicleDoc?.extractedDataJson) {
+      try {
+        const parsed = JSON.parse(vehicleDoc.extractedDataJson);
+        if (parsed.licensePlate) return String(parsed.licensePlate).trim();
+      } catch {
+        // Ignored
+      }
+    }
+    return (planningShipment as any)?.vehicleId || (planningShipment as any)?.assignedVehicleId || null;
+  }, [shipment, planningShipment]);
+
+  const effectiveCargoItems = useMemo(() => {
+    if (shipment?.cargoItems && shipment.cargoItems.length > 0) {
+      return shipment.cargoItems;
+    }
+    if ((planningShipment as any)?.cargoItems && (planningShipment as any).cargoItems.length > 0) {
+      return (planningShipment as any).cargoItems;
+    }
+    return [];
+  }, [shipment, planningShipment]);
+
+  const effectiveDocuments = useMemo(() => {
+    if (shipment?.documents && shipment.documents.length > 0) {
+      return shipment.documents;
+    }
+    if ((planningShipment as any)?.documents && (planningShipment as any).documents.length > 0) {
+      return (planningShipment as any).documents;
+    }
+    return [];
+  }, [shipment, planningShipment]);
+
+  const isCargoLocked = useMemo(() => {
+    const curStatus = shipment?.status || status;
+    return [
+      "PickedUp",
+      "InTransit",
+      "CustomsProcessing",
+      "CustomsCleared",
+      "Delivered",
+      "Completed",
+      "Cancelled",
+    ].includes(curStatus);
+  }, [shipment?.status, status]);
+
   const effectiveShipment: ShipmentDto | null = useMemo(() => {
-    if (shipment) return shipment;
+    if (shipment) {
+      return {
+        ...shipment,
+        vehicleId: shipment.vehicleId || effectiveVehicleId || undefined,
+        assignedVehicleId: shipment.assignedVehicleId || shipment.vehicleId || effectiveVehicleId || undefined,
+        cargoItems:
+          shipment.cargoItems && shipment.cargoItems.length > 0
+            ? shipment.cargoItems
+            : effectiveCargoItems,
+        documents:
+          shipment.documents && shipment.documents.length > 0
+            ? shipment.documents
+            : effectiveDocuments,
+      };
+    }
     if (planningShipment) {
       return {
         id: planningShipment.id || shipmentId,
@@ -440,15 +633,21 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
         priority: (planningShipment.priority as any) || "Normal",
         transportMode: (planningShipment.transportMode as any) || "Road",
         assignedRouteId: planningShipment.assignedRouteId || assignedRouteId,
-        cargoItems: [
-          {
-            name: planningShipment.cargo.commodity,
-            quantity: 1,
-            weightKg: planningShipment.cargo.weightKg,
-            volumeM3: planningShipment.cargo.volumeM3,
-            packageType: planningShipment.cargo.packageType,
-          },
-        ],
+        vehicleId: effectiveVehicleId || undefined,
+        assignedVehicleId: effectiveVehicleId || undefined,
+        cargoItems: effectiveCargoItems.length > 0
+          ? effectiveCargoItems
+          : [
+              {
+                name: planningShipment.cargo.commodity,
+                quantity: 1,
+                weightKg: planningShipment.cargo.weightKg,
+                volumeM3: planningShipment.cargo.volumeM3,
+                packageType: planningShipment.cargo.packageType,
+              },
+            ],
+        documents: effectiveDocuments,
+        milestones: (planningShipment as any)?.milestones || [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -462,10 +661,14 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
       status,
       priority: "Normal",
       transportMode: "Road",
+      vehicleId: effectiveVehicleId || undefined,
+      assignedVehicleId: effectiveVehicleId || undefined,
+      cargoItems: effectiveCargoItems,
+      documents: effectiveDocuments,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-  }, [shipment, planningShipment, shipmentId, customerName, originAddress, destAddress, status, assignedRouteId]);
+  }, [shipment, planningShipment, shipmentId, customerName, originAddress, destAddress, status, assignedRouteId, effectiveVehicleId, effectiveCargoItems, effectiveDocuments]);
 
   return (
     <>
@@ -589,7 +792,10 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs gap-1"
-                  onClick={() => setIsUpdateDialogOpen(true)}
+                  onClick={() => {
+                    setUpdateDialogTab("general");
+                    setIsUpdateDialogOpen(true);
+                  }}
                 >
                   <Edit className="size-3" /> Chỉnh sửa
                 </Button>
@@ -611,6 +817,19 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                 <div>
                   <span className="text-muted-foreground block text-[11px]">Destination:</span>
                   <span>{destAddress}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Phương tiện / Biển số xe:</span>
+                  <span className="font-semibold text-primary flex items-center gap-1.5">
+                    <Truck className="size-3.5" />
+                    {effectiveVehicleId ? (
+                      <span className="inline-flex items-center gap-1.5 font-mono font-bold text-slate-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                        {effectiveVehicleId}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground font-normal">Chưa phân công xe</span>
+                    )}
+                  </span>
                 </div>
               </div>
 
@@ -637,11 +856,28 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
         {/* CARGO TAB */}
         {tab === "cargo" && (
           <div className="mt-5 space-y-4">
+            {/* Departure Warning Banner */}
+            {isCargoLocked && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 flex items-start gap-3 text-amber-950 shadow-2xs">
+                <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-xs uppercase tracking-wide">
+                    Hàng hóa đã khóa chỉnh sửa (Departure Locked)
+                  </p>
+                  <p className="text-xs text-amber-900 leading-relaxed">
+                    Phương tiện vận tải đã nhận hàng và rời kho/cảng (Trạng thái hiện tại:{" "}
+                    <strong className="underline decoration-amber-400 font-extrabold">{status}</strong>).
+                    Theo quy định logistics & niêm phong hải quan, danh mục hàng hóa không được phép sửa đổi trong quá trình vận chuyển.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-3">
               <MetricCard
                 label="Commodity"
                 value={
-                  shipment?.cargoItems?.[0]?.name ||
+                  effectiveCargoItems[0]?.name ||
                   planningItem?.cargo?.commodity ||
                   "Export Produce & Commercial Cargo"
                 }
@@ -649,16 +885,14 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
               <MetricCard
                 label="Weight"
                 value={
-                  shipment?.cargoItems?.[0]?.weightKg
-                    ? `${shipment.cargoItems[0].weightKg.toLocaleString()} kg`
-                    : planningItem?.cargo?.weightKg
-                      ? `${planningItem.cargo.weightKg.toLocaleString()} kg`
-                      : "18,420 kg"
+                  effectiveCargoItems.length > 0
+                    ? `${effectiveCargoItems.reduce((acc: number, c: any) => acc + (Number(c.weightKg) || 0), 0).toLocaleString()} kg`
+                    : `${(planningItem?.cargo?.weightKg || 18420).toLocaleString()} kg`
                 }
               />
               <MetricCard
                 label="Equipment"
-                value={planningItem?.cargo?.packageType || "1 × 40’ High Cube Reefer"}
+                value={planningItem?.cargo?.packageType || "1 × 40’ High Cube Container"}
               />
             </div>
 
@@ -669,27 +903,60 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                 </span>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant={isCargoLocked ? "secondary" : "outline"}
                   className="h-7 text-xs gap-1"
-                  onClick={() => setIsUpdateDialogOpen(true)}
+                  disabled={isCargoLocked}
+                  onClick={() => {
+                    setUpdateDialogTab("cargo");
+                    setIsUpdateDialogOpen(true);
+                  }}
                 >
-                  <Plus className="size-3" /> Thêm / Sửa Hàng Hóa
+                  {isCargoLocked ? (
+                    <>
+                      <ShieldAlert className="size-3 text-amber-600" />
+                      <span>Đã khóa (Xe đã rời kho/cảng)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="size-3" />
+                      <span>Thêm / Sửa Hàng Hóa</span>
+                    </>
+                  )}
                 </Button>
               </div>
 
-              {shipment?.cargoItems && shipment.cargoItems.length > 0 ? (
-                <div className="divide-y divide-border border rounded-lg text-xs">
-                  {shipment.cargoItems.map((item, idx) => (
+              {effectiveCargoItems.length > 0 ? (
+                <div className="divide-y divide-border border rounded-lg text-xs bg-white">
+                  {effectiveCargoItems.map((item: any, idx: number) => (
                     <div key={item.id || idx} className="p-3 flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-foreground">{item.name}</p>
                         <p className="text-muted-foreground text-[11px]">
-                          Số lượng: {item.quantity} · Khối lượng: {item.weightKg} kg {item.hsCode ? `· Mã HS: ${item.hsCode}` : ""}
+                          Số lượng: <strong className="text-foreground">{item.quantity}</strong> · Khối lượng:{" "}
+                          <strong className="text-foreground font-mono">
+                            {Number(item.weightKg).toLocaleString()} kg
+                          </strong>
+                          {item.hsCode ? ` · Mã HS: ${item.hsCode}` : ""}
                         </p>
                       </div>
-                      <span className="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-medium">
-                        {item.packageType || "Container Cargo"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-medium text-slate-700">
+                          {item.packageType || "Container Cargo"}
+                        </span>
+                        {!isCargoLocked && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px] text-primary"
+                            onClick={() => {
+                              setUpdateDialogTab("cargo");
+                              setIsUpdateDialogOpen(true);
+                            }}
+                          >
+                            Sửa
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -697,7 +964,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                 <div className="p-4 rounded-lg bg-slate-50 text-center text-xs text-muted-foreground">
                   <Package className="size-6 mx-auto text-slate-400 mb-1" />
                   Mặt hàng mặc định: {planningItem?.cargo?.commodity || "Standard Commercial Cargo"} (
-                  {planningItem?.cargo?.weightKg?.toLocaleString() || "18,420"} kg)
+                  {(planningItem?.cargo?.weightKg || 18420).toLocaleString()} kg)
                 </div>
               )}
             </div>
@@ -852,48 +1119,79 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
             </div>
 
             {/* Document list */}
-            {shipment?.documents && shipment.documents.length > 0 ? (
+            {effectiveDocuments.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                {shipment.documents.map((doc, idx) => (
-                  <div
-                    key={doc.id || idx}
-                    className="flex items-start justify-between p-3.5 rounded-xl border border-border bg-slate-50/70 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="p-2 rounded-lg bg-blue-100/80 text-blue-700 shrink-0">
-                        <FileText className="size-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-xs text-foreground truncate" title={doc.fileName}>
-                          {doc.fileName}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-white border text-slate-700">
-                            {doc.documentType}
-                          </span>
-                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                            ✓ {doc.ocrStatus || "Verified"}
-                          </span>
-                        </div>
-                        {doc.uploadedAt && (
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Ngày tải: {formatTimelineDate(doc.uploadedAt)}
-                          </p>
+                {effectiveDocuments.map((doc: any, idx: number) => {
+                  const isVehiclePhoto = doc.documentType === "VehiclePhoto" || doc.documentType === "6";
+                  let photoPlate = "";
+                  if (doc.extractedDataJson) {
+                    try {
+                      const parsed = JSON.parse(doc.extractedDataJson);
+                      photoPlate = parsed.licensePlate || "";
+                    } catch {
+                      // ignore
+                    }
+                  }
+
+                  return (
+                    <div
+                      key={doc.id || idx}
+                      className="flex items-start justify-between p-3.5 rounded-xl border border-border bg-slate-50/70 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        {isVehiclePhoto && doc.storageUrl ? (
+                          <div className="size-12 rounded-lg overflow-hidden border border-border bg-slate-200 shrink-0">
+                            <img
+                              src={doc.storageUrl}
+                              alt="Vehicle"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = "none";
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="p-2 rounded-lg bg-blue-100/80 text-blue-700 shrink-0">
+                            {isVehiclePhoto ? <Truck className="size-5" /> : <FileText className="size-5" />}
+                          </div>
                         )}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-xs text-foreground truncate" title={doc.fileName}>
+                            {doc.fileName}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-white border text-slate-700">
+                              {isVehiclePhoto ? "Ảnh Xe Vận Tải (Vehicle Photo)" : doc.documentType}
+                            </span>
+                            {photoPlate && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 border border-blue-200 text-blue-800">
+                                Biển: {photoPlate}
+                              </span>
+                            )}
+                            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              ✓ {doc.ocrStatus || "Verified"}
+                            </span>
+                          </div>
+                          {doc.uploadedAt && (
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Ngày tải: {formatTimelineDate(doc.uploadedAt)}
+                            </p>
+                          )}
+                        </div>
                       </div>
+                      {doc.id && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDocument(doc.id!)}
+                          className="text-slate-400 hover:text-red-600 p-1 transition-colors"
+                          title="Xóa tài liệu"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      )}
                     </div>
-                    {doc.id && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDocument(doc.id!)}
-                        className="text-slate-400 hover:text-red-600 p-1 transition-colors"
-                        title="Xóa tài liệu"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center bg-slate-50/50 space-y-3">
@@ -923,101 +1221,171 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
         {/* TIMELINE TAB */}
         {tab === "timeline" && (
           <div className="mt-5 space-y-5">
-            <div>
-              <h4 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Clock className="size-4 text-primary" />
-                Dòng Thời Gian & Mốc Nhật Ký Hành Trình (Tracking Milestones)
-              </h4>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Nhật ký mốc thời gian thời gian thực được ghi nhận qua GPS Telemetry và hệ thống phân phối.
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Clock className="size-4 text-primary" />
+                  Dòng Thời Gian & Mốc Nhật Ký Hành Trình (Tracking Milestones)
+                </h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Nhật ký mốc thời gian thực tế ghi nhận qua hệ thống nghiệp vụ và GPS Telemetry.
+                </p>
+              </div>
+              {isLoadingTimeline && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <RotateCcw className="size-3.5 animate-spin" /> Đang đồng bộ timeline...
+                </span>
+              )}
             </div>
 
             <div className="relative pl-6 border-l-2 border-slate-200 space-y-5 ml-3 pt-1">
-              {/* Milestone 1: Created */}
-              <div className="relative group">
-                <span className="absolute -left-[31px] top-2 flex h-4 w-4 rounded-full bg-blue-600 ring-4 ring-white shadow-xs items-center justify-center">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white"></span>
-                </span>
-                <div className="rounded-xl border border-border bg-slate-50/90 p-4 space-y-2 hover:bg-slate-50 transition-colors shadow-2xs">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-bold text-sm text-foreground flex items-center gap-2">
-                      <Package className="size-4 text-primary" />
-                      1. Khởi tạo Vận đơn & Đăng ký Đơn hàng
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 shadow-2xs">
-                      <Calendar className="size-3.5 text-slate-500" />
-                      {formatTimelineDate(shipment?.createdAt, "11/09/2026, 08:15:00")}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Vận đơn đã được tạo thành công trên hệ thống. Tuyến xuất phát từ{" "}
-                    <strong className="text-foreground">{originAddress}</strong> đến{" "}
-                    <strong className="text-foreground">{destAddress}</strong>.
-                  </p>
-                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-1.5 border-t border-slate-200/70">
-                    <span>Khách hàng: <strong className="text-foreground">{customerName}</strong></span>
-                    <span>·</span>
-                    <span>Phương thức: <strong className="text-foreground">{shipment?.transportMode || "Road (OSRM Highway)"}</strong></span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Milestone 2: Corridor Bound */}
-              {assignedRouteId && (
-                <div className="relative group">
-                  <span className="absolute -left-[31px] top-2 flex h-4 w-4 rounded-full bg-emerald-600 ring-4 ring-white shadow-xs items-center justify-center">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white"></span>
-                  </span>
-                  <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/70 p-4 space-y-2 shadow-2xs">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-bold text-sm text-emerald-950 flex items-center gap-2">
-                        <ShieldCheck className="size-4 text-emerald-600" />
-                        2. Lộ trình Hành lang được Gán & Phê duyệt (Route Bound)
+              {/* Dynamic items from API timeline */}
+              {timelineItems.length > 0 ? (
+                timelineItems.map((item, idx) => {
+                  const isLast = idx === timelineItems.length - 1;
+                  return (
+                    <div key={item.id || idx} className="relative group">
+                      <span
+                        className={`absolute -left-[31px] top-2 flex h-4 w-4 rounded-full ${
+                          isLast ? "bg-primary ring-4 ring-white" : "bg-emerald-600 ring-4 ring-white"
+                        } shadow-xs items-center justify-center`}
+                      >
+                        {isLast && (
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60"></span>
+                        )}
+                        <span className="h-1.5 w-1.5 rounded-full bg-white"></span>
                       </span>
-                      <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-white border border-emerald-200 text-emerald-800 shadow-2xs">
-                        <Clock className="size-3.5 text-emerald-600" />
-                        {formatTimelineDate(shipment?.updatedAt, "11/09/2026, 08:45:30")}
-                      </span>
+                      <div className="rounded-xl border border-border bg-slate-50/90 p-4 space-y-2 hover:bg-slate-50 transition-colors shadow-2xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-sm text-foreground flex items-center gap-2">
+                            <Package className="size-4 text-primary" />
+                            {idx + 1}. {item.status === "Created" && "Khởi tạo Vận đơn & Đăng ký"}
+                            {item.status === "Submitted" && "Vận đơn đã gửi duyệt (Submitted)"}
+                            {item.status === "Planning" && "Lập kế hoạch lộ trình (Planning)"}
+                            {item.status === "Negotiating" && "Đàm phán cước vận chuyển (Negotiating)"}
+                            {item.status === "Confirmed" && "Đã xác nhận chuyến hàng (Confirmed)"}
+                            {item.status === "PickedUp" && "Phương tiện đã lấy hàng (PickedUp)"}
+                            {item.status === "InTransit" && "Đang vận chuyển trên hành lang (In Transit)"}
+                            {item.status === "CustomsProcessing" && "Thông quan Cửa khẩu (Customs Processing)"}
+                            {item.status === "Delivered" && "Đã giao hàng thành công (Delivered)"}
+                            {item.status === "Completed" && "Hoàn thành chuyến hàng (Completed)"}
+                            {item.status === "Cancelled" && "Vận đơn đã hủy (Cancelled)"}
+                            {!["Created", "Submitted", "Planning", "Negotiating", "Confirmed", "PickedUp", "InTransit", "CustomsProcessing", "Delivered", "Completed", "Cancelled"].includes(item.status) &&
+                              `Trạng thái: ${item.status}`}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                            <Clock className="size-3.5 text-slate-500" />
+                            {formatTimelineDate(item.createdAt || item.recordedAt)}
+                          </span>
+                        </div>
+                        {item.note || item.description ? (
+                          <p className="text-xs text-slate-600 leading-relaxed">
+                            {item.note || item.description}
+                          </p>
+                        ) : null}
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-1.5 border-t border-slate-200/70">
+                          <span>Nguồn: <strong className="text-foreground">{item.source || "Workflow Engine"}</strong></span>
+                          <span>·</span>
+                          <span>Trạng thái: <strong className="text-primary">{item.status}</strong></span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-emerald-900 leading-relaxed">
-                      Hành lang: <strong className="text-emerald-950">{activeRoute?.name || "Pan-American Highway Corridor"}</strong> ({activeRoute?.distance || "OSRM Route"}, Thời gian ước tính: {activeRoute?.duration || "15h"}).
-                    </p>
+                  );
+                })
+              ) : (
+                /* Dynamic fallback built from shipment timestamps and milestones */
+                <>
+                  {/* Milestone: Created */}
+                  <div className="relative group">
+                    <span className="absolute -left-[31px] top-2 flex h-4 w-4 rounded-full bg-blue-600 ring-4 ring-white shadow-xs items-center justify-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-white"></span>
+                    </span>
+                    <div className="rounded-xl border border-border bg-slate-50/90 p-4 space-y-2 hover:bg-slate-50 transition-colors shadow-2xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-bold text-sm text-foreground flex items-center gap-2">
+                          <Package className="size-4 text-primary" />
+                          1. Khởi tạo Vận đơn & Đăng ký Đơn hàng
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                          <Calendar className="size-3.5 text-slate-500" />
+                          {formatTimelineDate(shipment?.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Vận đơn đã được tạo thành công trên hệ thống. Tuyến xuất phát từ{" "}
+                        <strong className="text-foreground">{originAddress}</strong> đến{" "}
+                        <strong className="text-foreground">{destAddress}</strong>.
+                      </p>
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-1.5 border-t border-slate-200/70">
+                        <span>Khách hàng: <strong className="text-foreground">{customerName}</strong></span>
+                        <span>·</span>
+                        <span>Phương thức: <strong className="text-foreground">{shipment?.transportMode || "Road"}</strong></span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+
+                  {/* Milestones from shipment.milestones */}
+                  {(shipment?.milestones || []).map((m, mIdx) => (
+                    <div key={m.id || mIdx} className="relative group">
+                      <span className="absolute -left-[31px] top-2 flex h-4 w-4 rounded-full bg-emerald-600 ring-4 ring-white shadow-xs items-center justify-center">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white"></span>
+                      </span>
+                      <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/70 p-4 space-y-2 shadow-2xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-sm text-emerald-950 flex items-center gap-2">
+                            <ShieldCheck className="size-4 text-emerald-600" />
+                            {mIdx + 2}. Trạng thái: {m.status}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-white border border-emerald-200 text-emerald-800 shadow-2xs">
+                            <Clock className="size-3.5 text-emerald-600" />
+                            {formatTimelineDate(m.recordedAt)}
+                          </span>
+                        </div>
+                        {m.description && (
+                          <p className="text-xs text-emerald-900 leading-relaxed">
+                            {m.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 text-[11px] text-emerald-800 pt-1.5 border-t border-emerald-200/70">
+                          <span>Nguồn: <strong>{m.source || "User"}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Operational Status */}
+                  <div className="relative group">
+                    <span className="absolute -left-[31px] top-2 flex h-4 w-4 rounded-full bg-primary ring-4 ring-white shadow-xs items-center justify-center">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60"></span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-white"></span>
+                    </span>
+                    <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/80 via-white to-slate-50 p-4 space-y-2.5 shadow-2xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                          <Truck className="size-4 text-primary" />
+                          Trạng thái Vận hành Hiện tại: <span className="text-primary font-extrabold">{status}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-100/90 border border-blue-200 text-blue-900 shadow-2xs">
+                          <Clock className="size-3.5 text-blue-700" />
+                          {formatTimelineDate(currentGps?.recordedAt || shipment?.updatedAt)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {effectiveVehicleId
+                          ? `Phương tiện [${effectiveVehicleId}] đang kết nối theo dõi hành trình vận chuyển.`
+                          : "Chuyến hàng đang trong quy trình vận hành và cập nhật telemetry."}
+                      </p>
+                      {currentGps && (
+                        <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/70">
+                          <span>Tọa độ GPS: <strong className="font-mono text-slate-700">{currentGps.latitude.toFixed(4)}, {currentGps.longitude.toFixed(4)}</strong></span>
+                          <span>·</span>
+                          <span>Vận tốc: <strong className="text-slate-700">{Math.round(currentGps.speedKph ?? 0)} km/h</strong></span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
-
-              {/* Milestone 3: Current Status */}
-              <div className="relative group">
-                <span className="absolute -left-[31px] top-2 flex h-4 w-4 rounded-full bg-primary ring-4 ring-white shadow-xs items-center justify-center">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60"></span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-white"></span>
-                </span>
-                <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/80 via-white to-slate-50 p-4 space-y-2.5 shadow-2xs">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                      <Truck className="size-4 text-primary" />
-                      3. Trạng thái Vận hành Hiện tại: <span className="text-primary font-extrabold">{status}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-100/90 border border-blue-200 text-blue-900 shadow-2xs">
-                      <Clock className="size-3.5 text-blue-700" />
-                      {formatTimelineDate(currentGps?.recordedAt || shipment?.updatedAt)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Xe vận tải đã nhận hàng và kết nối giám sát GPS Telemetry trực tiếp trên hành lang vận tải khu vực Trung Mỹ.
-                  </p>
-                  {currentGps && (
-                    <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/70">
-                      <span>Tọa độ GPS: <strong className="font-mono text-slate-700">{currentGps.latitude.toFixed(4)}, {currentGps.longitude.toFixed(4)}</strong></span>
-                      <span>·</span>
-                      <span>Vận tốc: <strong className="text-slate-700">{Math.round(currentGps.speedKph ?? 0)} km/h</strong></span>
-                      <span>·</span>
-                      <span>Hướng di chuyển: <strong className="text-slate-700">{Math.round(currentGps.headingDegrees ?? 0)}°</strong></span>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -1213,7 +1581,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                     </p>
                   </div>
                   <Link
-                    href={`/assistant`}
+                    href={`/assistant?shipmentId=${encodeURIComponent(effectiveShipment.id)}${complianceEvaluation?.evaluationId ? `&evaluationId=${encodeURIComponent(complianceEvaluation.evaluationId)}` : ""}&q=${encodeURIComponent(`Tư vấn quy định hải quan, yêu cầu chứng từ và rủi ro tuân thủ cho lô hàng ${effectiveShipment.trackingNumber || effectiveShipment.id}`)}`}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
                   >
                     Hỏi AI Assistant
@@ -1231,6 +1599,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
         shipment={effectiveShipment}
         open={isUpdateDialogOpen}
         onOpenChange={setIsUpdateDialogOpen}
+        initialTab={updateDialogTab}
         onUpdated={(updated) => {
           setShipment(updated);
           loadShipmentData();
@@ -1265,8 +1634,57 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                 <option value="Customs Declaration">Customs Declaration (Tờ khai hải quan)</option>
                 <option value="Insurance Policy">Insurance Policy (Hợp đồng bảo hiểm vận tải)</option>
                 <option value="Certificate of Origin">Certificate of Origin (C/O - Chứng nhận xuất xứ)</option>
+                <option value="VehiclePhoto">Vehicle Photo (Ảnh chụp phương tiện / Biển số xe)</option>
                 <option value="Other">Other (Chứng từ khác)</option>
               </select>
+            </div>
+
+            {/* Khu vực chọn file tải lên Cloudflare R2 với format chuẩn Shipment */}
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground text-xs">Tải tệp đính kèm lên Cloudflare R2</label>
+              <div className="border-2 border-dashed border-input hover:border-primary/50 transition-colors rounded-lg p-3 text-center bg-muted/20">
+                <input
+                  type="file"
+                  id="shipment-doc-file-input"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setSelectedDocFile(f);
+                      if (!docFileName) setDocFileName(f.name);
+                    }
+                  }}
+                />
+                {selectedDocFile ? (
+                  <div className="flex items-center justify-between text-xs bg-background p-2 rounded border border-border">
+                    <span className="font-medium text-foreground truncate max-w-[280px]">
+                      {selectedDocFile.name} ({(selectedDocFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-destructive hover:bg-destructive/10"
+                      onClick={() => setSelectedDocFile(null)}
+                    >
+                      Bỏ chọn
+                    </Button>
+                  </div>
+                ) : (
+                  <label htmlFor="shipment-doc-file-input" className="cursor-pointer block space-y-1">
+                    <UploadCloud className="size-6 text-muted-foreground mx-auto" />
+                    <p className="text-xs text-foreground font-medium">Bấm để chọn tệp (PDF, JPG, PNG)</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Tệp sẽ được lưu vào: tenants/.../shipments/{shipmentId}/{docType === 'VehiclePhoto' ? 'vehicles' : 'documents'}/
+                    </p>
+                  </label>
+                )}
+              </div>
+              {uploadDocProgress && (
+                <p className="text-[11px] text-primary font-medium flex items-center gap-1.5 animate-pulse">
+                  <RotateCcw className="size-3 animate-spin" /> {uploadDocProgress}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -1283,13 +1701,13 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
             <div className="space-y-1.5">
               <label className="font-semibold text-foreground text-xs">Đường dẫn lưu trữ / Storage Reference (Tùy chọn)</label>
               <input
-                placeholder="https://s3.central-america.storage/invoices/..."
+                placeholder="Để trống nếu đã chọn tệp tải lên ở trên"
                 value={docStorageUrl}
                 onChange={(e) => setDocStorageUrl(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
               />
               <p className="text-[11px] text-muted-foreground">
-                Nếu để trống, hệ thống sẽ tự động cấp phát storage link bảo mật và quét OCR tự động.
+                Nếu đã chọn tệp, hệ thống tự động sinh Object Key chuẩn trên R2 và quét OCR.
               </p>
             </div>
 
@@ -1305,7 +1723,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                 {isSubmittingDoc ? (
                   <>
                     <RotateCcw className="size-4 animate-spin mr-2" />
-                    Đang lưu & Quét OCR...
+                    {uploadDocProgress || "Đang lưu & Quét OCR..."}
                   </>
                 ) : (
                   <>

@@ -7,7 +7,11 @@ import {
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/api-error";
 
-import { type DocumentUploadOptions, documentUploadService } from "./document-upload.service";
+import {
+  type DocumentUploadOptions,
+  documentUploadService,
+  resolveFileMimeType,
+} from "./document-upload.service";
 
 export interface CorpusFileUploadInput extends DocumentUploadOptions {
   file: File;
@@ -15,8 +19,7 @@ export interface CorpusFileUploadInput extends DocumentUploadOptions {
 }
 
 export function getCorpusFileMimeType(file: File): string {
-  if (file.name.toLowerCase().endsWith(".md")) return "text/markdown";
-  return file.type || "application/octet-stream";
+  return resolveFileMimeType(file);
 }
 
 function parseResponse(value: unknown): CorpusIntakeResponse {

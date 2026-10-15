@@ -4,140 +4,140 @@
       "id": "SHP-128",
       "shipmentId": "SHP-2026-00128",
       "status": "In transit",
-      "detail": "Acme · 15 kn · ETA 18:40",
+      "detail": "Acme Latin America · 68 km/h · ETA 18:40",
       "eta": "18:40",
-      "heading": 232,
+      "heading": 320,
       "lastUpdated": "24 sec ago",
-      "speed": "15 kn",
+      "speed": "68 km/h",
       "markerId": "shp-128",
       "risk": "low",
-      "mode": "Ocean",
-      "customer": "Acme",
-      "region": "SEA",
+      "mode": "Road",
+      "customer": "Acme Latin America",
+      "region": "Central America",
       "position": {
-        "longitude": 104.65,
-        "latitude": 3.1
+        "longitude": -85.6128,
+        "latitude": 11.2186
       }
     },
     {
       "id": "SHP-129",
       "shipmentId": "SHP-2026-00129",
       "status": "Delayed",
-      "detail": "VietLink · 48 km/h · ETA 09:30",
+      "detail": "AgroExport CA · 32 km/h · ETA 09:30",
       "eta": "09:30",
-      "heading": 188,
+      "heading": 135,
       "lastUpdated": "1 min ago",
-      "speed": "48 km/h",
+      "speed": "32 km/h",
       "markerId": "shp-129",
       "risk": "high",
       "mode": "Road",
-      "customer": "VietLink",
-      "region": "SEA",
+      "customer": "AgroExport CA",
+      "region": "Central America",
       "position": {
-        "longitude": 101.6869,
-        "latitude": 3.139
+        "longitude": -89.85,
+        "latitude": 14.12
       }
     },
     {
       "id": "SHP-130",
       "shipmentId": "SHP-2026-00130",
       "status": "At hub",
-      "detail": "SkyBridge · 0 km/h · ETA 14:15",
+      "detail": "Isthmus Express · 0 km/h · ETA 14:15",
       "eta": "14:15",
       "heading": 0,
       "lastUpdated": "32 sec ago",
       "speed": "0 km/h",
       "markerId": "shp-130",
       "risk": "medium",
-      "mode": "Air",
-      "customer": "SkyBridge",
-      "region": "SEA",
+      "mode": "Road",
+      "customer": "Isthmus Express",
+      "region": "Central America",
       "position": {
-        "longitude": 103.9915,
-        "latitude": 1.3644
+        "longitude": -79.8974,
+        "latitude": 9.3598
       }
     },
     {
       "id": "SHP-131",
       "shipmentId": "SHP-2026-00131",
       "status": "In transit",
-      "detail": "Siam Maritime · 14 kn · ETA 22:10",
+      "detail": "Pacific Maritime Logistics · 16 kn · ETA 22:10",
       "eta": "22:10",
-      "heading": 174,
+      "heading": 115,
       "lastUpdated": "18 sec ago",
-      "speed": "14 kn",
+      "speed": "16 kn",
       "markerId": "shp-131",
       "risk": "low",
       "mode": "Ocean",
-      "customer": "Siam Maritime",
-      "region": "SEA",
+      "customer": "Pacific Maritime Logistics",
+      "region": "Central America",
       "position": {
-        "longitude": 101.85,
-        "latitude": 7.25
+        "longitude": -84.5,
+        "latitude": 9.1
       }
     },
     {
       "id": "SHP-132",
       "shipmentId": "SHP-2026-00132",
       "status": "GPS stale",
-      "detail": "Nusantara Cargo · 12 kn · ETA 05:45",
+      "detail": "Trans-Norte Cargo · 45 km/h · ETA 05:45",
       "eta": "05:45",
-      "heading": 320,
+      "heading": 160,
       "lastUpdated": "19 min ago",
-      "speed": "12 kn",
+      "speed": "45 km/h",
       "markerId": "shp-132",
       "risk": "critical",
-      "mode": "Ocean",
-      "customer": "Nusantara Cargo",
-      "region": "SEA",
+      "mode": "Road",
+      "customer": "Trans-Norte Cargo",
+      "region": "Central America",
       "position": {
-        "longitude": 105.85,
-        "latitude": -3.0
+        "longitude": -86.9,
+        "latitude": 13.8
       }
     },
     {
       "id": "SHP-133",
       "shipmentId": "SHP-2026-00133",
       "status": "In transit",
-      "detail": "Pacific Air Logistics · 735 km/h · ETA 20:20",
+      "detail": "AeroCentro Cargo · 680 km/h · ETA 20:20",
       "eta": "20:20",
-      "heading": 222,
+      "heading": 145,
       "lastUpdated": "11 sec ago",
-      "speed": "735 km/h",
+      "speed": "680 km/h",
       "markerId": "shp-133",
-      "risk": "medium",
+      "risk": "low",
       "mode": "Air",
-      "customer": "Pacific Air Logistics",
-      "region": "SEA",
+      "customer": "AeroCentro Cargo",
+      "region": "Central America",
       "position": {
-        "longitude": 121.0198,
-        "latitude": 14.5086
+        "longitude": -86.5,
+        "latitude": 11.8
       }
     },
     {
       "id": "SHP-134",
       "shipmentId": "SHP-2026-00134",
       "status": "Delayed",
-      "detail": "ASEAN Ground Freight · 36 km/h · ETA 07:50",
+      "detail": "Caribe Freight · 28 km/h · ETA 07:50",
       "eta": "07:50",
-      "heading": 190,
+      "heading": 175,
       "lastUpdated": "2 min ago",
-      "speed": "36 km/h",
+      "speed": "28 km/h",
       "markerId": "shp-134",
       "risk": "high",
       "mode": "Road",
-      "customer": "ASEAN Ground Freight",
-      "region": "SEA",
+      "customer": "Caribe Freight",
+      "region": "Central America",
       "position": {
-        "longitude": 100.5018,
-        "latitude": 13.7563
+        "longitude": -84.2,
+        "latitude": 10.1
       }
     },
     {
       "id": "SHP-135",
       "shipmentId": "SHP-2026-00135",
       "status": "At hub",
-      "detail": "EastSea Logistics · 0 kn · ETA 11:25",
+      "detail": "Moín Atlantic Shipping · 0 kn · ETA 11:25",
       "eta": "11:25",
       "heading": 0,
       "lastUpdated": "45 sec ago",
@@ -145,176 +145,196 @@
       "markerId": "shp-135",
       "risk": "low",
       "mode": "Ocean",
-      "customer": "EastSea Logistics",
-      "region": "SEA",
+      "customer": "Moín Atlantic Shipping",
+      "region": "Central America",
       "position": {
-        "longitude": 100.9,
-        "latitude": 12.65
+        "longitude": -83.0722,
+        "latitude": 9.9982
       }
     }
   ],
   "routes": [
     {
       "id": "shp-128-route",
-      "label": "Cat Lai Port → Port Klang",
+      "label": "San José Central Cargo Hub → Puerto Cortés Atlantic Deep Sea Terminal",
       "shipmentId": "SHP-2026-00128",
       "kind": "current",
       "layer": "operations",
       "coordinates": [
         {
-          "longitude": 106.785,
-          "latitude": 10.756
+          "longitude": -84.0833,
+          "latitude": 9.9333
         },
         {
-          "longitude": 104.65,
-          "latitude": 3.1
+          "longitude": -85.6128,
+          "latitude": 11.2186
         },
         {
-          "longitude": 101.35,
-          "latitude": 3.0
+          "longitude": -86.2362,
+          "latitude": 12.115
+        },
+        {
+          "longitude": -87.9353,
+          "latitude": 15.8278
         }
       ]
     },
     {
       "id": "shp-129-route",
-      "label": "Cu Chi Logistics Hub → Kuala Lumpur Logistics Hub",
+      "label": "Guatemala City Industrial Gateway → San Salvador Cargo Hub (Nejapa)",
       "shipmentId": "SHP-2026-00129",
       "kind": "risk",
       "layer": "traffic",
       "coordinates": [
         {
-          "longitude": 106.4933,
-          "latitude": 10.9733
+          "longitude": -90.5333,
+          "latitude": 14.5833
         },
         {
-          "longitude": 104.9282,
-          "latitude": 11.5564
+          "longitude": -89.85,
+          "latitude": 14.12
         },
         {
-          "longitude": 100.5018,
-          "latitude": 13.7563
-        },
-        {
-          "longitude": 101.6869,
-          "latitude": 3.139
+          "longitude": -89.2319,
+          "latitude": 13.785
         }
       ]
     },
     {
       "id": "shp-130-route",
-      "label": "Noi Bai Cargo Terminal → Changi Airfreight Centre",
+      "label": "San José Central Cargo Hub → Colón Free Trade Zone Logistics Gateway",
       "shipmentId": "SHP-2026-00130",
       "kind": "completed",
       "layer": "operations",
       "coordinates": [
         {
-          "longitude": 105.8067,
-          "latitude": 21.2187
+          "longitude": -84.0833,
+          "latitude": 9.9333
         },
         {
-          "longitude": 103.9915,
-          "latitude": 1.3644
+          "longitude": -82.8406,
+          "latitude": 8.5325
+        },
+        {
+          "longitude": -82.431,
+          "latitude": 8.4273
+        },
+        {
+          "longitude": -79.8974,
+          "latitude": 9.3598
         }
       ]
     },
     {
       "id": "shp-131-route",
-      "label": "Laem Chabang Port → Port of Singapore",
+      "label": "Puerto Quetzal Pacific Gateway → Balboa Pacific Container Terminal",
       "shipmentId": "SHP-2026-00131",
       "kind": "current",
       "layer": "operations",
       "coordinates": [
         {
-          "longitude": 100.9,
-          "latitude": 13.08
+          "longitude": -90.7878,
+          "latitude": 13.9297
         },
         {
-          "longitude": 101.85,
-          "latitude": 7.25
+          "longitude": -84.5,
+          "latitude": 9.1
         },
         {
-          "longitude": 103.75,
-          "latitude": 1.25
+          "longitude": -79.5639,
+          "latitude": 8.9567
         }
       ]
     },
     {
       "id": "shp-132-route",
-      "label": "Tanjung Priok Port → Port of Singapore",
+      "label": "Puerto Barrios Logistics Hub → Managua Central Freight Depot",
       "shipmentId": "SHP-2026-00132",
       "kind": "risk",
       "layer": "restrictions",
       "coordinates": [
         {
-          "longitude": 106.88,
-          "latitude": -6.1
+          "longitude": -88.5944,
+          "latitude": 15.7278
         },
         {
-          "longitude": 105.85,
-          "latitude": -3.0
+          "longitude": -88.025,
+          "latitude": 15.42
         },
         {
-          "longitude": 103.75,
-          "latitude": 1.25
+          "longitude": -86.9,
+          "latitude": 13.8
+        },
+        {
+          "longitude": -86.2362,
+          "latitude": 12.115
         }
       ]
     },
     {
       "id": "shp-133-route",
-      "label": "NAIA Cargo Terminal → Changi Airfreight Centre",
+      "label": "San Salvador Cargo Hub (Nejapa) → San José Central Cargo Hub",
       "shipmentId": "SHP-2026-00133",
       "kind": "planned",
       "layer": "operations",
       "coordinates": [
         {
-          "longitude": 121.0198,
-          "latitude": 14.5086
+          "longitude": -89.2319,
+          "latitude": 13.785
         },
         {
-          "longitude": 103.9915,
-          "latitude": 1.3644
+          "longitude": -86.5,
+          "latitude": 11.8
+        },
+        {
+          "longitude": -84.0833,
+          "latitude": 9.9333
         }
       ]
     },
     {
       "id": "shp-134-route",
-      "label": "Bangkok Logistics Hub → Kuala Lumpur Logistics Hub",
+      "label": "San Pedro Sula Industrial Logistics Park → David Trans-Isthmus Freight Center",
       "shipmentId": "SHP-2026-00134",
       "kind": "alternative",
       "layer": "traffic",
       "coordinates": [
         {
-          "longitude": 100.5018,
-          "latitude": 13.7563
+          "longitude": -88.025,
+          "latitude": 15.42
         },
         {
-          "longitude": 100.474,
-          "latitude": 7.0084
+          "longitude": -85.6128,
+          "latitude": 11.2186
         },
         {
-          "longitude": 101.6869,
-          "latitude": 3.139
+          "longitude": -84.2,
+          "latitude": 10.1
+        },
+        {
+          "longitude": -82.431,
+          "latitude": 8.4273
         }
       ]
     },
     {
       "id": "shp-135-route",
-      "label": "Hai Phong Port → Laem Chabang Port",
+      "label": "Puerto Cortés Atlantic Deep Sea Terminal → Puerto Limón APM Container Terminal",
       "shipmentId": "SHP-2026-00135",
       "kind": "completed",
       "layer": "operations",
       "coordinates": [
         {
-          "longitude": 106.774,
-          "latitude": 20.8449
+          "longitude": -87.9353,
+          "latitude": 15.8278
         },
         {
-          "longitude": 108.1,
-          "latitude": 14.5
+          "longitude": -85.5,
+          "latitude": 12.8
         },
         {
-          "longitude": 100.9,
-          "latitude": 12.65
+          "longitude": -83.0722,
+          "latitude": 9.9982
         }
       ]
     }

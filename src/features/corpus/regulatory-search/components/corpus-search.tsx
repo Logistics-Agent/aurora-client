@@ -45,7 +45,7 @@ export function CorpusSearch() {
           {queryRegulatory.data.results.length === 0 ? (
             <p className="text-sm text-muted-foreground">No approved evidence matched the query.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="max-h-[500px] space-y-3 overflow-y-auto pr-1">
               {queryRegulatory.data.results.map((result) => (
                 <article
                   key={`${result.documentVersionId}:${result.chunkId}`}

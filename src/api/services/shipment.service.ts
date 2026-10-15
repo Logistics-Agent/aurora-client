@@ -214,4 +214,54 @@ export const shipmentService = {
   removeDocument: async (id: string, documentId: string): Promise<ShipmentDto> => {
     return api.delete<ShipmentDto>(`/api/v1/shipments/${id}/documents/${documentId}`);
   },
+
+  assignVehicle: async (
+    id: string,
+    payload: {
+      vehicleId: string;
+      documentIds?: string[];
+    },
+  ): Promise<ShipmentDto> => {
+    return api.post<ShipmentDto>(`/api/v1/shipments/${id}/assign-vehicle`, payload);
+  },
+
+  createUploadSession: async (
+    id: string,
+    payload: {
+      fileName: string;
+      mimeType?: string;
+      fileSize?: number;
+      category?: 'vehicles' | 'documents';
+    }
+  ): Promise<{
+    uploadId: string;
+    storageReference: string;
+    writeUrl: string;
+    requiredHeaders: Record<string, string>;
+    expiresAt: string;
+    category: string;
+    fileName: string;
+  }> => {
+    return api.post(`/api/v1/shipments/${id}/upload-session`, payload);
+  },
+
+  uploadDirect: async (
+    id: string,
+    file: File,
+    category: 'vehicles' | 'documents' = 'documents'
+  ): Promise<{
+    uploadId: string;
+    storageReference: string;
+    storageUrl: string;
+    fileName: string;
+    category: string;
+  }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', category);
+    return api.post(`/api/v1/shipments/${id}/upload-direct`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
+
