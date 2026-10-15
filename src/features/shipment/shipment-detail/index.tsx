@@ -314,15 +314,16 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
   const [copiedEvaluationId, setCopiedEvaluationId] = useState(false);
 
   useEffect(() => {
-    if (effectiveShipment?.id && !complianceEvaluation) {
+    const targetId = shipmentId || shipment?.id;
+    if (targetId && !complianceEvaluation) {
       try {
-        const saved = localStorage.getItem(`compliance_eval_${effectiveShipment.id}`);
+        const saved = localStorage.getItem(`compliance_eval_${targetId}`);
         if (saved) {
           setComplianceEvaluation(JSON.parse(saved));
         }
       } catch {}
     }
-  }, [effectiveShipment?.id, complianceEvaluation]);
+  }, [shipmentId, shipment?.id, complianceEvaluation]);
 
   const handleEvaluateCompliance = async () => {
     setIsEvaluatingCompliance(true);
@@ -387,9 +388,10 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
 
       const result = await complianceService.evaluateCompliance(payload);
       setComplianceEvaluation(result);
-      if (effectiveShipment?.id) {
+      const targetId = shipmentId || shipment?.id;
+      if (targetId) {
         try {
-          localStorage.setItem(`compliance_eval_${effectiveShipment.id}`, JSON.stringify(result));
+          localStorage.setItem(`compliance_eval_${targetId}`, JSON.stringify(result));
         } catch {}
       }
       setTab("compliance");
@@ -1581,7 +1583,7 @@ export function ShipmentDetailPage({ shipmentId }: { shipmentId: string }) {
                     </p>
                   </div>
                   <Link
-                    href={`/assistant?shipmentId=${encodeURIComponent(effectiveShipment.id)}${complianceEvaluation?.evaluationId ? `&evaluationId=${encodeURIComponent(complianceEvaluation.evaluationId)}` : ""}&q=${encodeURIComponent(`Tư vấn quy định hải quan, yêu cầu chứng từ và rủi ro tuân thủ cho lô hàng ${effectiveShipment.trackingNumber || effectiveShipment.id}`)}`}
+                    href={`/assistant?shipmentId=${encodeURIComponent(effectiveShipment?.id || '')}${complianceEvaluation?.evaluationId ? `&evaluationId=${encodeURIComponent(complianceEvaluation.evaluationId)}` : ""}&q=${encodeURIComponent(`Tư vấn quy định hải quan, yêu cầu chứng từ và rủi ro tuân thủ cho lô hàng ${(effectiveShipment as any)?.trackingNumber || (effectiveShipment as any)?.shipmentNumber || effectiveShipment?.id || ''}`)}`}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
                   >
                     Hỏi AI Assistant
